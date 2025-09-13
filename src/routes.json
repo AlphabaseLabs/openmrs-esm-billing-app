@@ -73,6 +73,11 @@
       "slot": "billing-dashboard-group-nav-slot"
     },
     {
+      "component": "paymentHistoryLink",
+      "name": "payment-history-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
       "name": "billable-services-app-menu-item",
       "component": "billableServicesAppMenuItem",
       "slot": "app-menu-item-slot",

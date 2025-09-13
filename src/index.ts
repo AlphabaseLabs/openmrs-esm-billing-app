@@ -77,6 +77,15 @@ export const paymentPointsLink = getSyncLifecycle(
   options,
 );
 
+// t('Payment History', 'Payment History')
+export const paymentHistoryLink = getSyncLifecycle(
+  createLeftPanelLink({
+    name: 'payment-history',
+    title: 'Payment History',
+  }),
+  options,
+);
+
 // Core Components
 export const root = getSyncLifecycle(RootComponent, options);
 export const billingPatientSummary = getSyncLifecycle(BillHistory, options);

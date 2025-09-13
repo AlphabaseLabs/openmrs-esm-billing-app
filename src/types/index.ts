@@ -291,3 +291,26 @@ export type BillingService = {
   uuid: string;
   stockItem?: string;
 };
+
+export interface Filter {
+  paymentMethods?: Array<string>;
+  amountRange?: { min: number; max: number };
+  serviceTypes?: Array<string>;
+  cashiers?: Array<string>;
+  status?: string;
+}
+
+export interface DataTableRow {
+  id: string;
+  cells: Array<Cell>;
+}
+
+export interface Cell {
+  id: string;
+  value: any;
+  info: Info;
+}
+
+export interface Info {
+  header: string;
+}
