@@ -13,38 +13,62 @@ import RootComponent from './root.component';
 import ServiceMetrics from './billable-services/dashboard/service-metrics.component';
 import VisitAttributeTags from './invoice/payments/visit-tags/visit-attribute.component';
 import { ClockIn } from './payment-points/payment-point/clock-in.modal';
+import { createDashboardGroup } from './app-navigation/nav-utils';
+import { Money } from '@carbon/react/icons';
+
+export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
 
 const moduleName = '@openmrs/esm-billing-app';
-
 const options = {
   featureName: 'billing',
   moduleName,
 };
 
-// t('billing', 'Billing')
-export const billingDashboardLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'billing',
-    title: 'Billing',
+// t('Accounting', 'Accounting')
+export const billingDashboardNavGroup = getSyncLifecycle(
+  createDashboardGroup({
+    slotName: 'billing-dashboard-group-nav-slot',
+    title: 'Accounting',
+    icon: null,
+    isExpanded: false,
   }),
   options,
 );
 
-export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
+// t('billing', 'Billing')
+// export const billingDashboardLink = getSyncLifecycle(
+//   createLeftPanelLink({
+//     name: 'billing',
+//     title: 'Billing',
+//   }),
+//   options,
+// );
+
+// Dashboard Links
+export const billingSummaryDashboardLink = getSyncLifecycle(
+  createDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
+  options,
+);
+
+// Navigation Links
+// t('overview', 'Overview')
+export const billingOverviewLink = getSyncLifecycle(
+  createLeftPanelLink({
+    name: 'billing',
+    title: 'Overview',
+  }),
+  options,
+);
 
 export function startupApp() {
   defineConfigSchema(moduleName, configSchema);
 }
 
-export const billingSummaryDashboardLink = getSyncLifecycle(
-  createDashboardLink({ ...dashboardMeta, moduleName }),
-  options,
-);
 // Dont know
 export const billableServicesAppMenuItem = getSyncLifecycle(appMenu, options);
 
 // Admin Dashboard Card
-// export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLink, options);
+export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLink, options);
 
 // Billable Services Home
 export const billableServicesHome = getSyncLifecycle(BillableServiceHome, options);
@@ -69,6 +93,5 @@ export const editBillLineItemDialog = getAsyncLifecycle(() => import('./bill-ite
 
 // t('billingForm', 'Billing form')
 export const billingFormWorkspace = getAsyncLifecycle(() => import('./billing-form/billing-form.component'), options);
-
 
 export const clockIn = getSyncLifecycle(ClockIn, options);

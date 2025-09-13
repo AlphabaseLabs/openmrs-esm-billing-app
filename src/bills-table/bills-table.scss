@@ -3,7 +3,7 @@
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
 .container {
-  margin: layout.$spacing-07 0;
+  margin-top: layout.$spacing-05;
 }
 
 .emptyStateContainer,
@@ -63,7 +63,7 @@
   justify-content: space-between;
 
   &:global(.cds--inline-loading) {
-    max-height: layout.$spacing-05;
+    max-height: 1rem;
   }
 }
 
@@ -104,11 +104,11 @@
 }
 
 .expandedActiveVisitRow td {
-  padding: 0 layout.$spacing-05;
+  padding: 0 2rem;
 }
 
 .expandedActiveVisitRow th[colspan] td[colspan] > div:first-child {
-  padding: 0 layout.$spacing-05;
+  padding: 0 1rem;
 }
 
 .action {
@@ -172,10 +172,18 @@
 .filterEmptyStateContent {
   @include type.type-style('heading-compact-02');
   color: $text-02;
-  margin-bottom: layout.$spacing-03;
+  margin-bottom: 0.5rem;
 }
 
 .filterEmptyStateHelper {
   @include type.type-style('body-compact-01');
   color: $text-02;
+}
+
+.expendableRow {
+  padding-left: 1rem;
+}
+
+.scalpel {
+  cursor: pointer;
 }

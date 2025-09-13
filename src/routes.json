@@ -12,6 +12,29 @@
   ],
   "extensions": [
     {
+      "component": "billingDashboardNavGroup",
+      "name": "billing-dashboard-nav-group",
+      "slot": "homepage-dashboard-slot",
+      "order": 10000,
+      "meta": {
+        "name": "billing",
+        "title": "Accounting",
+        "slot": "billing-dashboard-slot"
+      },
+      "featureFlag": "billing"
+    },
+    {
+      "component": "root",
+      "name": "billing-dashboard-root",
+      "slot": "billing-dashboard-slot"
+    },
+    {
+      "component": "billingOverviewLink",
+      "name": "billing-overview-link",
+      "order": 0,
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
       "component": "billingDashboardLink",
       "name": "billing-dashboard-link",
       "slot": "homepage-dashboard-slot",
