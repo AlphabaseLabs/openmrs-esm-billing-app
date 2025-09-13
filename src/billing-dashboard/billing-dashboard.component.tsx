@@ -13,8 +13,7 @@ import { UserHasAccess } from '@openmrs/esm-framework';
 
 import BillingTabs from '../billing-tabs/billling-tabs.component';
 
-
-export function BillingDashboard() {
+function BillingDashboard() {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().startOf('day').format(omrsDateFormat));
 
@@ -41,3 +40,5 @@ export function BillingDashboard() {
     </SelectedDateContext.Provider>
   );
 }
+
+export default BillingDashboard;

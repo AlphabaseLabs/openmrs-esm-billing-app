@@ -1,98 +1,79 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { ComboBox, InlineLoading, RadioButton, RadioButtonGroup, TextInput } from '@carbon/react';
 import { useConfig } from '@openmrs/esm-framework';
-import { usePaymentMethods } from '../billing-form.resource';
+import React, { useCallback, useEffect } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { usePaymentModes } from '../../billing.resource';
+import { type BillingConfig } from '../../config-schema';
+import { type VisitAttributesFormValue } from '../check-in-form.utils';
 import styles from './visit-attributes-form.scss';
 
 type VisitAttributesFormProps = {
   setAttributes: (state) => void;
-  setPaymentMethod?: (value: any) => void;
 };
 
-type VisitAttributesFormValue = {
-  paymentDetails: string;
-  paymentMethods: string;
-  insuranceScheme: string;
-  policyNumber: string;
-  patientCategory: string;
-};
-
-const visitAttributesFormSchema = z.object({
-  paymentDetails: z.string(),
-  paymentMethods: z.string(),
-  insuranceSchema: z.string(),
-  policyNumber: z.string(),
-  patientCategory: z.string(),
-});
-
-const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes, setPaymentMethod }) => {
+const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes }) => {
   const { t } = useTranslation();
-  const { patientCatergory, catergoryConcepts, nonPayingPatientCategories } = useConfig();
-  const { control, getValues, watch } = useForm<VisitAttributesFormValue>({
-    mode: 'all',
-    defaultValues: {},
-    resolver: zodResolver(visitAttributesFormSchema),
-  });
+  const { insuranceSchemes } = useConfig<BillingConfig>();
+  const { visitAttributeTypes, patientExemptionCategories, insurancePaymentMethod } = useConfig<BillingConfig>();
+  const { setValue, watch, control, getValues, resetField } = useFormContext<VisitAttributesFormValue>();
+  const { paymentModes, isLoading: isLoadingPaymentModes } = usePaymentModes();
+  const [isPatientExempted, paymentMethods] = watch(['isPatientExempted', 'paymentMethods']);
+  const resetFormFieldsForNonExemptedPatients = useCallback(() => {
+    setValue('insuranceScheme', '');
+    setValue('policyNumber', '');
+    setValue('exemptionCategory', '');
+    setValue('paymentMethods', '');
+    resetField('packages');
+    resetField('interventions');
+  }, [setValue, resetField]);
 
-  const [paymentDetails, paymentMethods, insuranceSchema, policyNumber, patientCategory] = watch([
-    'paymentDetails',
-    'paymentMethods',
-    'insuranceScheme',
-    'policyNumber',
-    'patientCategory',
-  ]);
-
-  const { paymentModes, isLoading: isLoadingPaymentModes } = usePaymentMethods();
-  const patientCategoryOptions = useMemo(() => {
-    return Object.entries(nonPayingPatientCategories ?? {}).map(([key, uuid]) => ({
-      text: key,
-      uuid,
-    }));
-  }, [nonPayingPatientCategories]);
+  useEffect(() => {
+    resetFormFieldsForNonExemptedPatients();
+  }, [isPatientExempted, resetFormFieldsForNonExemptedPatients]);
 
   const createVisitAttributesPayload = useCallback(() => {
-    const { paymentDetails, paymentMethods, insuranceScheme, policyNumber, patientCategory } = getValues();
-    setPaymentMethod?.(paymentMethods);
-
+    const values = getValues();
     const formPayload = [
-      { uuid: patientCatergory.paymentDetails, value: paymentDetails },
-      { uuid: patientCatergory.paymentMethods, value: paymentMethods },
-      { uuid: patientCatergory.insuranceScheme, value: insuranceScheme },
-      { uuid: patientCatergory.policyNumber, value: policyNumber },
-      { uuid: patientCatergory.patientCategory, value: patientCategory },
+      { uuid: visitAttributeTypes.isPatientExempted, value: values.isPatientExempted },
+      { uuid: visitAttributeTypes.paymentMethods, value: values.paymentMethods },
+      { uuid: visitAttributeTypes.policyNumber, value: values.policyNumber },
+      { uuid: visitAttributeTypes.insuranceScheme, value: values.insuranceScheme },
+      { uuid: visitAttributeTypes.exemptionCategory, value: values.exemptionCategory },
+      {
+        uuid: visitAttributeTypes.shaBenefitPackagesAndInterventions,
+        value: JSON.stringify({ packages: values.packages, interventions: values.interventions }),
+      },
     ];
-
     const visitAttributesPayload = formPayload.filter(
       (item) => item.value !== undefined && item.value !== null && item.value !== '',
     );
-    return Object.entries(visitAttributesPayload).map(([key, value]) => ({
-      attributeType: value.uuid,
-      value: value.value,
+    return visitAttributesPayload.map(({ uuid, value }) => ({
+      attributeType: uuid,
+      value,
     }));
-  }, [
-    getValues,
-    patientCatergory.insuranceScheme,
-    patientCatergory.patientCategory,
-    patientCatergory.paymentDetails,
-    patientCatergory.paymentMethods,
-    patientCatergory.policyNumber,
-    setPaymentMethod,
+  }, [visitAttributeTypes, getValues]);
+
+  const [policyNumber, exemptionCategory, insuranceScheme, interventions, packages] = watch([
+    'policyNumber',
+    'exemptionCategory',
+    'insuranceScheme',
+    'interventions',
+    'packages',
   ]);
 
   useEffect(() => {
     setAttributes(createVisitAttributesPayload());
   }, [
-    paymentDetails,
+    isPatientExempted,
     paymentMethods,
-    insuranceSchema,
-    policyNumber,
-    patientCategory,
     setAttributes,
     createVisitAttributesPayload,
+    policyNumber,
+    exemptionCategory,
+    insuranceScheme,
+    interventions,
+    packages,
   ]);
 
   if (isLoadingPaymentModes) {
@@ -107,89 +88,107 @@ const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes
 
   return (
     <section>
-      <div className={styles.sectionTitle}>{t('paymentDetails', 'Payment Details')}</div>
-      <Controller
-        name="paymentDetails"
-        control={control}
-        render={({ field }) => (
-          <RadioButtonGroup
-            onChange={(selected) => field.onChange(selected)}
-            orientation="vertical"
-            legendText={t('paymentDetails', 'Payment Details')}
-            name="payment-details">
-            <RadioButton labelText="Paying" value={catergoryConcepts.payingDetails} id="radio-1" />
-            <RadioButton labelText="Non paying" value={catergoryConcepts.nonPayingDetails} id="radio-2" />
-          </RadioButtonGroup>
+      <div className={styles.sectionTitle}>{t('modeOfPayment', 'Mode of payment')}</div>
+      <div className={styles.sectionField}>
+        <div className={styles.sectionFieldLayer}>
+          <Controller
+            name="isPatientExempted"
+            control={control}
+            render={({ field }) => (
+              <RadioButtonGroup
+                onChange={(selected) => {
+                  field.onChange(selected);
+                }}
+                orientation="horizontal"
+                legendText={t('isPatientExemptedLegend', 'Is patient exempted from payment?')}
+                name="patientExemption">
+                <RadioButton labelText={t('yes', 'Yes')} value="true" id="Yes" />
+                <RadioButton labelText={t('no', 'No')} value="false" id="No" />
+              </RadioButtonGroup>
+            )}
+          />
+        </div>
+
+        {isPatientExempted === 'true' && (
+          <div className={styles.sectionFieldLayer}>
+            <Controller
+              control={control}
+              name="exemptionCategory"
+              render={({ field }) => (
+                <ComboBox
+                  className={styles.sectionField}
+                  onChange={({ selectedItem }) => field.onChange(selectedItem?.value)}
+                  id="exemptionCategory"
+                  items={patientExemptionCategories}
+                  itemToString={(item) => (item ? item.label : '')}
+                  titleText={t('exemptionCategory', 'Exemption category')}
+                  placeholder={t('selectExemptionCategory', 'Select exemption category')}
+                />
+              )}
+            />
+          </div>
         )}
-      />
 
-      {paymentDetails === catergoryConcepts.payingDetails && (
-        <Controller
-          control={control}
-          name="paymentMethods"
-          render={({ field }) => (
-            <ComboBox
-              className={styles.sectionField}
-              onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid)}
-              id="paymentMethods"
-              items={paymentModes}
-              itemToString={(item) => (item ? item.name : '')}
-              titleText={t('paymentMethods', 'Payment methods')}
-              placeholder={t('selectPaymentMethod', 'Select payment method')}
+        {isPatientExempted === 'false' && (
+          <div className={styles.sectionFieldLayer}>
+            <Controller
+              control={control}
+              name="paymentMethods"
+              render={({ field }) => (
+                <ComboBox
+                  className={styles.sectionField}
+                  onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                  initialSelectedItem={field.value}
+                  id="paymentMethods"
+                  items={paymentModes?.map((method) => method.uuid)}
+                  itemToString={(item) => paymentModes.find((mode) => mode.uuid === item)?.name ?? ''}
+                  titleText={t('paymentMethodsTitle', 'Payment method')}
+                  placeholder={t('selectPaymentMethod', 'Select payment method')}
+                />
+              )}
             />
-          )}
-        />
-      )}
+          </div>
+        )}
 
-      {paymentMethods === catergoryConcepts.insuranceDetails && paymentDetails === catergoryConcepts.payingDetails && (
-        <>
-          <Controller
-            control={control}
-            name="insuranceScheme"
-            render={({ field }) => (
-              <TextInput
-                className={styles.sectionField}
-                onChange={(e) => field.onChange(e.target.value)}
-                id="insurance-scheme"
-                type="text"
-                labelText={t('insuranceScheme', 'Insurance scheme')}
+        {paymentMethods === insurancePaymentMethod && isPatientExempted === 'false' && (
+          <>
+            <div className={styles.sectionFieldLayer}>
+              <Controller
+                control={control}
+                name="insuranceScheme"
+                render={({ field }) => (
+                  <ComboBox
+                    className={styles.sectionField}
+                    onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                    id="insurance-scheme"
+                    items={insuranceSchemes}
+                    itemToString={(item) => (item ? item : '')}
+                    titleText={t('insuranceScheme', 'Insurance scheme')}
+                    placeholder={t('selectInsuranceScheme', 'Select insurance scheme')}
+                  />
+                )}
               />
-            )}
-          />
-          <Controller
-            control={control}
-            name="policyNumber"
-            render={({ field }) => (
-              <TextInput
-                className={styles.sectionField}
-                onChange={(e) => field.onChange(e.target.value)}
-                {...field}
-                id="policy-number"
-                type="text"
-                labelText={t('policyNumber', 'Policy number')}
+            </div>
+            <div className={styles.sectionFieldLayer}>
+              <Controller
+                control={control}
+                name="policyNumber"
+                render={({ field }) => (
+                  <TextInput
+                    {...field}
+                    className={styles.sectionField}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    id="policy-number"
+                    type="text"
+                    labelText={t('policyNumber', 'Policy number')}
+                    placeholder={t('enterPolicyNumber', 'Enter policy number')}
+                  />
+                )}
               />
-            )}
-          />
-        </>
-      )}
-
-      {paymentDetails === catergoryConcepts.nonPayingDetails && (
-        <Controller
-          control={control}
-          name="patientCategory"
-          render={({ field }) => (
-            <ComboBox
-              className={styles.sectionField}
-              onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid)}
-              id="patientCategory"
-              items={patientCategoryOptions}
-              itemToString={(item) => (item ? item.text : '')}
-              titleText={t('patientCategory', 'Patient category')}
-              placeholder={t('selectPatientCategory', 'Select patient category')}
-            />
-          )}
-        />
-      )}
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 };

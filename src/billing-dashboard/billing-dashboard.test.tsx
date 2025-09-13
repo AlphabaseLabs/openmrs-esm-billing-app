@@ -1,6 +1,6 @@
 import React from 'react';
 import { screen, render } from '@testing-library/react';
-import { BillingDashboard } from './billing-dashboard.component';
+import BillingDashboard from './billing-dashboard.component';
 
 test('renders an empty state when there are no billing records', () => {
   renderBillingDashboard();

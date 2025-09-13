@@ -35,22 +35,6 @@
       "slot": "billing-dashboard-group-nav-slot"
     },
     {
-      "component": "billingDashboardLink",
-      "name": "billing-dashboard-link",
-      "slot": "homepage-dashboard-slot",
-      "meta": {
-        "name": "billing",
-        "title": "billing",
-        "slot": "billing-dashboard-slot"
-      },
-      "featureFlag": "billing"
-    },
-    {
-      "component": "root",
-      "name": "billing-dashboard-root",
-      "slot": "billing-dashboard-slot"
-    },
-    {
       "name": "billing-patient-summary",
       "component": "billingPatientSummary",
       "slot": "patient-chart-billing-dashboard-slot",
@@ -60,11 +44,16 @@
       }
     },
     {
-      "name": "billable-services-app-menu-item",
-      "component": "billableServicesAppMenuItem",
-      "slot": "app-menu-item-slot",
+      "name": "billing-summary-dashboard-link",
+      "component": "billingSummaryDashboardLink",
+      "slot": "patient-chart-dashboard-slot",
+      "order": 11,
       "meta": {
-        "name": "Billable Services"
+        "columns": 1,
+        "columnSpan": 1,
+        "slot": "patient-chart-billing-dashboard-slot",
+        "path": "Billing",
+        "layoutMode": "anchored"
       }
     },
     {
@@ -72,6 +61,24 @@
       "slot": "extra-visit-attribute-slot",
       "component": "billingCheckInForm",
       "featureFlag": "billing"
+    },
+    {
+      "component": "billDepositDashboardLink",
+      "name": "bill-deposit-dashboard-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "paymentPointsLink",
+      "name": "payment-points-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "name": "billable-services-app-menu-item",
+      "component": "billableServicesAppMenuItem",
+      "slot": "app-menu-item-slot",
+      "meta": {
+        "name": "Billable Services"
+      }
     },
     {
       "slot": "system-admin-page-card-link-slot",
@@ -98,20 +105,69 @@
   ],
   "modals": [
     {
-      "name": "require-billing-modal",
-      "component": "requirePaymentModal"
+      "name": "create-payment-point",
+      "component": "createPaymentPoint"
+    },
+    {
+      "name": "clock-out-modal",
+      "component": "clockOut"
     },
     {
       "name": "clock-in-modal",
       "component": "clockIn"
+    },
+    {
+      "name": "bulk-import-billable-services-modal",
+      "component": "bulkImportBillableServicesModal"
+    },
+    {
+      "name": "delete-payment-mode-modal",
+      "component": "deletePaymentModeModal"
+    },
+    {
+      "name": "manage-claim-request-modal",
+      "component": "manageClaimRequestModal"
+    },
+    {
+      "name": "create-bill-item-modal",
+      "component": "createBillItemModal"
+    },
+    {
+      "name": "delete-deposit-modal",
+      "component": "deleteDepositModal"
+    },
+    {
+      "name": "reverse-transaction-modal",
+      "component": "reverseTransactionModal"
+    },
+    {
+      "name": "print-preview-modal",
+      "component": "printPreviewModal"
+    },
+    {
+      "name": "bill-action-modal",
+      "component": "billActionModal"
     }
   ],
   "workspaces": [
     {
-      "name": "billing-form-workspace",
-      "title": "billingForm",
-      "component": "billingFormWorkspace",
-      "type": "form"
+      "name": "billing-form",
+      "component": "billingForm",
+      "title": "Billing Form",
+      "type": "other-form",
+      "width": "extra-wide"
+    },
+    {
+      "name": "add-deposit-workspace",
+      "component": "addDepositWorkspace",
+      "title": "Add Deposit",
+      "type": "other-form"
+    },
+    {
+      "name": "deposit-transaction-workspace",
+      "component": "depositTransactionWorkspace",
+      "title": "Deposit Transaction",
+      "type": "other-form"
     }
   ],
   "featureFlags": [

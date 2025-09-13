@@ -2,10 +2,10 @@ import { Type, validators } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
   enforceBillPayment: {
-    _type: Type.Boolean,
-    _default: true,
-    _description: 'Whether to enforce bill payment or not for patient to receive service',
-  },
+    _type: Type.Boolean;
+    _default: true;
+    _description: 'Whether to enforce bill payment or not for patient to receive service';
+  };
   localeCurrencyMapping: Record<string, string>;
   promptDuration: {
     enable: boolean;
@@ -15,7 +15,20 @@ export interface BillingConfig {
   excludedPaymentMode: Array<{ uuid: string; label: string }>;
   inPatientVisitTypeUuid: string;
   paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
-
+  cashPointUuid: string;
+  cashierUuid: string;
+  insuranceSchemes: Array<string>;
+  visitAttributeTypes: {
+    isPatientExempted: string;
+    paymentMethods: string;
+    insuranceScheme: string;
+    policyNumber: string;
+    exemptionCategory: string;
+    billPaymentStatus: string;
+    shaBenefitPackagesAndInterventions: string;
+  };
+  patientExemptionCategories: Array<{ value: string; label: string }>;
+  insurancePaymentMethod: string;
 }
 
 export const configSchema = {
@@ -153,6 +166,51 @@ export const configSchema = {
       _type: Type.String,
     },
     _default: ['beac329b-f1dc-4a33-9e7c-d95821a137a6'],
+  },
+  cashPointUuid: {
+    _type: Type.String,
+    _description: 'Where bill is generated from',
+    _default: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+  },
+  cashierUuid: {
+    _type: Type.String,
+    _description: 'Who Generated the bill',
+    _default: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+  },
+  insuranceSchemes: {
+    _type: Type.Array,
+    _elements: {
+      _type: Type.String,
+    },
+    _default: ['SHA', 'Jubilee Insurance', 'AAR Insurance', 'Old Mutual Insurance'],
+    _description: 'List of insurance schemes',
+  },
+  visitAttributeTypes: {
+    isPatientExempted: {
+      _type: Type.String,
+      _default: '3b9dfac8-9e4d-11ee-8c90-0242ac120002',
+      _description: 'Whether the patient should be exempted from paying for service i.e Prisoners',
+    },
+  },
+  patientExemptionCategories: {
+    _type: Type.Array,
+    _elements: {
+      value: {
+        _type: Type.String,
+        _description: 'The value of the exemption category',
+      },
+      label: {
+        _type: Type.String,
+        _default: null,
+        _description: 'The label of the exemption category',
+      },
+    },
+    _default: [{ value: 'FREE_CARE', label: 'Free Care' }],
+  },
+  insurancePaymentMethod: {
+    _type: Type.String,
+    _description: 'Insurance Payment method UUID',
+    _default: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
   },
 };
 

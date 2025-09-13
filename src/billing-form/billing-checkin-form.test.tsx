@@ -1,8 +1,8 @@
 import React from 'react';
-import userEvent from '@testing-library/user-event';
 import { screen, render } from '@testing-library/react';
-import { useBillableItems, useCashPoint, createPatientBill, usePaymentMethods } from './billing-form.resource';
 import BillingCheckInForm from './billing-checkin-form.component';
+import { useBillableItems, useCashPoint, createPatientBill, usePaymentModes } from '../billing.resource';
+import userEvent from '@testing-library/user-event';
 
 const mockCashPoints = [
   {
@@ -42,16 +42,14 @@ const mockBillableItems = [
 
 const mockUseCashPoint = useCashPoint as jest.MockedFunction<typeof useCashPoint>;
 const mockUseBillableItems = useBillableItems as jest.MockedFunction<typeof useBillableItems>;
-const mockCreatePatientBill = createPatientBill as jest.MockedFunction<typeof createPatientBill>;
-const mockusePaymentMethods = usePaymentMethods as jest.MockedFunction<typeof usePaymentMethods>;
 
-jest.mock('./billing-form.resource', () => ({
+jest.mock('../billing.resource', () => ({
   useBillableItems: jest.fn(),
   useCashPoint: jest.fn(),
   createPatientBill: jest.fn(),
 }));
 
-const testProps = { patientUuid: 'some-patient-uuid', setExtraVisitInfo: jest.fn() };
+const testProps = { patientUuid: 'some-patient-uuid', setBillingInfo: jest.fn(), setExtraVisitInfo: jest.fn() };
 
 xdescribe('BillingCheckInForm', () => {
   beforeEach(() => {
@@ -59,7 +57,13 @@ xdescribe('BillingCheckInForm', () => {
   });
 
   test('should show the loading spinner while retrieving data', () => {
-    mockUseBillableItems.mockReturnValueOnce({ lineItems: [], isLoading: true, error: null });
+    mockUseBillableItems.mockReturnValueOnce({
+      lineItems: [],
+      isLoading: true,
+      error: null,
+      searchTerm: '',
+      setSearchTerm: jest.fn(),
+    });
     mockUseCashPoint.mockReturnValueOnce({ cashPoints: [], isLoading: true, error: null });
     renderBillingCheckinForm();
 
@@ -68,7 +72,13 @@ xdescribe('BillingCheckInForm', () => {
 
   test('should show error state when an error occurs while fetching data', () => {
     const error = new Error('Internal server error');
-    mockUseBillableItems.mockReturnValueOnce({ lineItems: [], isLoading: false, error });
+    mockUseBillableItems.mockReturnValueOnce({
+      lineItems: [],
+      isLoading: true,
+      error: null,
+      searchTerm: '',
+      setSearchTerm: jest.fn(),
+    });
     mockUseCashPoint.mockReturnValueOnce({ cashPoints: [], isLoading: false, error });
     renderBillingCheckinForm();
 
@@ -79,7 +89,13 @@ xdescribe('BillingCheckInForm', () => {
   test('should render the form correctly and generate the required payload', async () => {
     const user = userEvent.setup();
     mockUseCashPoint.mockReturnValue({ cashPoints: [], isLoading: false, error: null });
-    mockUseBillableItems.mockReturnValue({ lineItems: mockBillableItems, isLoading: false, error: null });
+    mockUseBillableItems.mockReturnValueOnce({
+      lineItems: mockBillableItems,
+      isLoading: true,
+      error: null,
+      searchTerm: '',
+      setSearchTerm: jest.fn(),
+    });
     renderBillingCheckinForm();
 
     const paymentTypeSelect = screen.getByRole('group', { name: 'Payment Details' });
@@ -95,8 +111,8 @@ xdescribe('BillingCheckInForm', () => {
 
     await user.click(screen.getByText('Lab Testing'));
 
-    expect(testProps.setExtraVisitInfo).toHaveBeenCalled();
-    expect(testProps.setExtraVisitInfo).toHaveBeenCalledWith({
+    expect(testProps.setBillingInfo).toHaveBeenCalled();
+    expect(testProps.setBillingInfo).toHaveBeenCalledWith({
       createBillPayload: {
         lineItems: [
           {
@@ -114,15 +130,11 @@ xdescribe('BillingCheckInForm', () => {
         status: 'PENDING',
         payments: [],
       },
-      handleCreateExtraVisitInfo: expect.anything(),
+      handleCreateBill: expect.anything(),
       attributes: [
         {
           attributeType: 'caf2124f-00a9-4620-a250-efd8535afd6d',
-          value: '1c30ee58-82d4-4ea4-a8c1-4bf2f9dfc8cf',
-        },
-        {
-          attributeType: '919b51c9-8e2e-468f-8354-181bf3e55786',
-          value: true,
+          value: '1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         },
       ],
     });

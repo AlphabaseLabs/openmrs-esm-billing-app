@@ -1,4 +1,4 @@
-import { OpenmrsResource } from '@openmrs/esm-framework';
+import { type OpenmrsResource } from '@openmrs/esm-framework';
 import { type Drug, type OrderBasketItem } from '@openmrs/esm-patient-common-lib';
 
 export interface MappedBill {
@@ -136,7 +136,6 @@ export interface Payment {
   resourceVersion: string;
 }
 
-
 export interface PatientDetails {
   name: string;
   age: string;
@@ -239,7 +238,6 @@ export interface Creator {
   links: Link[];
 }
 
-
 export interface AuditInfo {
   creator: Creator;
   dateCreated: string;
@@ -283,3 +281,13 @@ export interface PatientInvoice {
   balance?: number;
   closed?: boolean;
 }
+
+export type BillingService = {
+  name: string;
+  servicePrices: Array<{ name: string; paymentMode: { uuid: string; name: string }; price: number; uuid: string }>;
+  serviceStatus: string;
+  serviceType: { display: string };
+  shortName: string;
+  uuid: string;
+  stockItem?: string;
+};

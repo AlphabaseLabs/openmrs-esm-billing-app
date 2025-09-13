@@ -14,3 +14,7 @@
 .cashPoint {
   margin: layout.$spacing-05 0;
 }
+
+.container {
+  height: calc(100vh - 3rem);
+}

@@ -7,6 +7,7 @@ import appMenu from './billable-services/billable-services-menu-item/item.compon
 import BillableServiceHome from './billable-services/billable-services-home.component';
 import BillableServicesCardLink from './billable-services-admin-card-link.component';
 import BillHistory from './bill-history/bill-history.component';
+import BillingForm from './billing-form/billing-form.component';
 import BillingCheckInForm from './billing-form/billing-checkin-form.component';
 import RequirePaymentModal from './modal/require-payment-modal.component';
 import RootComponent from './root.component';
@@ -15,6 +16,13 @@ import VisitAttributeTags from './invoice/payments/visit-tags/visit-attribute.co
 import { ClockIn } from './payment-points/payment-point/clock-in.modal';
 import { createDashboardGroup } from './app-navigation/nav-utils';
 import { Money } from '@carbon/react/icons';
+import BillDepositSearch from './bill-deposit/components/search/bill-deposit-search.component';
+import AddDepositWorkspace from './bill-deposit/components/forms/add-deposit.workspace';
+import DeleteDepositModal from './bill-deposit/components/modal/delete-deposit.modal';
+import DepositTransactionWorkspace from './bill-deposit/components/forms/deposit-transactions/deposit-transaction.workspace';
+import ReverseTransactionModal from './bill-deposit/components/modal/reverse-transaction.modal';
+import { ClockOut } from './payment-points/payment-point/clock-out.modal';
+import { CreatePaymentPoint } from './payment-points/create-payment-point.component';
 
 export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
 
@@ -35,15 +43,6 @@ export const billingDashboardNavGroup = getSyncLifecycle(
   options,
 );
 
-// t('billing', 'Billing')
-// export const billingDashboardLink = getSyncLifecycle(
-//   createLeftPanelLink({
-//     name: 'billing',
-//     title: 'Billing',
-//   }),
-//   options,
-// );
-
 // Dashboard Links
 export const billingSummaryDashboardLink = getSyncLifecycle(
   createDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
@@ -54,11 +53,51 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
 // t('overview', 'Overview')
 export const billingOverviewLink = getSyncLifecycle(
   createLeftPanelLink({
-    name: 'billing',
+    name: '',
     title: 'Overview',
   }),
   options,
 );
+
+// t('Bill Deposit', 'Bill Deposit')
+export const billDepositDashboardLink = getSyncLifecycle(
+  createLeftPanelLink({
+    name: 'bill-deposit',
+    title: 'Bill Deposit',
+  }),
+  options,
+);
+
+// t('Payment Points', 'Payment Points')
+export const paymentPointsLink = getSyncLifecycle(
+  createLeftPanelLink({
+    name: 'payment-points',
+    title: 'Payment Points',
+  }),
+  options,
+);
+
+// Core Components
+export const root = getSyncLifecycle(RootComponent, options);
+export const billingPatientSummary = getSyncLifecycle(BillHistory, options);
+export const billingCheckInForm = getSyncLifecycle(BillingCheckInForm, options);
+export const billingForm = getSyncLifecycle(BillingForm, options);
+export const billingDashboard = getAsyncLifecycle(
+  () => import('./billing-dashboard/billing-dashboard.component'),
+  options,
+);
+
+// Bill Deposit Components
+export const billDepositSearch = getSyncLifecycle(BillDepositSearch, options);
+export const addDepositWorkspace = getSyncLifecycle(AddDepositWorkspace, options);
+export const deleteDepositModal = getSyncLifecycle(DeleteDepositModal, options);
+export const depositTransactionWorkspace = getSyncLifecycle(DepositTransactionWorkspace, options);
+export const reverseTransactionModal = getSyncLifecycle(ReverseTransactionModal, options);
+
+// Payment Points Components
+export const createPaymentPoint = getSyncLifecycle(CreatePaymentPoint, options);
+export const clockIn = getSyncLifecycle(ClockIn, options);
+export const clockOut = getSyncLifecycle(ClockOut, options);
 
 export function startupApp() {
   defineConfigSchema(moduleName, configSchema);
@@ -73,14 +112,7 @@ export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLin
 // Billable Services Home
 export const billableServicesHome = getSyncLifecycle(BillableServiceHome, options);
 
-//
-export const billingCheckInForm = getSyncLifecycle(BillingCheckInForm, options);
-
-export const billingPatientSummary = getSyncLifecycle(BillHistory, options);
-
 export const requirePaymentModal = getSyncLifecycle(RequirePaymentModal, options);
-
-export const root = getSyncLifecycle(RootComponent, options);
 
 export const serviceMetrics = getSyncLifecycle(ServiceMetrics, options);
 
@@ -90,8 +122,3 @@ export const editBillLineItemDialog = getAsyncLifecycle(() => import('./bill-ite
   featureName: 'edit bill line item',
   moduleName,
 });
-
-// t('billingForm', 'Billing form')
-export const billingFormWorkspace = getAsyncLifecycle(() => import('./billing-form/billing-form.component'), options);
-
-export const clockIn = getSyncLifecycle(ClockIn, options);

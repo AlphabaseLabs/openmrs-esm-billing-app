@@ -16,7 +16,7 @@ export const PaymentPoints = () => {
   };
 
   return (
-    <div>
+    <div className={styles.container}>
       <BillingHeader title={t('paymentPoints', 'Payment Points')} />
       <div className={styles.paymentPoints}>
         <Button onClick={() => openPaymentPointModal()} className={styles.createPaymentPointButton}>
