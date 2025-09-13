@@ -1,30 +1,35 @@
-import React, { useMemo } from 'react';
-import { InlineLoading } from '@carbon/react';
-import { useTranslation } from 'react-i18next';
+import { InlineLoading, Layer, Tile } from '@carbon/react';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
+import classNames from 'classnames';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBills } from '../billing.resource';
-import { useBillMetrics } from './metrics.resource';
-import Card from './card.component';
 import styles from './metrics-cards.scss';
+import { useBillMetrics } from './metrics.resource';
 
 export default function MetricsCards() {
   const { t } = useTranslation();
   const { bills, isLoading, error } = useBills('');
-  const { cumulativeBills, pendingBills, paidBills } = useBillMetrics(bills);
+  const { totalBills, pendingBills, paidBills, exemptedBills } = useBillMetrics(bills);
 
   const cards = useMemo(
     () => [
-      { title: 'Cumulative Bills', count: cumulativeBills },
-      { title: 'Pending Bills', count: pendingBills },
-      { title: 'Paid Bills', count: paidBills },
+      { title: t('todayTotalBills', "Today's Total Bills"), count: totalBills },
+      { title: t('todayPaidBills', "Today's Paid Bills"), count: paidBills },
+      { title: t('todayPendingBills', "Today's Pending Bills"), count: pendingBills },
+      { title: t('todayExemptedBills', "Today's Exempted Bills"), count: exemptedBills },
     ],
-    [cumulativeBills, pendingBills, paidBills],
+    [totalBills, paidBills, pendingBills, exemptedBills],
   );
 
   if (isLoading) {
     return (
       <section className={styles.container}>
-        <InlineLoading status="active" iconDescription="Loading" description="Loading bill metrics..." />
+        <InlineLoading
+          status="active"
+          iconDescription="Loading"
+          description={t('loadingBillMetrics', 'Loading bill metrics...')}
+        />
       </section>
     );
   }
@@ -35,7 +40,18 @@ export default function MetricsCards() {
   return (
     <section className={styles.container}>
       {cards.map((card) => (
-        <Card key={card.title} title={card.title} count={card.count} />
+        <Layer key={card.title} className={classNames(styles.cardContainer)}>
+          <Tile className={styles.tileContainer}>
+            <div className={styles.tileHeader}>
+              <div className={styles.headerLabelContainer}>
+                <label className={styles.headerLabel}>{card.title}</label>
+              </div>
+            </div>
+            <div>
+              <p className={styles.totalsValue}>{card.count}</p>
+            </div>
+          </Tile>
+        </Layer>
       ))}
     </section>
   );

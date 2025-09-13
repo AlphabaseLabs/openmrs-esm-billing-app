@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { showSnackbar } from '@openmrs/esm-framework';
-import { type MappedBill } from '../types';
+import { type MappedBill, PaymentStatus } from '../types';
 import { updateBillItems } from '../billing.resource';
 import ChangeStatus from './edit-bill-item.component';
 
@@ -31,7 +31,7 @@ const mockBill: MappedBill = {
   },
   cashPointUuid: 'cashpoint-uuid',
   cashPointLocation: 'Main Location',
-  status: 'PENDING',
+  status: PaymentStatus.PENDING,
   lineItems: [
     {
       uuid: 'item-uuid',
@@ -46,10 +46,18 @@ const mockBill: MappedBill = {
       lineItemOrder: 1,
       resourceVersion: '1.0',
       item: 'Test Item',
-      paymentStatus: 'PENDING',
+      paymentStatus: PaymentStatus.PENDING,
+      itemOrServiceConceptUuid: 'concept-uuid',
+      serviceTypeUuid: 'service-type-uuid',
+      order: {
+        uuid: 'order-uuid',
+        display: 'Test Order',
+        links: []
+      },
     },
   ],
   dateCreated: new Date().toISOString(),
+  dateCreatedUnformatted: new Date().toISOString(),
   billingService: 'billing-service-uuid',
   payments: [],
   patientName: 'John Doe',
@@ -63,7 +71,7 @@ const mockItem = {
   quantity: 2,
   price: 100,
   billableService: 'service-uuid',
-  paymentStatus: 'UNPAID',
+  paymentStatus: PaymentStatus.PENDING,
   item: 'Test Service',
   display: 'Test Service',
   voided: false,
@@ -72,6 +80,13 @@ const mockItem = {
   priceUuid: 'price-uuid',
   lineItemOrder: 1,
   resourceVersion: '1.0',
+  itemOrServiceConceptUuid: 'concept-uuid',
+  serviceTypeUuid: 'service-type-uuid',
+  order: {
+    uuid: 'order-uuid',
+    display: 'Test Order',
+    links: []
+  },
 };
 
 describe('ChangeStatus component', () => {

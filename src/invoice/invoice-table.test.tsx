@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { showModal } from '@openmrs/esm-framework';
 import InvoiceTable from './invoice-table.component';
-import { type MappedBill } from '../types';
+import { type MappedBill, PaymentStatus } from '../types';
 
 // Mocking dependencies
 jest.mock('react-i18next', () => ({
@@ -49,7 +49,7 @@ describe('InvoiceTable', () => {
       {
         uuid: '1',
         item: 'Item 1',
-        paymentStatus: 'PAID',
+        paymentStatus: PaymentStatus.PAID,
         quantity: 1,
         price: 100,
         display: '',
@@ -60,11 +60,14 @@ describe('InvoiceTable', () => {
         priceUuid: '',
         lineItemOrder: 0,
         resourceVersion: '',
+        itemOrServiceConceptUuid: 'concept-uuid-1',
+        serviceTypeUuid: 'service-type-uuid-1',
+        order: { uuid: 'order-uuid-1', display: 'Order 1', links: [] },
       },
       {
         uuid: '2',
         item: 'Item 2',
-        paymentStatus: 'PENDING',
+        paymentStatus: PaymentStatus.PENDING,
         quantity: 2,
         price: 200,
         display: '',
@@ -75,6 +78,9 @@ describe('InvoiceTable', () => {
         priceUuid: '',
         lineItemOrder: 0,
         resourceVersion: '',
+        itemOrServiceConceptUuid: 'concept-uuid-2',
+        serviceTypeUuid: 'service-type-uuid-2',
+        order: { uuid: 'order-uuid-2', display: 'Order 2', links: [] },
       },
     ],
     receiptNumber: '12345',
@@ -86,9 +92,10 @@ describe('InvoiceTable', () => {
       display: 'John Doe',
       links: [],
     },
-    status: 'PAID',
+    status: PaymentStatus.PAID,
     identifier: 'receipt-identifier',
     dateCreated: new Date().toISOString(),
+    dateCreatedUnformatted: new Date().toISOString(),
     billingService: 'billing-service-uuid',
     payments: [],
     totalAmount: 300,

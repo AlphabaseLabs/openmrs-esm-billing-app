@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { useVisit, useConfig, navigate } from '@openmrs/esm-framework';
 import { useBillableServices } from '../../billable-services/billable-service.resource';
-import { type MappedBill, type LineItem } from '../../types';
+import { type MappedBill, type LineItem, PaymentStatus } from '../../types';
 import Payments from './payments.component';
 
 // Add this mock for currency formatting
@@ -76,9 +76,10 @@ describe('Payments', () => {
       },
     ],
     receiptNumber: '12345',
-    status: 'PAID',
+    status: PaymentStatus.PAID,
     identifier: 'invoice-123',
     dateCreated: '2023-09-01T12:00:00Z',
+    dateCreatedUnformatted: '2023-09-01T12:00:00Z',
     lineItems: [],
     billingService: 'Billing Service',
   };

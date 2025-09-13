@@ -1,4 +1,6 @@
-import { type Payment, type LineItem } from '../types';
+import dayjs from 'dayjs';
+import { Payment, LineItem } from '../types';
+import { formatCurrency } from './currency';
 
 // amount already paid
 export function calculateTotalAmountTendered(payments: Array<Payment>) {
@@ -32,20 +34,7 @@ export function calculateTotalAmount(lineItems: Array<LineItem>) {
 }
 
 export const convertToCurrency = (amountToConvert: number, currencyType?: string) => {
-  const locale = window.i18next?.language?.substring(0, 2) ?? '';
-  const formatter = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currencyType,
-    minimumFractionDigits: 2,
-  });
-
-  let formattedAmount = formatter.format(Math.abs(amountToConvert));
-
-  if (amountToConvert < 0) {
-    formattedAmount = `(${formattedAmount})`;
-  }
-
-  return formattedAmount;
+  return formatCurrency(amountToConvert);
 };
 
 export const getGender = (gender: string, t) => {
@@ -62,3 +51,33 @@ export const getGender = (gender: string, t) => {
       return gender;
   }
 };
+
+/**
+ * Extracts and returns the substring after the first colon (:) in the input string.
+ * If there's no colon or the input is invalid, returns the original string.
+ * The input string is typically in the format "uuid:string".
+ *
+ * @param {string} input - The input string from which the substring is to be extracted.
+ * @returns {string} The substring found after the first colon, or the original string if no colon is present.
+ */
+export function extractString(input: string): string {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
+
+  const parts = input.split(':');
+  return parts.length > 1 ? parts[1] : input;
+}
+
+// cleans the provider display name
+export function extractNameString(formattedString: string) {
+  if (!formattedString) {
+    return '';
+  }
+  const parts = formattedString.split(' - ');
+  return parts.length > 1 ? parts[1] : '';
+}
+
+export function formatDate(date) {
+  return dayjs(date).format('YYYY-MM-DD');
+}

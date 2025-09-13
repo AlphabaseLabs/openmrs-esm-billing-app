@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { useConfig } from '@openmrs/esm-framework';
 import PaymentHistory from './payment-history.component';
-import { type MappedBill } from '../../../types';
+import { type MappedBill, PaymentStatus } from '../../../types';
 
 // Mocking useConfig to return a default currency
 jest.mock('@openmrs/esm-framework', () => ({
@@ -73,9 +73,10 @@ describe('PaymentHistory Component', () => {
       },
     ],
     receiptNumber: '12345',
-    status: 'PAID',
+    status: PaymentStatus.PAID,
     identifier: 'invoice-123',
     dateCreated: '2023-09-01T12:00:00Z',
+    dateCreatedUnformatted: '2023-09-01T12:00:00Z',
     lineItems: [],
     billingService: 'Billing Service',
   };
@@ -101,9 +102,10 @@ describe('PaymentHistory Component', () => {
     },
     payments: [],
     receiptNumber: '12346',
-    status: 'PENDING',
+    status: PaymentStatus.PENDING,
     identifier: 'invoice-124',
     dateCreated: '2023-09-02T10:00:00Z',
+    dateCreatedUnformatted: '2023-09-02T10:00:00Z',
     lineItems: [],
     billingService: 'Billing Service',
   };

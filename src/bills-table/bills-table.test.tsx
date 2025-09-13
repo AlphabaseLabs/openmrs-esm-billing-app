@@ -2,6 +2,7 @@ import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@testing-library/react';
 import { useBills } from '../billing.resource';
+import { PaymentStatus } from '../types';
 import BillsTable from './bills-table.component';
 
 jest.mock('react-i18next', () => ({
@@ -18,8 +19,25 @@ const mockBillsData = [
     visitType: 'Checkup',
     patientUuid: 'uuid1',
     dateCreated: '2024-01-01',
-    lineItems: [{ billableService: 'Service 1' }],
-    status: 'PENDING',
+    lineItems: [{
+      uuid: 'item-1',
+      display: 'Service 1',
+      voided: false,
+      voidReason: null,
+      item: 'Service 1',
+      billableService: 'service-1',
+      quantity: 1,
+      price: 100,
+      priceName: 'Default',
+      priceUuid: 'price-1',
+      lineItemOrder: 1,
+      resourceVersion: '1.0',
+      paymentStatus: PaymentStatus.PENDING,
+      itemOrServiceConceptUuid: 'concept-1',
+      serviceTypeUuid: 'service-type-1',
+      order: { uuid: 'order-1', display: 'Order 1', links: [] }
+    }],
+    status: PaymentStatus.PENDING,
   },
   {
     uuid: '2',
@@ -28,8 +46,25 @@ const mockBillsData = [
     visitType: 'Wake up',
     patientUuid: 'uuid2',
     dateCreated: '2024-01-02',
-    lineItems: [{ billableService: 'Service 2' }],
-    status: 'PENDING',
+    lineItems: [{
+      uuid: 'item-2',
+      display: 'Service 2',
+      voided: false,
+      voidReason: null,
+      item: 'Service 2',
+      billableService: 'service-2',
+      quantity: 1,
+      price: 200,
+      priceName: 'Default',
+      priceUuid: 'price-2',
+      lineItemOrder: 1,
+      resourceVersion: '1.0',
+      paymentStatus: PaymentStatus.PENDING,
+      itemOrServiceConceptUuid: 'concept-2',
+      serviceTypeUuid: 'service-type-2',
+      order: { uuid: 'order-2', display: 'Order 2', links: [] }
+    }],
+    status: PaymentStatus.PENDING,
   },
 ];
 
@@ -161,7 +196,7 @@ describe('BillsTable', () => {
 
   test('should filter bills by payment status', async () => {
     mockBills.mockImplementationOnce(() => ({
-      bills: mockBillsData.map((bill) => ({ ...bill, status: 'PENDING' })),
+      bills: mockBillsData.map((bill) => ({ ...bill, status: PaymentStatus.PENDING })),
       isLoading: false,
       isValidating: false,
       error: null,

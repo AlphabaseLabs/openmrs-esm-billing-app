@@ -12,6 +12,7 @@ import RequirePaymentModal from './modal/require-payment-modal.component';
 import RootComponent from './root.component';
 import ServiceMetrics from './billable-services/dashboard/service-metrics.component';
 import VisitAttributeTags from './invoice/payments/visit-tags/visit-attribute.component';
+import { ClockIn } from './payment-points/payment-point/clock-in.modal';
 
 const moduleName = '@openmrs/esm-billing-app';
 
@@ -68,3 +69,6 @@ export const editBillLineItemDialog = getAsyncLifecycle(() => import('./bill-ite
 
 // t('billingForm', 'Billing form')
 export const billingFormWorkspace = getAsyncLifecycle(() => import('./billing-form/billing-form.component'), options);
+
+
+export const clockIn = getSyncLifecycle(ClockIn, options);

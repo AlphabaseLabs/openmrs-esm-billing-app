@@ -28,6 +28,7 @@ import {
 } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBills } from '../billing.resource';
+import { PaymentStatus } from '../types';
 import styles from './bills-table.scss';
 
 const BillsTable = () => {
@@ -36,7 +37,7 @@ const BillsTable = () => {
   const config = useConfig();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [billPaymentStatus, setBillPaymentStatus] = useState('PENDING');
+  const [billPaymentStatus, setBillPaymentStatus] = useState<PaymentStatus | ''>('');
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 30, 40, 50];
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const { bills, isLoading, isValidating, error } = useBills('', '');
@@ -69,7 +70,7 @@ const BillsTable = () => {
         if (bill.payments?.length > 0) {
           const totalPaid = bill.payments.reduce((sum, payment) => sum + payment.amountTendered, 0);
           if (totalPaid >= bill.totalAmount) {
-            bill.status = 'PAID';
+            bill.status = PaymentStatus.PAID;
           }
         }
         return bill;
@@ -122,8 +123,8 @@ const BillsTable = () => {
 
   const filterItems = [
     { id: '', text: 'All bills' },
-    { id: 'PENDING', text: 'Pending bills' },
-    { id: 'PAID', text: 'Paid bills' },
+    { id: PaymentStatus.PENDING, text: 'Pending bills' },
+    { id: PaymentStatus.PAID, text: 'Paid bills' },
   ];
 
   const handleFilterChange = ({ selectedItem }) => {

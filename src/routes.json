@@ -77,6 +77,10 @@
     {
       "name": "require-billing-modal",
       "component": "requirePaymentModal"
+    },
+    {
+      "name": "clock-in-modal",
+      "component": "clockIn"
     }
   ],
   "workspaces": [

@@ -1,3 +1,6 @@
+import { OpenmrsResource } from '@openmrs/esm-framework';
+import { type Drug, type OrderBasketItem } from '@openmrs/esm-patient-common-lib';
+
 export interface MappedBill {
   uuid: string;
   id: number;
@@ -8,15 +11,23 @@ export interface MappedBill {
   cashPointLocation: string;
   cashier: Provider;
   receiptNumber: string;
-  status: string;
+  status: PaymentStatus;
   identifier: string;
   dateCreated: string;
+  dateCreatedUnformatted: string;
   lineItems: Array<LineItem>;
   billingService: string;
   payments: Array<Payment>;
   totalAmount?: number;
   tenderedAmount?: number;
   display?: string;
+  referenceCodes?: string;
+  adjustmentReason?: string;
+  totalPayments?: number;
+  totalDeposits?: number;
+  totalExempted?: number;
+  balance?: number;
+  closed?: boolean;
 }
 
 interface LocationLink {
@@ -65,6 +76,9 @@ export interface LineItem {
   lineItemOrder: number;
   resourceVersion: string;
   paymentStatus: string;
+  itemOrServiceConceptUuid: string;
+  serviceTypeUuid: string;
+  order: OpenmrsResource;
 }
 
 interface PatientLink {
@@ -77,6 +91,7 @@ interface Patient {
   uuid: string;
   display: string;
   links: PatientLink[];
+  identifiers: Array<{ uuid: string; display: string }>;
 }
 
 interface AttributeType {
@@ -121,25 +136,6 @@ export interface Payment {
   resourceVersion: string;
 }
 
-export interface PatientInvoice {
-  uuid: string;
-  display: string;
-  voided: boolean;
-  voidReason: string | null;
-  adjustedBy: any[];
-  billAdjusted: any;
-  cashPoint: CashPoint;
-  cashier: Provider;
-  dateCreated: string;
-  lineItems: LineItem[];
-  patient: Patient;
-  payments: Payment[];
-  receiptNumber: string;
-  status: string;
-  adjustmentReason: any;
-  id: number;
-  resourceVersion: string;
-}
 
 export interface PatientDetails {
   name: string;
@@ -193,4 +189,97 @@ export interface BillableService {
     name: string;
     price: number;
   }>;
+}
+
+export interface PaymentPoint {
+  uuid: string;
+  name: string;
+  description: string;
+  retired: boolean;
+  location: Location;
+}
+
+export interface Timesheet {
+  uuid: string;
+  display: string;
+  cashier: Cashier;
+  cashPoint: CashPoint;
+  clockIn: string;
+  clockOut: null;
+  id: number;
+}
+
+export interface Cashier {
+  uuid: string;
+  display: string;
+  links: Link[];
+}
+
+export interface Link {
+  rel: string;
+  uri: string;
+  resourceAlias: string;
+}
+
+export enum PaymentStatus {
+  POSTED = 'POSTED',
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  CREDITED = 'CREDITED',
+  CANCELLED = 'CANCELLED',
+  ADJUSTED = 'ADJUSTED',
+  EXEMPTED = 'EXEMPTED',
+}
+
+export type BillingPromptType = 'patient-chart' | 'billing-orders';
+
+export interface Creator {
+  uuid: string;
+  display: string;
+  links: Link[];
+}
+
+
+export interface AuditInfo {
+  creator: Creator;
+  dateCreated: string;
+  changedBy: null;
+  dateChanged: null;
+}
+
+export interface PaymentMethod {
+  uuid: string;
+  name: string;
+  description: string;
+  retired: boolean;
+  retireReason: null;
+  auditInfo: AuditInfo;
+  attributeTypes: AttributeType[];
+  sortOrder: null;
+  resourceVersion: string;
+}
+
+export interface PatientInvoice {
+  uuid: string;
+  display: string;
+  voided: boolean;
+  voidReason: string | null;
+  adjustedBy: any[];
+  billAdjusted: any;
+  cashPoint: CashPoint;
+  cashier: Provider;
+  dateCreated: string;
+  lineItems: LineItem[];
+  patient: Patient;
+  payments: Payment[];
+  receiptNumber: string;
+  status: PaymentStatus;
+  adjustmentReason: any;
+  id: number;
+  resourceVersion: string;
+  totalPayments?: number;
+  totalDeposits?: number;
+  totalExempted?: number;
+  balance?: number;
+  closed?: boolean;
 }

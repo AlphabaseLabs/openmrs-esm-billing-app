@@ -1,6 +1,22 @@
 import { Type, validators } from '@openmrs/esm-framework';
 
-export interface BillingConfig {}
+export interface BillingConfig {
+  enforceBillPayment: {
+    _type: Type.Boolean,
+    _default: true,
+    _description: 'Whether to enforce bill payment or not for patient to receive service',
+  },
+  localeCurrencyMapping: Record<string, string>;
+  promptDuration: {
+    enable: boolean;
+    duration: number;
+  };
+  patientBillsUrl: string;
+  excludedPaymentMode: Array<{ uuid: string; label: string }>;
+  inPatientVisitTypeUuid: string;
+  paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
+
+}
 
 export const configSchema = {
   logo: {
@@ -81,6 +97,62 @@ export const configSchema = {
     _type: Type.Boolean,
     _description: 'Whether to show the edit bill button or not.',
     _default: false,
+  },
+  localeCurrencyMapping: {
+    _type: Type.Object,
+    _description: 'Mapping of locale codes to currency codes for internationalization',
+    _default: {
+      en: 'PKR',
+      'en-PK': 'PKR',
+    },
+  },
+  promptDuration: {
+    _type: Type.Object,
+    _description:
+      'The duration in hours for the prompt to be shown, if the duration is less than this, the prompt will be shown',
+    _default: {
+      enable: true,
+      duration: 24,
+    },
+  },
+  patientBillsUrl: {
+    _type: Type.String,
+    _description: 'The url to fetch patient bills',
+    _default:
+      '${restBaseUrl}/cashier/bill?v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
+  },
+  excludedPaymentMode: {
+    _type: Type.Array,
+    _elements: {
+      uuid: {
+        _type: Type.UUID,
+        _description: 'The value of the payment mode to be excluded',
+      },
+      label: {
+        _type: Type.String,
+        _default: null,
+        _description: 'The label of the payment mode to be excluded',
+      },
+    },
+    _default: [
+      {
+        uuid: 'eb6173cb-9678-4614-bbe1-0ccf7ed9d1d4',
+        label: 'Waiver',
+      },
+    ],
+  },
+  inPatientVisitTypeUuid: {
+    _type: Type.String,
+    _description: 'The visit type uuid for in-patient',
+    _default: 'a73e2ac6-263b-47fc-99fc-e0f2c09fc914',
+  },
+  paymentMethodsUuidsThatShouldNotShowPrompt: {
+    _type: Type.Array,
+    _description: 'The payment methods that should not show the billing prompt',
+    _elements: {
+      _type: Type.String,
+    },
+    _default: ['beac329b-f1dc-4a33-9e7c-d95821a137a6'],
   },
 };
 
