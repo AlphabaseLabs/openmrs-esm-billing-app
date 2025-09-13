@@ -37,19 +37,6 @@
       }
     },
     {
-      "name": "billing-summary-dashboard-link",
-      "component": "billingSummaryDashboardLink",
-      "slot": "patient-chart-dashboard-slot",
-      "order": 11,
-      "meta": {
-        "columns": 1,
-        "columnSpan": 1,
-        "slot": "patient-chart-billing-dashboard-slot",
-        "path": "Billing history"
-      },
-      "featureFlag": "billing"
-    },
-    {
       "name": "billable-services-app-menu-item",
       "component": "billableServicesAppMenuItem",
       "slot": "app-menu-item-slot",

@@ -39,13 +39,16 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
   createDashboardLink({ ...dashboardMeta, moduleName }),
   options,
 );
-
+// Dont know
 export const billableServicesAppMenuItem = getSyncLifecycle(appMenu, options);
 
-export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLink, options);
+// Admin Dashboard Card
+// export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLink, options);
 
+// Billable Services Home
 export const billableServicesHome = getSyncLifecycle(BillableServiceHome, options);
 
+//
 export const billingCheckInForm = getSyncLifecycle(BillingCheckInForm, options);
 
 export const billingPatientSummary = getSyncLifecycle(BillHistory, options);

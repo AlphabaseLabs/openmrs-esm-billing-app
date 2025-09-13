@@ -60,7 +60,7 @@
     "swr": "2.x"
   },
   "devDependencies": {
-    "@openmrs/esm-framework": "next",
+    "@openmrs/esm-framework": "^8.0.0",
     "@openmrs/esm-patient-common-lib": "next",
     "@playwright/test": "^1.49.0",
     "@swc/cli": "^0.3.2",
@@ -96,7 +96,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.10",
     "lodash": "^4.17.21",
-    "openmrs": "next",
+    "openmrs": "^8.0.0",
     "pinst": "^3.0.0",
     "prettier": "^3.2.4",
     "react": "^18.2.0",
