@@ -29,12 +29,6 @@
       "slot": "billing-dashboard-slot"
     },
     {
-      "component": "billingOverviewLink",
-      "name": "billing-overview-link",
-      "order": 0,
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
       "name": "billing-patient-summary",
       "component": "billingPatientSummary",
       "slot": "patient-chart-billing-dashboard-slot",
@@ -57,38 +51,13 @@
       }
     },
     {
-      "name": "billing-checkin-form",
+      "name": "billing-check-in-form",
       "slot": "extra-visit-attribute-slot",
-      "component": "billingCheckInForm",
-      "featureFlag": "billing"
+      "component": "billingCheckInForm"
     },
     {
-      "component": "billDepositDashboardLink",
-      "name": "bill-deposit-dashboard-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "component": "paymentPointsLink",
-      "name": "payment-points-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "component": "paymentHistoryLink",
-      "name": "payment-history-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "name": "billable-services-app-menu-item",
-      "component": "billableServicesAppMenuItem",
-      "slot": "app-menu-item-slot",
-      "meta": {
-        "name": "Billable Services"
-      }
-    },
-    {
-      "slot": "system-admin-page-card-link-slot",
-      "component": "billableServicesCardLink",
-      "name": "billable-services-admin-card-link"
+      "name": "require-billing-modal",
+      "component": "requirePaymentModal"
     },
     {
       "name": "patient-banner-billing-tags",
@@ -97,15 +66,122 @@
       "order": 2
     },
     {
-      "name": "billing-home-tiles-ext",
-      "slot": "billing-home-tiles-slot",
-      "component": "serviceMetrics"
+      "name": "delete-billableservice-modal",
+      "component": "deleteBillableServiceModal"
     },
     {
-      "name": "edit-bill-line-item-dialog",
-      "component": "editBillLineItemDialog",
-      "online": true,
-      "offline": true
+      "name": "refund-bill-modal",
+      "component": "refundBillModal"
+    },
+    {
+      "name": "delete-bill-modal",
+      "component": "deleteBillModal"
+    },
+    {
+      "name": "lab-order-billable-item",
+      "component": "labOrder",
+      "slot": "top-of-lab-order-form-slot"
+    },
+    {
+      "name": "procedure-order-billable-item",
+      "component": "procedureOrder",
+      "slot": "top-of-procedure-order-form-slot"
+    },
+    {
+      "name": "imaging-order-billable-item",
+      "component": "imagingOrder",
+      "slot": "top-of-imaging-order-form-slot"
+    },
+    {
+      "name": "price-info-order",
+      "component": "priceInfoOrder"
+    },
+    {
+      "name": "drug-order-billable-item",
+      "component": "drugOrder",
+      "slot": "medication-info-slot"
+    },
+    {
+      "name": "order-action-button",
+      "component": "orderActionButton",
+      "slots": [
+        "prescription-action-button-slot",
+        "imaging-orders-action",
+        "procedure-orders-action",
+        "tests-ordered-actions-slot"
+      ],
+      "order": 0
+    },
+    {
+      "component": "billingOverviewLink",
+      "name": "billing-overview-link",
+      "order": 0,
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "billDepositDashboardLink",
+      "name": "bill-deposit-dashboard-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "paymentHistoryLink",
+      "name": "payment-history-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "paymentPointsLink",
+      "name": "payment-points-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "paymentModesLink",
+      "name": "payment-modes-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "billManagerLink",
+      "name": "bill-manager-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "chargeableItemsLink",
+      "name": "chargeable-items-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "billableExemptionsLink",
+      "name": "billable-exemptions-link",
+      "slot": "billing-dashboard-group-nav-slot"
+    },
+    {
+      "component": "waiveBillActionButton",
+      "name": "waive-bill-action-button",
+      "slot": "bill-actions-slot"
+    },
+    {
+      "component": "deleteBillActionButton",
+      "name": "delete-bill-action-button",
+      "slot": "bill-actions-slot"
+    },
+    {
+      "component": "refundLineItem",
+      "name": "refund-line-item",
+      "slot": "bill-actions-overflow-menu-slot"
+    },
+    {
+      "name": "edit-line-item",
+      "component": "editLineItem",
+      "slot": "bill-actions-overflow-menu-slot"
+    },
+    {
+      "name": "cancel-line-item",
+      "component": "cancelLineItem",
+      "slot": "bill-actions-overflow-menu-slot"
+    },
+    {
+      "name": "patient-info-sha-status",
+      "component": "patientBannerShaStatus",
+      "slot": "patient-banner-tags-slot"
     }
   ],
   "modals": [
@@ -156,11 +232,53 @@
   ],
   "workspaces": [
     {
+      "name": "create-bill-workspace",
+      "component": "createBillWorkspace",
+      "title": "Create Bill Workspace",
+      "type": "other-form"
+    },
+    {
+      "name": "waive-bill-form",
+      "component": "waiveBillForm",
+      "title": "Waive Bill Form",
+      "type": "other-form"
+    },
+    {
+      "name": "edit-bill-form",
+      "component": "editBillForm",
+      "title": "Edit Bill Form",
+      "type": "other-form"
+    },
+    {
+      "name": "billable-service-form",
+      "component": "addServiceForm",
+      "title": "Create Charge Item Form",
+      "type": "other-form"
+    },
+    {
+      "name": "commodity-form",
+      "component": "addCommodityForm",
+      "title": "Create Charge Item Form",
+      "type": "other-form"
+    },
+    {
       "name": "billing-form",
       "component": "billingForm",
       "title": "Billing Form",
       "type": "other-form",
       "width": "extra-wide"
+    },
+    {
+      "name": "payment-mode-workspace",
+      "component": "paymentModeWorkspace",
+      "title": "Payment Mode Workspace",
+      "type": "other-form"
+    },
+    {
+      "name": "cancel-bill-workspace",
+      "component": "cancelBillWorkspace",
+      "title": "Cancel Bill Workspace",
+      "type": "other-form"
     },
     {
       "name": "add-deposit-workspace",
@@ -172,6 +290,12 @@
       "name": "deposit-transaction-workspace",
       "component": "depositTransactionWorkspace",
       "title": "Deposit Transaction",
+      "type": "other-form"
+    },
+    {
+      "name": "payment-workspace",
+      "component": "paymentWorkspace",
+      "title": "Payment Workspace",
       "type": "other-form"
     }
   ],

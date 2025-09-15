@@ -29,7 +29,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const formMethods = useForm<VisitAttributesFormValue>({
     mode: 'all',
     defaultValues: {
-      isPatientExempted: '',
+      isPatientExempted: 'false',
       paymentMethods: '',
       insuranceScheme: '',
       policyNumber: '',

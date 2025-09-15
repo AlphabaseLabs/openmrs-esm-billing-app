@@ -1,85 +1,41 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, InlineLoading } from '@carbon/react';
-import { Printer } from '@carbon/react/icons';
-import { useParams } from 'react-router-dom';
-import { useReactToPrint } from 'react-to-print';
-import { useTranslation } from 'react-i18next';
-import { ExtensionSlot, showSnackbar, useConfig, usePatient } from '@openmrs/esm-framework';
+import { InlineLoading } from '@carbon/react';
+import { ExtensionSlot, formatDatetime, parseDate, usePatient, useVisit } from '@openmrs/esm-framework';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
-import { convertToCurrency } from '../helpers';
-import { type LineItem } from '../types';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 import { useBill } from '../billing.resource';
+import { convertToCurrency } from '../helpers';
+// import { usePaymentsReconciler } from '../hooks/use-payments-reconciler';
+import { type LineItem, type MappedBill } from '../types';
 import InvoiceTable from './invoice-table.component';
-import Payments from './payments/payments.component';
-import PrintReceipt from './printable-invoice/print-receipt.component';
-import PrintableInvoice from './printable-invoice/printable-invoice.component';
-import type { ConfigObject } from '../config-schema';
 import styles from './invoice.scss';
-
-interface InvoiceDetailsProps {
-  label: string;
-  value: string | number;
-}
+import Payments from './payments/payments.component';
+import capitalize from 'lodash-es/capitalize';
+import { InvoiceActions } from './invoice-actions.component';
 
 const Invoice: React.FC = () => {
   const { t } = useTranslation();
   const { billUuid, patientUuid } = useParams();
-  const { patient, isLoading: isLoadingPatient } = usePatient(patientUuid);
-  const { bill, isLoading: isLoadingBill, error, mutate } = useBill(billUuid);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [selectedLineItems, setSelectedLineItems] = useState<LineItem[]>([]);
-  const componentRef = useRef<HTMLDivElement>(null);
-  const onBeforeGetContentResolve = useRef<(() => void) | null>(null);
-  const { defaultCurrency } = useConfig<ConfigObject>();
-  const handleSelectItem = (lineItems: LineItem[]) => {
-    setSelectedLineItems(lineItems);
+  const { patient, isLoading: isLoadingPatient, error: patientError } = usePatient(patientUuid);
+  const { bill, isLoading: isLoadingBill, error: billingError } = useBill(billUuid);
+  // usePaymentsReconciler(billUuid);
+  const { activeVisit, isLoading: isVisitLoading, error: visitError } = useVisit(patientUuid);
+  const [selectedLineItems, setSelectedLineItems] = useState([]);
+
+  const handleSelectItem = (lineItems: Array<LineItem>) => {
+    const paidLineItems = bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
+    const uniqueLineItems = [...new Set([...lineItems, ...paidLineItems])];
+    setSelectedLineItems(uniqueLineItems);
   };
 
-  const handleAfterPrint = useCallback(() => {
-    onBeforeGetContentResolve.current = null;
-    setIsPrinting(false);
-  }, []);
-
-  const reactToPrintContent = useCallback(() => componentRef.current, []);
-
-  const handleOnBeforeGetContent = useCallback(() => {
-    return new Promise<void>((resolve) => {
-      if (patient && bill) {
-        setIsPrinting(true);
-        onBeforeGetContentResolve.current = resolve;
-      }
-    });
-  }, [bill, patient]);
-
-  const handlePrint = useReactToPrint({
-    documentTitle: `Invoice ${bill?.receiptNumber} - ${patient?.name?.[0]?.given?.join(' ')} ${patient?.name?.[0].family}`,
-    onBeforePrint: handleOnBeforeGetContent,
-    onAfterPrint: handleAfterPrint,
-    preserveAfterPrint: false,
-    onPrintError: (_, error) =>
-      showSnackbar({ title: t('printError', 'Error printing invoice'), kind: 'error', subtitle: error.message }),
-  });
-
   useEffect(() => {
-    if (isPrinting && onBeforeGetContentResolve.current) {
-      onBeforeGetContentResolve.current();
-    }
-  }, [isPrinting]);
+    const paidLineItems = bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
+    setSelectedLineItems(paidLineItems);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill?.lineItems?.length]);
 
-  useEffect(() => {
-    const unPaidLineItems = bill?.lineItems?.filter((item) => item.paymentStatus === 'PENDING') ?? [];
-    setSelectedLineItems(unPaidLineItems);
-  }, [bill?.lineItems]);
-
-  const invoiceDetails = {
-    'Total Amount': convertToCurrency(bill?.totalAmount, defaultCurrency),
-    'Amount Tendered': convertToCurrency(bill?.tenderedAmount, defaultCurrency),
-    'Invoice Number': bill?.receiptNumber,
-    'Date And Time': bill?.dateCreated,
-    'Invoice Status': bill?.status,
-  };
-
-  if (isLoadingPatient && isLoadingBill) {
+  if (isLoadingPatient || isLoadingBill || isVisitLoading) {
     return (
       <div className={styles.invoiceContainer}>
         <InlineLoading
@@ -92,10 +48,13 @@ const Invoice: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (billingError || patientError || visitError) {
     return (
       <div className={styles.errorContainer}>
-        <ErrorState headerTitle={t('invoiceError', 'Invoice error')} error={error} />
+        <ErrorState
+          headerTitle={t('invoiceError', 'Invoice error')}
+          error={billingError ?? patientError ?? visitError}
+        />
       </div>
     );
   }
@@ -103,39 +62,67 @@ const Invoice: React.FC = () => {
   return (
     <div className={styles.invoiceContainer}>
       {patient && patientUuid && <ExtensionSlot name="patient-header-slot" state={{ patient, patientUuid }} />}
-      <div className={styles.detailsContainer}>
-        <section className={styles.details}>
-          {Object.entries(invoiceDetails).map(([key, val]) => (
-            <InvoiceDetails key={key} label={key} value={val} />
-          ))}
-        </section>
-        <div>
-          <Button
-            disabled={isPrinting}
-            onClick={() => handlePrint(reactToPrintContent)}
-            renderIcon={(props) => <Printer size={24} {...props} />}
-            iconDescription="Print bill"
-            size="md">
-            {t('printBill', 'Print bill')}
-          </Button>
-          {(bill?.status === 'PAID' || bill?.tenderedAmount > 0) && <PrintReceipt billId={bill?.id} />}
-        </div>
-      </div>
-
+      <InvoiceSummary bill={bill} selectedLineItems={selectedLineItems} activeVisit={activeVisit} />
       <InvoiceTable bill={bill} isLoadingBill={isLoadingBill} onSelectItem={handleSelectItem} />
-      <Payments bill={bill} mutate={mutate} selectedLineItems={selectedLineItems} />
-
-      <div className={styles.printContainer} ref={componentRef}>
-        {isPrinting && <PrintableInvoice bill={bill} patient={patient} isLoading={isLoadingPatient} />}
-      </div>
+      <Payments bill={bill} selectedLineItems={selectedLineItems} />
     </div>
   );
 };
 
-function InvoiceDetails({ label, value }: InvoiceDetailsProps) {
+export function InvoiceSummary({
+  bill,
+  selectedLineItems,
+  activeVisit,
+}: {
+  readonly bill: MappedBill;
+  readonly selectedLineItems?: LineItem[];
+  readonly activeVisit?: any;
+}) {
+  const { t } = useTranslation();
+
   return (
-    <div>
-      <h1 className={styles.label}>{label}</h1>
+    <>
+      <div className={styles.invoiceSummary}>
+        <span className={styles.invoiceSummaryTitle}>{t('invoiceSummary', 'Invoice Summary')}</span>
+        <InvoiceActions bill={bill} selectedLineItems={selectedLineItems} activeVisit={activeVisit} />
+      </div>
+      <div className={styles.invoiceSummaryContainer}>
+        <div className={styles.invoiceCard}>
+          <InvoiceSummaryItem label={t('invoiceNumber', 'Invoice Number')} value={bill.receiptNumber} />
+          <InvoiceSummaryItem
+            label={t('dateAndTime', 'Date And Time')}
+            value={formatDatetime(parseDate(bill.dateCreated), { mode: 'standard', noToday: true })}
+          />
+          <InvoiceSummaryItem label={t('invoiceStatus', 'Invoice Status')} value={bill?.status} />
+          <InvoiceSummaryItem label={t('cashPoint', 'Cash Point')} value={bill?.cashPointName} />
+          <InvoiceSummaryItem label={t('cashier', 'Cashier')} value={capitalize(bill?.cashier?.display)} />
+        </div>
+        <div className={styles.divider} />
+        <div className={styles.invoiceCard}>
+          <InvoiceSummaryItem label={t('totalAmount', 'Total Amount')} value={convertToCurrency(bill?.totalAmount)} />
+          <InvoiceSummaryItem
+            label={t('totalExempted', 'Total Exempted')}
+            value={convertToCurrency(bill?.totalExempted)}
+          />
+          <InvoiceSummaryItem
+            label={t('totalPayments', 'Total Payments')}
+            value={convertToCurrency(bill?.totalPayments)}
+          />
+          <InvoiceSummaryItem
+            label={t('totalDeposits', 'Total Deposits')}
+            value={convertToCurrency(bill?.totalDeposits)}
+          />
+          <InvoiceSummaryItem label={t('balance', 'Balance')} value={convertToCurrency(bill?.balance)} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function InvoiceSummaryItem({ label, value }: { readonly label: string; readonly value: string | number }) {
+  return (
+    <div className={styles.invoiceSummaryItem}>
+      <span className={styles.label}>{label}</span>
       <span className={styles.value}>{value}</span>
     </div>
   );

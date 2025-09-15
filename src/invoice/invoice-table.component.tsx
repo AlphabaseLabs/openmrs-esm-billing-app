@@ -1,8 +1,7 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
-  Button,
   DataTable,
   DataTableSkeleton,
   Layer,
@@ -13,15 +12,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableSelectRow,
+  TableToolbar,
+  TableToolbarContent,
   TableToolbarSearch,
+  TableSelectRow,
   Tile,
+  type DataTableHeader,
   type DataTableRow,
 } from '@carbon/react';
-import { Edit } from '@carbon/react/icons';
-import { isDesktop, showModal, useConfig, useDebounce, useLayoutType } from '@openmrs/esm-framework';
-import { type LineItem, type MappedBill } from '../types';
-import { convertToCurrency } from '../helpers';
+import { isDesktop, useDebounce, useLayoutType } from '@openmrs/esm-framework';
+import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 
 type InvoiceTableProps = {
@@ -33,22 +33,13 @@ type InvoiceTableProps = {
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, isLoadingBill, onSelectItem }) => {
   const { t } = useTranslation();
-  const { defaultCurrency, showEditBillButton } = useConfig();
+  const { lineItems } = bill;
+  const paidLineItems = lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
   const layout = useLayoutType();
-  const lineItems = useMemo(() => bill?.lineItems ?? [], [bill?.lineItems]);
-  const paidLineItems = useMemo(() => lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [], [lineItems]);
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-
   const [selectedLineItems, setSelectedLineItems] = useState(paidLineItems ?? []);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm);
-
-  useEffect(() => {
-    if (onSelectItem) {
-      onSelectItem(selectedLineItems);
-    }
-  }, [selectedLineItems, onSelectItem]);
-
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
       return lineItems;
@@ -65,77 +56,42 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
   }, [debouncedSearchTerm, lineItems]);
 
   const tableHeaders = [
-    { header: t('number', 'No'), key: 'no', width: 7 }, // Width as a percentage
-    { header: t('billItem', 'Bill item'), key: 'billItem', width: 25 },
-    { header: t('billCode', 'Bill code'), key: 'billCode', width: 20 },
-    { header: t('status', 'Status'), key: 'status', width: 25 },
-    { header: t('quantity', 'Quantity'), key: 'quantity', width: 15 },
-    { header: t('price', 'Price'), key: 'price', width: 24 },
-    { header: t('total', 'Total'), key: 'total', width: 15 },
-    { header: t('actions', 'Actions'), key: 'actionButton' },
+    { header: 'No', key: 'no' },
+    { header: 'Bill item', key: 'billItem' },
+    { header: 'Bill code', key: 'billCode' },
+    { header: 'Status', key: 'status' },
+    { header: 'Quantity', key: 'quantity' },
+    { header: 'Price', key: 'price' },
+    { header: 'Total', key: 'total' },
   ];
+  const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
 
-  const handleSelectBillItem = useCallback(
-    (row: LineItem) => {
-      const dispose = showModal('edit-bill-line-item-dialog', {
-        bill,
-        item: row,
-        closeModal: () => dispose(),
-      });
-    },
-    [bill],
-  );
-
-  const tableRows: Array<typeof DataTableRow> = useMemo(
+  const tableRows = useMemo(
     () =>
       filteredLineItems?.map((item, index) => {
         return {
           no: `${index + 1}`,
           id: `${item.uuid}`,
-          billItem: item.billableService ? item.billableService : item?.item,
-          billCode: <span data-testid={`receipt-number-${index}`}>{bill?.receiptNumber}</span>,
+          billItem: processBillItem(item),
+          billCode: bill.receiptNumber,
           status: item.paymentStatus,
           quantity: item.quantity,
-          price: convertToCurrency(item.price, defaultCurrency),
+          price: item.price,
           total: item.price * item.quantity,
-          actionButton: (
-            <span>
-              {showEditBillButton ? (
-                <Button
-                  data-testid={`edit-button-${item.uuid}`}
-                  renderIcon={Edit}
-                  hasIconOnly
-                  kind="ghost"
-                  iconDescription={t('editThisBillItem', 'Edit this bill item')}
-                  tooltipPosition="left"
-                  onClick={() => handleSelectBillItem(item)}
-                />
-              ) : (
-                '--'
-              )}
-            </span>
-          ),
         };
       }) ?? [],
-    [filteredLineItems, bill?.receiptNumber, defaultCurrency, showEditBillButton, t, handleSelectBillItem],
+    [bill.receiptNumber, filteredLineItems],
   );
 
   if (isLoadingBill) {
     return (
       <div className={styles.loaderContainer}>
-        <DataTableSkeleton
-          data-testid="loader"
-          columnCount={tableHeaders.length}
-          showHeader={false}
-          showToolbar={false}
-          size={responsiveSize}
-          zebra
-        />
+        <DataTableSkeleton columnCount={tableHeaders.length} showHeader={false} showToolbar={false} zebra />
       </div>
     );
   }
 
-  const handleRowSelection = (row: typeof DataTableRow, checked: boolean) => {
+  const handleRowSelection = (row, checked: boolean) => {
     const matchingRow = filteredLineItems.find((item) => item.uuid === row.id);
     let newSelectedLineItems;
 
@@ -159,17 +115,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
               </span>
             }
             title={t('lineItems', 'Line items')}>
-            <TableToolbarSearch
-              className={styles.searchbox}
-              expanded
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              placeholder={t('searchThisTable', 'Search this table')}
-              size={responsiveSize}
-            />
-            <Table
-              {...getTableProps()}
-              aria-label="Invoice line items"
-              className={`${styles.invoiceTable} billingTable`}>
+            <div className={styles.toolbarWrapper}>
+              <TableToolbar {...getToolbarProps()} className={styles.tableToolbar} size={responsiveSize}>
+                <TableToolbarContent className={styles.headerContainer}>
+                  <TableToolbarSearch
+                    className={styles.searchbox}
+                    expanded
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                    placeholder={t('searchThisTable', 'Search this table')}
+                    size={responsiveSize}
+                  />
+                </TableToolbarContent>
+              </TableToolbar>
+            </div>
+            <Table {...getTableProps()} aria-label="Invoice line items" className={styles.table}>
               <TableHead>
                 <TableRow>
                   {rows.length > 1 && isSelectable ? <TableHeader /> : null}
@@ -190,10 +149,14 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                         <TableSelectRow
                           aria-label="Select row"
                           {...getSelectionProps({ row })}
-                          disabled={tableRows[index].status === 'PAID'}
+                          disabled={
+                            tableRows[index].status === PaymentStatus.PAID ||
+                            tableRows[index].status === PaymentStatus.EXEMPTED
+                          }
                           onChange={(checked: boolean) => handleRowSelection(row, checked)}
                           checked={
-                            tableRows[index].status === 'PAID' ||
+                            tableRows[index].status === PaymentStatus.PAID ||
+                            tableRows[index].status === PaymentStatus.EXEMPTED ||
                             Boolean(selectedLineItems?.find((item) => item?.uuid === row?.id))
                           }
                         />

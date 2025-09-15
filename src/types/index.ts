@@ -95,15 +95,16 @@ interface Patient {
 }
 
 interface AttributeType {
-  uuid: string;
+  uuid?: string;
   name: string;
   description: string;
   retired: boolean;
-  attributeOrder: number;
-  format: string;
-  foreignKey: string | null;
-  regExp: string | null;
+  attributeOrder?: number;
+  format?: string;
+  foreignKey?: string | null;
+  regExp?: string | null;
   required: boolean;
+  value?: string;
 }
 
 interface Attribute {
@@ -314,3 +315,134 @@ export interface Cell {
 export interface Info {
   header: string;
 }
+
+export type PaymentMode = {
+  uuid?: string;
+  name: string;
+  description: string;
+  retired: boolean;
+  retiredReason?: string | null;
+  auditInfo?: AuditInfo;
+  attributeTypes?: Array<AttributeType>;
+  sortOrder?: number | null;
+  resourceVersion?: string;
+};
+
+export interface PaymentMethod {
+  uuid: string;
+  name: string;
+  description: string;
+  retired: boolean;
+  retireReason: null;
+  auditInfo: AuditInfo;
+  attributeTypes: AttributeType[];
+  sortOrder: null;
+  resourceVersion: string;
+}
+
+export interface Payment {
+  uuid: string;
+  instanceType: PaymentInstanceType;
+  attributes: Attribute[];
+  amount: number;
+  amountTendered: number;
+  dateCreated: number;
+  voided: boolean;
+  resourceVersion: string;
+}
+
+export type FormPayment = { method: PaymentMethod; amount: string | number; referenceCode?: number | string };
+
+export type PaymentFormValue = {
+  payment: Array<FormPayment>;
+};
+
+export type ExcelFileRow = {
+  concept_id: number;
+  name: string;
+  price: number;
+  disable: 'false' | 'true';
+  service_type_id: number;
+  short_name: string;
+};
+
+interface CommonMedicationProps {
+  value: string;
+  default?: boolean;
+}
+
+export interface CommonMedicationValueCoded extends CommonMedicationProps {
+  valueCoded: string;
+}
+export type DosingUnit = CommonMedicationValueCoded;
+export type MedicationFrequency = CommonMedicationValueCoded;
+export type MedicationRoute = CommonMedicationValueCoded;
+export type MedicationInstructions = CommonMedicationProps;
+export type QuantityUnit = CommonMedicationValueCoded;
+export type DurationUnit = CommonMedicationValueCoded;
+
+export interface OrderTemplate {
+  type: string;
+  dosingType: string;
+  dosingInstructions: DosingInstructions;
+}
+export interface DosingInstructions {
+  dose: Array<MedicationDosage>;
+  units: Array<DosingUnit>;
+  route: Array<MedicationRoute>;
+  frequency: Array<MedicationFrequency>;
+  instructions?: Array<MedicationInstructions>;
+  durationUnits?: Array<DurationUnit>;
+  quantityUnits?: Array<QuantityUnit>;
+  asNeeded?: boolean;
+  asNeededCondition?: string;
+}
+
+export interface MedicationDosage extends Omit<CommonMedicationProps, 'value'> {
+  value: number;
+}
+
+export interface DrugOrderBasketItem extends OrderBasketItem {
+  drug: Drug;
+  unit: DosingUnit;
+  commonMedicationName: string;
+  dosage: number;
+  frequency: MedicationFrequency;
+  route: MedicationRoute;
+  quantityUnits: QuantityUnit;
+  patientInstructions: string;
+  asNeeded: boolean;
+  asNeededCondition: string;
+  // TODO: This is unused
+  startDate: Date | string;
+  durationUnit: DurationUnit;
+  duration: number | null;
+  pillsDispensed: number;
+  numRefills: number;
+  indication: string;
+  isFreeTextDosage: boolean;
+  freeTextDosage: string;
+  previousOrder?: string;
+  template?: OrderTemplate;
+}
+
+export interface Schema {
+  services: Record<string, unknown>;
+  commodities: Record<string, unknown>;
+}
+
+export type ServiceType = { uuid: string; display: string; id: number };
+
+export type ServiceTypesResponse = {
+  setMembers: Array<ServiceType>;
+};
+
+export type QueueEntry = {
+  queueEntry: {
+    uuid: string;
+    priority: OpenmrsResource;
+    status: OpenmrsResource;
+    queue: OpenmrsResource;
+    queueComingFrom: OpenmrsResource;
+  };
+};

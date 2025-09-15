@@ -1,5 +1,3 @@
-import { restBaseUrl } from '@openmrs/esm-framework';
-
 export const billsSummary = [
   {
     uuid: '65f9f19a-f70e-44f4-9c6c-55b23dab4a3f',
@@ -19,7 +17,7 @@ export const billsSummary = [
         links: [
           {
             rel: 'self',
-            uri: `http://localhost:8089/openmrs${restBaseUrl}/location/381595a0-2229-4152-9c45-bd3692aac7cc`,
+            uri: 'http://localhost:8089/openmrs/ws/rest/v1/location/381595a0-2229-4152-9c45-bd3692aac7cc',
             resourceAlias: 'location',
           },
         ],
@@ -31,7 +29,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224',
           resourceAlias: 'provider',
         },
       ],
@@ -59,7 +57,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e',
           resourceAlias: 'patient',
         },
       ],
@@ -127,7 +125,7 @@ export const billsSummary = [
         links: [
           {
             rel: 'self',
-            uri: `http://localhost:8089/openmrs${restBaseUrl}/location/381595a0-2229-4152-9c45-bd3692aac7cc`,
+            uri: 'http://localhost:8089/openmrs/ws/rest/v1/location/381595a0-2229-4152-9c45-bd3692aac7cc',
             resourceAlias: 'location',
           },
         ],
@@ -139,7 +137,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224',
           resourceAlias: 'provider',
         },
       ],
@@ -167,7 +165,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e',
           resourceAlias: 'patient',
         },
       ],
@@ -236,7 +234,7 @@ export const billsSummary = [
         links: [
           {
             rel: 'self',
-            uri: `http://localhost:8089/openmrs${restBaseUrl}/location/381595a0-2229-4152-9c45-bd3692aac7cc`,
+            uri: 'http://localhost:8089/openmrs/ws/rest/v1/location/381595a0-2229-4152-9c45-bd3692aac7cc',
             resourceAlias: 'location',
           },
         ],
@@ -248,7 +246,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224',
           resourceAlias: 'provider',
         },
       ],
@@ -276,7 +274,7 @@ export const billsSummary = [
       links: [
         {
           rel: 'self',
-          uri: `http://localhost:8089/openmrs${restBaseUrl}/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e`,
+          uri: 'http://localhost:8089/openmrs/ws/rest/v1/patient/dda9b65f-0037-11ec-85e7-04ed33c79a3e',
           resourceAlias: 'patient',
         },
       ],
@@ -343,7 +341,7 @@ export const mockBill = {
     links: [
       {
         rel: 'self',
-        uri: `https://data.kenyahmis.org:8500/openmrs${restBaseUrl}/provider/fe00dd43-4c39-4ce9-9832-bc3620c80c6c`,
+        uri: 'https://data.kenyahmis.org:8500/openmrs/ws/rest/v1/provider/fe00dd43-4c39-4ce9-9832-bc3620c80c6c',
         resourceAlias: 'provider',
       },
     ],
@@ -391,4 +389,345 @@ export const mockPayments = [
     voided: false,
     resourceVersion: '1.8',
   },
+  { uuid: 'eb6173cb-9678-4614-bbe1-0ccf7ed9d1d4', name: 'Waiver', description: 'Waiver payment', retired: false },
 ];
+
+export const mockBills = {
+  id: 1905,
+  uuid: 'fc657c57-0664-4fd3-8c7a-3b6216c98220',
+  patientName: ' stella njeri malaga',
+  identifier: 'MGUTTG ',
+  patientUuid: '1da282c9-5f73-4ec0-8ced-1da0e805bfde',
+  status: 'PENDING',
+  receiptNumber: '1933-1',
+  cashier: {
+    uuid: '48b55692-e061-4ffa-b1f2-fd4aaf506224',
+    display: 'admin - Super User',
+    links: [
+      {
+        rel: 'self',
+        uri: 'http://localhost:8080/openmrs/ws/rest/v1/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224',
+        resourceAlias: 'provider',
+      },
+    ],
+  },
+  cashPointUuid: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+  cashPointName: 'OPD Cash Point',
+  cashPointLocation: 'Moi Teaching Refferal Hospital',
+  dateCreated: 'Today, 15:28',
+  lineItems: [
+    {
+      uuid: '314c25fd-2c90-4a7f-9f98-c99cd3f153e8',
+      display: 'BillLineItem',
+      voided: false,
+      voidReason: null,
+      item: '',
+      billableService: 'c15d25b9-12bb-441d-9241-cae541dd4575:Medical Certificate',
+      quantity: 1,
+      price: 500,
+      priceName: 'Default',
+      priceUuid: '',
+      lineItemOrder: 0,
+      paymentStatus: 'PENDING',
+      order: null,
+      resourceVersion: '1.8',
+    },
+    {
+      uuid: '60365e7e-d29e-4f13-b64b-9aecb5d36031',
+      display: 'BillLineItem',
+      voided: false,
+      voidReason: null,
+      item: '',
+      billableService: '04be5832-5440-44d0-83d2-5c0dfd0ac7de:Registration New',
+      quantity: 1,
+      price: 100,
+      priceName: 'Default',
+      priceUuid: '',
+      lineItemOrder: 1,
+      paymentStatus: 'PENDING',
+      order: null,
+      resourceVersion: '1.8',
+    },
+    {
+      uuid: '006ee634-f1cf-4552-b751-f721679527af',
+      display: 'BillLineItem',
+      voided: false,
+      voidReason: null,
+      item: '',
+      billableService: '3f5d0684-a280-477e-a67b-2a956a1f6dca:Registration Revist',
+      quantity: 1,
+      price: 50,
+      priceName: 'Default',
+      priceUuid: '',
+      lineItemOrder: 2,
+      paymentStatus: 'PENDING',
+      order: null,
+      resourceVersion: '1.8',
+    },
+  ],
+  billingService:
+    'c15d25b9-12bb-441d-9241-cae541dd4575:Medical Certificate  04be5832-5440-44d0-83d2-5c0dfd0ac7de:Registration New  3f5d0684-a280-477e-a67b-2a956a1f6dca:Registration Revist',
+  payments: [],
+  display: '1933-1',
+  totalAmount: 650,
+};
+
+export const mockBillableServices = [
+  {
+    uuid: '04be5832-5440-44d0-83d2-5c0dfd0ac7de',
+    name: 'Registration New',
+    shortName: 'registration',
+    serviceStatus: 'ENABLED',
+    serviceType: { display: 'Triage service' },
+    servicePrices: [
+      {
+        uuid: 'd0bf097a-f03e-4447-b3ad-a2a73f671b4f',
+        name: 'Mobile Money',
+        price: 100,
+        paymentMode: {
+          uuid: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+          name: 'Mobile Money',
+          description: 'Mobile money method of payment',
+          retired: false,
+          retireReason: null,
+          attributeTypes: [
+            {
+              uuid: 'd453e528-0264-4d6e-ae23-bc0b777e1146',
+              name: 'Reference Number',
+              description: 'Reference Number',
+              retired: false,
+              retireReason: null,
+              attributeOrder: 0,
+              format: 'java.lang.String',
+              foreignKey: null,
+              regExp: null,
+              required: false,
+              resourceVersion: '1.8',
+            },
+          ],
+          sortOrder: null,
+          resourceVersion: '1.8',
+        },
+      },
+    ],
+  },
+  {
+    uuid: '3f5d0684-a280-477e-a67b-2a956a1f6dca',
+    name: 'Registration Revist',
+    shortName: 'registration',
+    serviceStatus: 'ENABLED',
+    serviceType: { display: 'Triage service' },
+    servicePrices: [
+      {
+        uuid: 'a3754489-8bfb-46cf-a7de-a441c20e0e4f',
+        name: 'Mobile Money',
+        price: 50,
+        paymentMode: {
+          uuid: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+          name: 'Mobile Money',
+          description: 'Mobile money method of payment',
+          retired: false,
+          retireReason: null,
+          attributeTypes: [
+            {
+              uuid: 'd453e528-0264-4d6e-ae23-bc0b777e1146',
+              name: 'Reference Number',
+              description: 'Reference Number',
+              retired: false,
+              retireReason: null,
+              attributeOrder: 0,
+              format: 'java.lang.String',
+              foreignKey: null,
+              regExp: null,
+              required: false,
+              resourceVersion: '1.8',
+            },
+          ],
+          sortOrder: null,
+          resourceVersion: '1.8',
+        },
+      },
+    ],
+  },
+  {
+    uuid: 'c15d25b9-12bb-441d-9241-cae541dd4575',
+    name: 'Medical Certificate',
+    shortName: 'Medical exam',
+    serviceStatus: 'ENABLED',
+    serviceType: { display: 'Clinical consultation' },
+    servicePrices: [
+      {
+        uuid: '401bd624-692e-47a8-bf3f-298bbfeb6e56',
+        name: 'Mobile Money',
+        price: 500,
+        paymentMode: {
+          uuid: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+          name: 'Mobile Money',
+          description: 'Mobile money method of payment',
+          retired: false,
+          retireReason: null,
+          attributeTypes: [
+            {
+              uuid: 'd453e528-0264-4d6e-ae23-bc0b777e1146',
+              name: 'Reference Number',
+              description: 'Reference Number',
+              retired: false,
+              retireReason: null,
+              attributeOrder: 0,
+              format: 'java.lang.String',
+              foreignKey: null,
+              regExp: null,
+              required: false,
+              resourceVersion: '1.8',
+            },
+          ],
+          sortOrder: null,
+          resourceVersion: '1.8',
+        },
+      },
+    ],
+  },
+];
+
+export const mockLineItems = [
+  {
+    uuid: '314c25fd-2c90-4a7f-9f98-c99cd3f153e8',
+    display: 'BillLineItem',
+    voided: false,
+    voidReason: null,
+    item: '',
+    billableService: 'c15d25b9-12bb-441d-9241-cae541dd4575:Medical Certificate',
+    quantity: 1,
+    price: 500,
+    priceName: 'Default',
+    priceUuid: '',
+    lineItemOrder: 0,
+    paymentStatus: 'PENDING',
+    order: null,
+    resourceVersion: '1.8',
+  },
+  {
+    uuid: '60365e7e-d29e-4f13-b64b-9aecb5d36031',
+    display: 'BillLineItem',
+    voided: false,
+    voidReason: null,
+    item: '',
+    billableService: '04be5832-5440-44d0-83d2-5c0dfd0ac7de:Registration New',
+    quantity: 1,
+    price: 100,
+    priceName: 'Default',
+    priceUuid: '',
+    lineItemOrder: 1,
+    paymentStatus: 'PENDING',
+    order: null,
+    resourceVersion: '1.8',
+  },
+  {
+    uuid: '006ee634-f1cf-4552-b751-f721679527af',
+    display: 'BillLineItem',
+    voided: false,
+    voidReason: null,
+    item: '',
+    billableService: '3f5d0684-a280-477e-a67b-2a956a1f6dca:Registration Revist',
+    quantity: 1,
+    price: 50,
+    priceName: 'Default',
+    priceUuid: '',
+    lineItemOrder: 2,
+    paymentStatus: 'PENDING',
+    order: null,
+    resourceVersion: '1.8',
+  },
+];
+
+export const mockPaymentModes = [
+  {
+    uuid: '63eff7a4-6f82-43c4-a333-dbcc58fe9f74',
+    name: 'Cash',
+    description: 'Cash Payment',
+    retired: false,
+    attributeTypes: [],
+  },
+  {
+    uuid: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
+    name: 'Insurance',
+    description: 'Insurance method of payment',
+    retired: false,
+    attributeTypes: [],
+  },
+  {
+    uuid: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+    name: 'Mobile Money',
+    description: 'Mobile money method of payment',
+    retired: false,
+    attributeTypes: [],
+  },
+  {
+    uuid: 'd1d6e7da-2717-49c4-a855-28fc5df3b3b7',
+    name: 'Social Health Insurance Fund (SHA)',
+    description: 'Social Health Insurance Fund (SHA)',
+    retired: false,
+    attributeTypes: [],
+  },
+  {
+    uuid: 'eb6173cb-9678-4614-bbe1-0ccf7ed9d1d4',
+    name: 'Waiver',
+    description: 'Waiver payment',
+    retired: false,
+    attributeTypes: [],
+  },
+];
+
+export const mockedActiveSheet = {
+  uuid: 'cbf56e9a-5db1-41d3-8d34-e228aa2e31c0',
+  display: '14 Nov 2024, 08:11 to  open',
+  voided: false,
+  voidReason: null,
+  auditInfo: {
+    creator: {
+      uuid: 'e02c40e5-04e7-11e5-ae3c-a0b3cc4f922f',
+      display: 'admin',
+      links: [
+        {
+          rel: 'self',
+          uri: 'http://dev.kenyahmis.org/openmrs/ws/rest/v1/user/e02c40e5-04e7-11e5-ae3c-a0b3cc4f922f',
+          resourceAlias: 'user',
+        },
+      ],
+    },
+    dateCreated: '2024-11-14T08:11:27.000+0300',
+    changedBy: null,
+    dateChanged: null,
+  },
+  cashier: {
+    uuid: '48b55692-e061-4ffa-b1f2-fd4aaf506224',
+    display: 'admin - Barbara Stewart Lopez',
+    links: [
+      {
+        rel: 'self',
+        uri: 'http://dev.kenyahmis.org/openmrs/ws/rest/v1/provider/48b55692-e061-4ffa-b1f2-fd4aaf506224',
+        resourceAlias: 'provider',
+      },
+    ],
+  },
+  cashPoint: {
+    uuid: '65dd568e-4124-4e89-a4f8-0b07c58ec6fe',
+    name: 'MNCH Pay Point',
+    description: 'Payment done at the MNCH department',
+    retired: false,
+    location: {
+      uuid: '233de33e-2778-4f9a-a398-fa09da9daa14',
+      display: 'Wamagana Health Centre',
+      links: [
+        {
+          rel: 'self',
+          uri: 'http://dev.kenyahmis.org/openmrs/ws/rest/v1/location/233de33e-2778-4f9a-a398-fa09da9daa14',
+          resourceAlias: 'location',
+        },
+      ],
+    },
+  },
+  clockIn: '2024-11-14T08:11:27.000+0300',
+  clockOut: null,
+  resourceVersion: '1.8',
+};

@@ -1,15 +1,18 @@
 import React from 'react';
-import BillableServices from '../billable-services.component';
+import { useTranslation } from 'react-i18next';
+import BillingHeader from '../../billing-header/billing-header.component';
+import ClinicalCharges from '../clinical-charges.component';
 import styles from './dashboard.scss';
-import { ExtensionSlot } from '@openmrs/esm-framework';
 
-export default function BillableServicesDashboard() {
+export const ChargeItemsDashboard = () => {
+  const { t } = useTranslation();
+
   return (
     <main className={styles.container}>
-      <ExtensionSlot name="billing-home-tiles-slot" />
+      <BillingHeader title={t('chargeItems', 'Charge Items')} />
       <main className={styles.servicesTableContainer}>
-        <BillableServices />
+        <ClinicalCharges />
       </main>
     </main>
   );
-}
+};

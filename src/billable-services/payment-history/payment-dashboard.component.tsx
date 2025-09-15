@@ -12,26 +12,24 @@ export const PaymentDashboard = () => {
   const { t } = useTranslation();
 
   return (
-    <div className={styles.container}>
-      <PaymentFilterProvider>
-        <FilterDashboard />
-        <Layer className={styles.paymentDashboard}>
-          <Tabs>
-            <TabList aria-label={t('listOfTabs', 'List of tabs on transactions')} contained>
-              <Tab renderIcon={Dashboard}>{t('transactionHistory', 'Transaction History')}</Tab>
-              <Tab renderIcon={CloudMonitoring}>{t('paymentModeSummary', 'Payment Mode Summary')}</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel>
-                <PaymentHistoryViewer />
-              </TabPanel>
-              <TabPanel>
-                <PaymentMethodDistribution />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </Layer>
-      </PaymentFilterProvider>
-    </div>
+    <PaymentFilterProvider>
+      <FilterDashboard />
+      <Layer className={styles.paymentDashboard}>
+        <Tabs>
+          <TabList aria-label={t('listOfTabs', 'List of tabs on transactions')} contained>
+            <Tab renderIcon={Dashboard}>{t('transactionHistory', 'Transaction History')}</Tab>
+            <Tab renderIcon={CloudMonitoring}>{t('paymentModeSummary', 'Payment Mode Summary')}</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel>
+              <PaymentHistoryViewer />
+            </TabPanel>
+            <TabPanel>
+              <PaymentMethodDistribution />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </Layer>
+    </PaymentFilterProvider>
   );
 };

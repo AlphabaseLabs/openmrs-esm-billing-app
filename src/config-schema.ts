@@ -29,6 +29,11 @@ export interface BillingConfig {
   };
   patientExemptionCategories: Array<{ value: string; label: string }>;
   insurancePaymentMethod: string;
+  mobileMoneyPaymentModeUUID: string;
+  concepts: {
+    emergencyPriorityConceptUuid: string;
+    serviceConceptSetUuid: string;
+  };
 }
 
 export const configSchema = {
@@ -211,6 +216,23 @@ export const configSchema = {
     _type: Type.String,
     _description: 'Insurance Payment method UUID',
     _default: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
+  },
+  mobileMoneyPaymentModeUUID: {
+    _type: Type.UUID,
+    _description: 'Mobile money payment method uuid',
+    _default: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+  },
+  concepts: {
+    emergencyPriorityConceptUuid: {
+      _type: Type.String,
+      _description: 'The concept uuid for emergency priority',
+      _default: '037446f4-adfc-40b3-928c-a39a4826b1bf',
+    },
+    serviceConceptSetUuid: {
+      _type: Type.String,
+      _description: 'The concept uuid containing all available services e.g lab, pharmacy, surgical etc',
+      _default: 'a8f3f64a-11d5-4a09-b0fb-c8118fa349f3',
+    },
   },
 };
 
