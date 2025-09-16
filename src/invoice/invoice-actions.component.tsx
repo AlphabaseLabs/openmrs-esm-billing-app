@@ -37,14 +37,6 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
   const { billUuid, patientUuid } = useParams();
   // const { checkSHARegNum } = useCheckShareGnum();
   const { patientUuid: visitStorePatientUuid, manuallySetVisitUuid } = useVisitContextStore();
-  const isProcessClaimsFormEnabled = useFeatureFlag('healthInformationExchange');
-
-  const isInsurancePayment = (payments) => {
-    return payments?.some((payment) => payment.instanceType.name === 'Insurance');
-  };
-
-  // const isShaFacilityStatusValid =
-  //   checkSHARegNum?.registrationNumber && checkSHARegNum.registrationNumber.trim() !== '';
 
   const launchBillCloseOrReopenModal = (action: 'close' | 'reopen') => {
     const dispose = showModal('bill-action-modal', {
@@ -62,72 +54,6 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
       title: documentTitle,
       documentUrl: `/openmrs${restBaseUrl}/cashier/print?documentType=${documentType}&billId=${bill?.id}`,
     });
-  };
-
-  const handleBillPayment = () => {
-    const dispose = showModal('initiate-payment-modal', {
-      closeModal: () => dispose(),
-      bill: bill,
-      selectedLineItems,
-    });
-  };
-
-  const mutateClaimForm = async () => {
-    const activeVisitUrlSuffix = `?patient=${patientUuid}&v=${defaultVisitCustomRepresentation}&includeInactive=false`;
-    const retrospectiveVisitUuid = patientUuid && visitStorePatientUuid == patientUuid ? manuallySetVisitUuid : null;
-    const retrospectiveVisitUrlSuffix = `/${retrospectiveVisitUuid}?v=${defaultVisitCustomRepresentation}`;
-    const activeVisitUrl = `${restBaseUrl}/visit${activeVisitUrlSuffix}`;
-    const retroVisitUrl = `${restBaseUrl}/visit${retrospectiveVisitUrlSuffix}`;
-    await mutate((key) => typeof key === 'string' && (key.startsWith(activeVisitUrl) || key.startsWith(retroVisitUrl)));
-  };
-
-  const handleEndVisit = async () => {
-    if (activeVisit) {
-      const endVisitPayload = {
-        stopDatetime: new Date(),
-      };
-
-      const abortController = new AbortController();
-      try {
-        await updateVisit(activeVisit.uuid, endVisitPayload, abortController);
-        await mutateClaimForm();
-        showSnackbar({
-          isLowContrast: true,
-          kind: 'success',
-          subtitle: t('visitEndSuccessssfully', 'visit ended successfully'),
-          title: t('visitEnded', 'Visit ended'),
-        });
-      } catch (error) {
-        showSnackbar({
-          title: t('errorEndingVisit', 'Error ending visit'),
-          kind: 'error',
-          isLowContrast: false,
-          subtitle: error?.message,
-        });
-      }
-    }
-  };
-
-  const handleViewClaims = async () => {
-    // if (!isShaFacilityStatusValid) {
-    //   showToast({
-    //     critical: true,
-    //     kind: 'warning',
-    //     title: t('shaFacilityLicenseNumberRequired', 'Facility license number Required'),
-    //     description: t(
-    //       'shaFacilityLicenseNumbernRequiredDescription',
-    //       'Facility license number is required to process claims. Please update facility license number details.',
-    //     ),
-    //   });
-    //   return;
-    // }
-
-    if (activeVisit) {
-      await handleEndVisit();
-      navigate({ to: `${spaBasePath}/billing/patient/${patientUuid}/${billUuid}/claims` });
-    } else {
-      navigate({ to: `${spaBasePath}/billing/patient/${patientUuid}/${billUuid}/claims` });
-    }
   };
 
   return (
@@ -228,30 +154,6 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
         }>
         {t('additionalPayment', 'Additional Payment')}
       </Button>
-      {bill?.balance !== 0 && (
-        <Button
-          onClick={handleBillPayment}
-          disabled={bill?.balance === 0}
-          size="sm"
-          renderIcon={Wallet}
-          iconDescription="Add"
-          tooltipPosition="left">
-          {t('mpesaPayment', 'MPESA Payment')}
-        </Button>
-      )}
-
-      {isProcessClaimsFormEnabled && isInsurancePayment(bill?.payments) && (
-        <Button
-          onClick={handleViewClaims}
-          disabled={bill?.status !== 'PAID'}
-          kind="danger"
-          size="sm"
-          renderIcon={BaggageClaim}
-          iconDescription="Add"
-          tooltipPosition="bottom">
-          {activeVisit ? t('endVisitAndClaim', 'End visit and Process claims') : t('claim', 'Process claims')}
-        </Button>
-      )}
     </div>
   );
 }

@@ -28,19 +28,29 @@ import {
 } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBills } from '../billing.resource';
-import { PaymentStatus } from '../types';
 import styles from './bills-table.scss';
 
-const BillsTable = () => {
+const filterItems = [
+  { id: '', text: 'All bills' },
+  { id: 'PENDING', text: 'Pending bills' },
+  { id: 'PAID', text: 'Paid bills' },
+  { id: 'POSTED', text: 'Posted bills' },
+];
+
+type BillTableProps = {
+  defaultBillPaymentStatus?: string;
+};
+
+const BillsTable: React.FC<BillTableProps> = ({ defaultBillPaymentStatus = '' }) => {
   const { t } = useTranslation();
   const id = useId();
   const config = useConfig();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [billPaymentStatus, setBillPaymentStatus] = useState<PaymentStatus | ''>('');
+  const [billPaymentStatus, setBillPaymentStatus] = useState(defaultBillPaymentStatus);
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 30, 40, 50];
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
-  const { bills, isLoading, isValidating, error } = useBills('', '');
+  const { bills, isLoading, isValidating, error } = useBills('', billPaymentStatus);
   const [searchString, setSearchString] = useState('');
 
   const headerData = [
@@ -60,58 +70,58 @@ const BillsTable = () => {
       header: t('billedItems', 'Billed Items'),
       key: 'billedItems',
     },
+    {
+      header: t('status', 'Status'),
+      key: 'status',
+    },
   ];
 
   const searchResults = useMemo(() => {
-    if (!bills?.length) return bills;
+    if (bills !== undefined && bills.length > 0) {
+      if (searchString && searchString.trim() !== '') {
+        const search = searchString.toLowerCase();
+        return bills?.filter((activeBillRow) =>
+          Object.entries(activeBillRow).some(([header, value]) => {
+            if (header === 'patientUuid') {
+              return false;
+            }
+            return `${value}`.toLowerCase().includes(search);
+          }),
+        );
+      }
+    }
 
-    return bills
-      .map((bill) => {
-        if (bill.payments?.length > 0) {
-          const totalPaid = bill.payments.reduce((sum, payment) => sum + payment.amountTendered, 0);
-          if (totalPaid >= bill.totalAmount) {
-            bill.status = PaymentStatus.PAID;
-          }
-        }
-        return bill;
-      })
-      .filter((bill) => {
-        const statusMatch = billPaymentStatus === '' ? true : bill.status === billPaymentStatus;
-        const searchMatch = !searchString
-          ? true
-          : bill.patientName.toLowerCase().includes(searchString.toLowerCase()) ||
-            bill.identifier.toLowerCase().includes(searchString.toLowerCase());
-
-        return statusMatch && searchMatch;
-      });
-  }, [bills, searchString, billPaymentStatus]);
+    return bills;
+  }, [searchString, bills]);
 
   const { paginated, goTo, results, currentPage } = usePagination(searchResults, pageSize);
 
   const setBilledItems = (bill) =>
-    bill?.lineItems?.reduce((acc, item) => acc + (acc ? ' & ' : '') + (item.billableService || item.item || ''), '');
+    bill?.lineItems?.reduce(
+      (acc, item) => acc + (acc ? ' & ' : '') + (item?.billableService.split(':')[1] || item?.item.split(':')[1] || ''),
+      '',
+    );
 
   const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
 
-  const rowData = results?.map((bill, index) => {
-    return {
-      id: `${index}`,
-      uuid: bill.uuid,
-      patientName: (
-        <ConfigurableLink
-          style={{ textDecoration: 'none', maxWidth: '50%' }}
-          to={billingUrl}
-          templateParams={{ patientUuid: bill.patientUuid, uuid: bill.uuid }}>
-          {bill.patientName}
-        </ConfigurableLink>
-      ),
-      visitTime: bill.dateCreated,
-      identifier: bill.identifier,
-      department: '--',
-      billedItems: setBilledItems(bill),
-      billingPrice: '--',
-    };
-  });
+  const rowData = results?.map((bill, index) => ({
+    id: `${index}`,
+    uuid: bill.uuid,
+    patientName: (
+      <ConfigurableLink
+        style={{ textDecoration: 'none', maxWidth: '50%' }}
+        to={billingUrl}
+        templateParams={{ patientUuid: bill.patientUuid, uuid: bill.uuid }}>
+        {bill.patientName}
+      </ConfigurableLink>
+    ),
+    visitTime: bill.dateCreated,
+    identifier: bill.identifier,
+    department: '--',
+    billedItems: setBilledItems(bill),
+    billingPrice: '--',
+    status: bill.status,
+  }));
 
   const handleSearch = useCallback(
     (e) => {
@@ -121,15 +131,7 @@ const BillsTable = () => {
     [goTo, setSearchString],
   );
 
-  const filterItems = [
-    { id: '', text: 'All bills' },
-    { id: PaymentStatus.PENDING, text: 'Pending bills' },
-    { id: PaymentStatus.PAID, text: 'Paid bills' },
-  ];
-
-  const handleFilterChange = ({ selectedItem }) => {
-    setBillPaymentStatus(selectedItem.id);
-  };
+  const handleFilterChange = ({ selectedItem }) => setBillPaymentStatus(selectedItem.id);
 
   if (isLoading) {
     return (
@@ -140,7 +142,6 @@ const BillsTable = () => {
           showToolbar={false}
           zebra
           columnCount={headerData?.length}
-          size={responsiveSize}
         />
       </div>
     );
@@ -163,7 +164,7 @@ const BillsTable = () => {
           className={styles.filterDropdown}
           direction="bottom"
           id={`filter-${id}`}
-          initialSelectedItem={filterItems[1]}
+          initialSelectedItem={filterItems.find((item) => item.id === billPaymentStatus)}
           items={filterItems}
           itemToString={(item) => (item ? item.text : '')}
           label=""
