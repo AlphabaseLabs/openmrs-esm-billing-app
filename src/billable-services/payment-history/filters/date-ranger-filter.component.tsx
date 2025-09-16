@@ -9,8 +9,18 @@ export const DateRangeFilter = () => {
   const { dateRange, setDateRange } = usePaymentFilterContext();
 
   const handleDateRangeChange = ([start, end]: Array<Date>) => {
-    if (start && end) {
-      setDateRange([start, end]);
+    if (start) {
+      // If only start date is provided, set end date to end of that day
+      const endDate = end || new Date(start.getTime());
+
+      // Ensure start is at beginning of day and end is at end of day
+      const startOfDay = new Date(start);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      setDateRange([startOfDay, endOfDay]);
     }
   };
 
