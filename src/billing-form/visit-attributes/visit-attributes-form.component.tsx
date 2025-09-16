@@ -94,6 +94,7 @@ const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes
           <Controller
             name="isPatientExempted"
             control={control}
+            defaultValue="false"
             render={({ field }) => (
               <RadioButtonGroup
                 onChange={(selected) => {
@@ -101,7 +102,8 @@ const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes
                 }}
                 orientation="horizontal"
                 legendText={t('isPatientExemptedLegend', 'Is patient exempted from payment?')}
-                name="patientExemption">
+                name="patientExemption"
+                defaultSelected="false">
                 <RadioButton labelText={t('yes', 'Yes')} value="true" id="Yes" />
                 <RadioButton labelText={t('no', 'No')} value="false" id="No" />
               </RadioButtonGroup>
