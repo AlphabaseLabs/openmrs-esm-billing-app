@@ -56,18 +56,6 @@ export const configSchema = {
     _description: 'The text that gets printed on the top right of the invoice, typically the name of the country',
     _default: 'Kenya',
   },
-  patientCatergory: {
-    _type: Type.Object,
-    _description: 'Patient Category Custom UUIDs',
-    _default: {
-      paymentDetails: 'fbc0702d-b4c9-4968-be63-af8ad3ad6239',
-      paymentMethods: '8553afa0-bdb9-4d3c-8a98-05fa9350aa85',
-      policyNumber: '3a988e33-a6c0-4b76-b924-01abb998944b',
-      insuranceScheme: 'aac48226-d143-4274-80e0-264db4e368ee',
-      patientCategory: '3b9dfac8-9e4d-11ee-8c90-0242ac120002',
-      formPayloadPending: '919b51c9-8e2e-468f-8354-181bf3e55786',
-    },
-  },
   catergoryConcepts: {
     _type: Type.Object,
     _description: 'Patient Category Concept UUIDs',
@@ -85,15 +73,6 @@ export const configSchema = {
       student: '159465AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     },
   },
-  postBilledItems: {
-    _type: Type.Object,
-    _description: 'Post Bill Items such as cashPoints, cashier, priceUUid when submitting a bill',
-    _default: {
-      cashPoint: '54065383-b4d4-42d2-af4d-d250a1fd2590',
-      cashier: 'f9badd80-ab76-11e2-9e96-0800200c9a66',
-      priceUuid: '7b9171ac-d3c1-49b4-beff-c9902aee5245',
-    },
-  },
   serviceTypes: {
     _type: Type.Object,
     _description: 'Post Bill Items such as cashPoints, cashier, priceUUid when submitting a bill',
@@ -103,8 +82,8 @@ export const configSchema = {
   },
   defaultCurrency: {
     _type: Type.String,
-    _description: 'The default currency for the application. Specify the currency code (e.g., KES, UGX, GBP).',
-    _default: 'KES',
+    _description: 'The default currency for the application. Specify the currency code (e.g., PKR, UGX, GBP).',
+    _default: 'PKR',
   },
   pageSize: {
     _type: Type.Number,
@@ -175,12 +154,12 @@ export const configSchema = {
   cashPointUuid: {
     _type: Type.String,
     _description: 'Where bill is generated from',
-    _default: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+    _default: 'e9d5e99a-a527-4258-9a93-afbea4fef174',
   },
   cashierUuid: {
     _type: Type.String,
     _description: 'Who Generated the bill',
-    _default: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+    _default: 'e9d5e99a-a527-4258-9a93-afbea4fef174',
   },
   insuranceSchemes: {
     _type: Type.Array,
@@ -195,6 +174,36 @@ export const configSchema = {
       _type: Type.String,
       _default: '3b9dfac8-9e4d-11ee-8c90-0242ac120002',
       _description: 'Whether the patient should be exempted from paying for service i.e Prisoners',
+    },
+    paymentMethods: {
+      _type: Type.String,
+      _description: 'The payment methods visit attribute uuid',
+      _default: 'e6cb0c3b-04b0-4117-9bc6-ce24adbda802',
+    },
+    insuranceScheme: {
+      _type: Type.String,
+      _description: 'The insurance scheme visit attribute uuid',
+      _default: '2d0fa959-6780-41f1-85b1-402045935068',
+    },
+    policyNumber: {
+      _type: Type.String,
+      _description: 'The policy number visit attribute uuid',
+      _default: '0f4f3306-f01b-43c6-af5b-fdb60015cb02',
+    },
+    exemptionCategory: {
+      _type: Type.String,
+      _description: 'The exemption category visit attribute uuid',
+      _default: 'df0362f9-782e-4d92-8bb2-3112e9e9eb3c',
+    },
+    billPaymentStatus: {
+      _type: Type.String,
+      _description: 'The bill payment status visit attribute uuid',
+      _default: '919b51c9-8e2e-468f-8354-181bf3e55786',
+    },
+    shaBenefitPackagesAndInterventions: {
+      _type: Type.String,
+      _description: 'JSON String of SHA Benefit Packages and Interventions for this visit',
+      _default: '338725fa-3790-4679-98b9-be623214ee29',
     },
   },
   patientExemptionCategories: {
@@ -242,14 +251,6 @@ export interface ConfigObject {
     alt: string;
   };
   country: string;
-  patientCatergory: {
-    paymentDetails: string;
-    paymentMethods: string;
-    policyNumber: string;
-    insuranceScheme: string;
-    patientCategory: string;
-    formPayloadPending: string;
-  };
   catergoryConcepts: {
     payingDetails: string;
     nonPayingDetails: string;

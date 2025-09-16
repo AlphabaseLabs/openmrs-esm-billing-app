@@ -275,6 +275,7 @@ export const billingFormSchema = z.object({
   patient: z.string().uuid(),
   payments: z.array(z.string()),
   status: z.enum(['PENDING']),
+  receiptNumber: z.string().optional(),
   lineItems: z
     .array(
       z.object({

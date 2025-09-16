@@ -27,6 +27,7 @@ import styles from './create-bill.style.scss';
 import { convertToCurrency } from '../../../../helpers';
 import { type BillingConfig } from '../../../../config-schema';
 import { processBillItems } from '../../../../billing.resource';
+import { generateReceiptNumber } from '../../../../helpers/receipt-number';
 import { mutate } from 'swr';
 
 type CreateBillWorkspaceProps = DefaultWorkspaceProps & {
@@ -189,11 +190,13 @@ const CreateBillWorkspace: React.FC<CreateBillWorkspaceProps> = ({
 
   const handleCreateBill = async (formData: CreateBillFormSchema) => {
     const unitPrice = parseFloat(formData.unitPrice);
+    const receiptNumber = await generateReceiptNumber();
     const createBillPayload = {
       cashPoint: cashPointUuid,
       cashier: cashierUuid,
       patient: patientUuid,
       status: 'PENDING',
+      receiptNumber,
       lineItems: [
         {
           billableService: billableItem?.uuid,
