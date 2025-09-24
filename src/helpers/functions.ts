@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { Payment, LineItem } from '../types';
+import { type Payment, type LineItem } from '../types';
 import { formatCurrency } from './currency';
 
 // amount already paid

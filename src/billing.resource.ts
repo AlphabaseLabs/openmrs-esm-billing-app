@@ -1,7 +1,7 @@
 import {
   formatDate,
   openmrsFetch,
-  OpenmrsResource,
+  type OpenmrsResource,
   parseDate,
   restBaseUrl,
   useConfig,
@@ -15,9 +15,9 @@ import sortBy from 'lodash-es/sortBy';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
-import { BillingConfig } from './config-schema';
+import { type BillingConfig } from './config-schema';
 import { extractString } from './helpers';
-import { FacilityDetail, MappedBill, PatientInvoice, PaymentMethod, PaymentStatus } from './types';
+import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, PaymentStatus } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   // create base object

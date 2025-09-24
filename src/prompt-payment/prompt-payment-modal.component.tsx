@@ -16,7 +16,7 @@ import {
 import styles from './prompt-payment.scss';
 import { convertToCurrency, extractString } from '../helpers';
 import { navigate, useConfig } from '@openmrs/esm-framework';
-import { BillingConfig } from '../config-schema';
+import { type BillingConfig } from '../config-schema';
 import { getPatientUuidFromStore } from '@openmrs/esm-patient-common-lib';
 import { useBillingPrompt } from './prompt-payment.resource';
 

@@ -1,5 +1,5 @@
 import { convertToCurrency } from '../helpers';
-import { MappedBill, PaymentStatus } from '../types';
+import { type MappedBill, PaymentStatus } from '../types';
 
 /**
  * A custom hook for calculating bill metrics.

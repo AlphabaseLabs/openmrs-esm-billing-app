@@ -34,6 +34,12 @@ To start a dev server, run:
 yarn start
 ```
 
+To run with a specific backend (e.g., KenyaEMR with cashier module enabled):
+
+```bash
+yarn start --backend http://192.168.100.13
+```
+
 Once the dev server launches, log in and select a location. You will get redirected to the home page.
 
 For more information on how to navigate and use the billing module, please refer to this [documentation](https://www.notion.so/ucsf-ighs/Billing-User-Manual-7f0427617e714b7db14432312cbb7cad) 

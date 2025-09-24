@@ -1,5 +1,5 @@
 import { useConfig } from '@openmrs/esm-framework';
-import { BillingConfig } from '../config-schema';
+import { type BillingConfig } from '../config-schema';
 
 // Default locale to currency mapping (fallback)
 export const DEFAULT_LOCALE_CURRENCY_MAP: Record<string, string> = {

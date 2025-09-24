@@ -2,7 +2,7 @@ import { Button, Form, Loading, ModalBody, ModalFooter, ModalHeader, TextInput }
 import { zodResolver } from '@hookform/resolvers/zod';
 import { showSnackbar, useSession } from '@openmrs/esm-framework';
 import React, { useState } from 'react';
-import { Controller, SubmitHandler, useForm } from 'react-hook-form';
+import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import styles from './payment-points-styles.scss';

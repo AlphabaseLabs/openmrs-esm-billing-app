@@ -12,10 +12,10 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { showSnackbar, useSession } from '@openmrs/esm-framework';
 import React, { useState } from 'react';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { type SubmitHandler, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { PaymentPoint } from '../../types';
+import { type PaymentPoint } from '../../types';
 import { clockIn, clockOut, useActiveSheet, usePaymentPoints } from '../payment-points.resource';
 import { useClockInStatus } from '../use-clock-in-status';
 import styles from './clock-in.scss';

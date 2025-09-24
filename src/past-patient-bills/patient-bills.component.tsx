@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction } from 'react';
+import React, { type Dispatch, type SetStateAction } from 'react';
 import {
   DataTable,
   TableContainer,
@@ -14,7 +14,7 @@ import {
 import { Close } from '@carbon/react/icons';
 import { convertToCurrency, extractString } from '../helpers';
 import { useTranslation } from 'react-i18next';
-import { MappedBill } from '../types';
+import { type MappedBill } from '../types';
 import styles from './patient-bills.scss';
 import { ConfigurableLink, getPatientName, usePatient } from '@openmrs/esm-framework';
 import capitalize from 'lodash/capitalize';

@@ -1,9 +1,9 @@
-import { Visit, openmrsFetch, restBaseUrl, useConfig, useVisit } from '@openmrs/esm-framework';
+import { type Visit, openmrsFetch, restBaseUrl, useConfig, useVisit } from '@openmrs/esm-framework';
 import { useMemo } from 'react';
 import useSWR from 'swr';
 import { mapBillProperties } from '../billing.resource';
-import { BillingConfig } from '../config-schema';
-import { BillingPromptType, MappedBill, PatientInvoice } from '../types';
+import { type BillingConfig } from '../config-schema';
+import { type BillingPromptType, type MappedBill, type PatientInvoice } from '../types';
 import dayjs from 'dayjs';
 
 interface BillingPromptResult {
