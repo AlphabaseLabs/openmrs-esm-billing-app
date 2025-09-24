@@ -1,17 +1,14 @@
-import { Type, validators } from '@openmrs/esm-framework';
+import { type ConfigSchema, Type } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
-  enforceBillPayment: {
-    _type: Type.Boolean;
-    _default: true;
-    _description: 'Whether to enforce bill payment or not for patient to receive service';
-  };
+  enforceBillPayment: boolean;
   localeCurrencyMapping: Record<string, string>;
   promptDuration: {
     enable: boolean;
     duration: number;
   };
   patientBillsUrl: string;
+  billingStatusQueryUrl: string;
   excludedPaymentMode: Array<{ uuid: string; label: string }>;
   inPatientVisitTypeUuid: string;
   paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
@@ -36,64 +33,11 @@ export interface BillingConfig {
   };
 }
 
-export const configSchema = {
-  logo: {
-    src: {
-      _type: Type.String,
-      _default: '',
-      _description:
-        'The path or URL to the logo image. If set to an empty string, the default OpenMRS SVG sprite will be used.',
-      _validators: [validators.isUrl],
-    },
-    alt: {
-      _type: Type.String,
-      _default: 'Logo',
-      _description: 'The alternative text for the logo image, displayed when the image cannot be loaded or on hover.',
-    },
-  },
-  country: {
-    _type: Type.String,
-    _description: 'The text that gets printed on the top right of the invoice, typically the name of the country',
-    _default: 'Kenya',
-  },
-  catergoryConcepts: {
-    _type: Type.Object,
-    _description: 'Patient Category Concept UUIDs',
-    _default: {
-      payingDetails: '44b34972-6630-4e5a-a9f6-a6eb0f109650',
-      nonPayingDetails: 'f3fb2d88-cccd-422c-8766-be101ba7bd2e',
-      insuranceDetails: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
-    },
-  },
-  nonPayingPatientCategories: {
-    _type: Type.Object,
-    _description: 'Concept UUIDs for non-paying patient categories',
-    _default: {
-      childUnder5: '1528AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      student: '159465AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-    },
-  },
-  serviceTypes: {
-    _type: Type.Object,
-    _description: 'Post Bill Items such as cashPoints, cashier, priceUUid when submitting a bill',
-    _default: {
-      billableService: '21b8cf43-9f9f-4d02-9f4a-d710ece54261',
-    },
-  },
-  defaultCurrency: {
-    _type: Type.String,
-    _description: 'The default currency for the application. Specify the currency code (e.g., PKR, UGX, GBP).',
-    _default: 'PKR',
-  },
-  pageSize: {
-    _type: Type.Number,
-    _description: 'The default page size',
-    _default: 10,
-  },
-  showEditBillButton: {
+export const configSchema: ConfigSchema = {
+  enforceBillPayment: {
     _type: Type.Boolean,
-    _description: 'Whether to show the edit bill button or not.',
     _default: false,
+    _description: 'Whether to enforce bill payment or not for patient to receive service',
   },
   localeCurrencyMapping: {
     _type: Type.Object,
@@ -106,9 +50,9 @@ export const configSchema = {
   promptDuration: {
     _type: Type.Object,
     _description:
-      'The duration in hours for the prompt to be shown, if the duration is less than this, the prompt will be shown',
+      'The duration in hours for the bill payment prompt to show on patient chart, if the duration is less than this, the prompt will not be shown',
     _default: {
-      enable: true,
+      enable: false,
       duration: 24,
     },
   },
@@ -117,6 +61,11 @@ export const configSchema = {
     _description: 'The url to fetch patient bills',
     _default:
       '${restBaseUrl}/cashier/bill?v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
+  },
+  billingStatusQueryUrl: {
+    _type: Type.String,
+    _default: '${restBaseUrl}/cashier/billLineItem?orderUuid=${orderUuid}&v=full',
+    _description: 'URL to query billing status',
   },
   excludedPaymentMode: {
     _type: Type.Array,
@@ -244,31 +193,3 @@ export const configSchema = {
     },
   },
 };
-
-export interface ConfigObject {
-  logo: {
-    src: string;
-    alt: string;
-  };
-  country: string;
-  catergoryConcepts: {
-    payingDetails: string;
-    nonPayingDetails: string;
-    insuranceDetails: string;
-  };
-  nonPayingPatientCategories: {
-    childUnder5: string;
-    student: string;
-  };
-  postBilledItems: {
-    cashPoint: string;
-    cashier: string;
-    priceUuid: string;
-  };
-  serviceTypes: {
-    billableService: string;
-  };
-  defaultCurrency: string;
-  pageSize: number;
-  showEditBillButton: boolean;
-}

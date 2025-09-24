@@ -34,10 +34,9 @@ To start a dev server, run:
 yarn start
 ```
 
-Once the dev server launches, log in and select a location. You will get redirected to the home page. Once there:
+Once the dev server launches, log in and select a location. You will get redirected to the home page.
 
-* Go to the Implementers tools, under the feature flags, toggle on the Billing Module feature flag to access billing functionalities.
-* For more information on how to navigate and use the billing module, please refer to this [documentation](https://www.notion.so/ucsf-ighs/Billing-User-Manual-7f0427617e714b7db14432312cbb7cad) 
+For more information on how to navigate and use the billing module, please refer to this [documentation](https://www.notion.so/ucsf-ighs/Billing-User-Manual-7f0427617e714b7db14432312cbb7cad) 
 
 ## Running tests
 
@@ -90,35 +89,40 @@ Read the [e2e testing guide](https://openmrs.atlassian.net/wiki/x/Z8CEAQ) to lea
 
 The Playwright version in the [Bamboo e2e Dockerfile](e2e/support/bamboo/playwright.Dockerfile#L2) and the `package.json` file must match. If you update the Playwright version in one place, you must update it in the other.
 
-## ⚙️ Configuration
+## Configuration
 
-You can customize billing behavior using OpenMRS frontend config overrides.
-### 🔧 Example Config
+Configure billing behavior using OpenMRS frontend config overrides.
 
-``` bash
+```json
 {
   "openmrs": {
     "config": {
       "billing": {
-        "defaultCurrency": "UGX",
-        "pageSize": 20,
-        "showEditBillButton": true,
-        "patientCatergory": {
-          "paymentDetails": "fbc0702d-...",
-          "insuranceScheme": "aac48226-..."
+        "enforceBillPayment": false,
+        "localeCurrencyMapping": {
+          "en": "PKR",
+          "en-PK": "PKR"
         },
-        "nonPayingPatientCategories": {
-          "childUnder5": "1528AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "promptDuration": {
+          "enable": false,
+          "duration": 24
+        },
+        "insuranceSchemes": ["SHA", "Jubilee Insurance", "AAR Insurance"],
+        "patientExemptionCategories": [
+          { "value": "FREE_CARE", "label": "Free Care" }
+        ],
+        "visitAttributeTypes": {
+          "isPatientExempted": "3b9dfac8-9e4d-11ee-8c90-0242ac120002",
+          "paymentMethods": "e6cb0c3b-04b0-4117-9bc6-ce24adbda802",
+          "insuranceScheme": "2d0fa959-6780-41f1-85b1-402045935068"
         }
       }
     }
   }
 }
 ```
-``` bash
-📌 Ensure all UUIDs used here exist in your OpenMRS instance.
-🧩 Configuration can be managed via your MF shell app or import-map-deployer
-```
+
+Ensure all UUIDs exist in your OpenMRS instance.
 
 ## Troubleshooting
 
@@ -142,9 +146,6 @@ yarn
 
 For documentation about our design patterns, please visit our [design system](https://zeroheight.com/23a080e38/p/880723--introduction) documentation website.
 
-## Configuration
-
-Please see the [Implementer Documentation](https://wiki.openmrs.org/pages/viewpage.action?pageId=224527013) for information about configuring modules.
 
 ## Deployment
 
