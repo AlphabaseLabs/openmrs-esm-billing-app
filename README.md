@@ -44,6 +44,20 @@ Once the dev server launches, log in and select a location. You will get redirec
 
 For more information on how to navigate and use the billing module, please refer to this [documentation](https://www.notion.so/ucsf-ighs/Billing-User-Manual-7f0427617e714b7db14432312cbb7cad) 
 
+## Building as a local module
+
+To build this as a local module for testing or distribution:
+
+```bash
+yarn build && yarn pack --out local-esm-billing-app.tgz
+```
+
+This will create a `local-esm-billing-app.tgz` file that can be installed in other projects using:
+
+```bash
+yarn add ./local-esm-billing-app.tgz
+```
+
 ## Running tests
 
 To run tests for all packages, run:
