@@ -58,8 +58,3 @@ export const usePaymentModes = () => {
     error,
   };
 };
-
-export const checkPaymentStatus = (transactionId: string) => {
-  const url = `${restBaseUrl}/rmsdataexchange/api/rmsmpesachecker?transactionId=${transactionId}`;
-  return openmrsFetch<PaymentStatusResponse>(url);
-};
