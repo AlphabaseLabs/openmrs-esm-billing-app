@@ -121,13 +121,13 @@ export const configSchema: ConfigSchema = {
   visitAttributeTypes: {
     isPatientExempted: {
       _type: Type.String,
-      _default: '3b9dfac8-9e4d-11ee-8c90-0242ac120002',
+      _default: 'df0362f9-782e-4d92-8bb2-3112e9e9eb3c',
       _description: 'Whether the patient should be exempted from paying for service i.e Prisoners',
     },
     paymentMethods: {
       _type: Type.String,
       _description: 'The payment methods visit attribute uuid',
-      _default: 'e6cb0c3b-04b0-4117-9bc6-ce24adbda802',
+      _default: '8553afa0-bdb9-4d3c-8a98-05fa9350aa85',
     },
     insuranceScheme: {
       _type: Type.String,
@@ -142,7 +142,7 @@ export const configSchema: ConfigSchema = {
     exemptionCategory: {
       _type: Type.String,
       _description: 'The exemption category visit attribute uuid',
-      _default: 'df0362f9-782e-4d92-8bb2-3112e9e9eb3c',
+      _default: 'fbc0702d-b4c9-4968-be63-af8ad3ad6239',
     },
     billPaymentStatus: {
       _type: Type.String,
