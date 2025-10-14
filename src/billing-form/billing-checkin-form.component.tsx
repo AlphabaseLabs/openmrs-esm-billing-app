@@ -1,17 +1,17 @@
 import { FilterableMultiSelect, InlineLoading, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { showSnackbar, useConfig, useFeatureFlag } from '@openmrs/esm-framework';
+import { showSnackbar, useConfig, useVisit } from '@openmrs/esm-framework';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { createPatientBill, useBillableItems, useCashPoint } from '../billing.resource';
 import { type BillingConfig } from '../config-schema';
-import { EXEMPTED_PAYMENT_STATUS, PENDING_PAYMENT_STATUS, SHA_INSURANCE_SCHEME } from '../constants';
-import { BillingService } from '../types';
+import { EXEMPTED_PAYMENT_STATUS, PENDING_PAYMENT_STATUS } from '../constants';
 import styles from './billing-checkin-form.scss';
 import { visitAttributesFormSchema, type VisitAttributesFormValue } from './check-in-form.utils';
 import { hasPatientBeenExempted } from './helper';
 import VisitAttributesForm from './visit-attributes/visit-attributes-form.component';
+import { generateReceiptNumber } from '../helpers/receipt-number';
 
 type BillingCheckInFormProps = {
   patientUuid: string;
@@ -23,6 +23,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const {
     visitAttributeTypes: { isPatientExempted },
   } = useConfig<BillingConfig>();
+  const { currentVisit } = useVisit(patientUuid);
   const { cashPoints, isLoading: isLoadingCashPoints, error: cashError } = useCashPoint();
   const { lineItems, isLoading: isLoadingLineItems, error: lineError } = useBillableItems();
   const [attributes, setAttributes] = useState([]);
@@ -42,7 +43,9 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const isPatientExemptedValue = formMethods.watch('isPatientExempted');
   const paymentMethod = formMethods.watch('paymentMethods');
 
-  const handleCreateBill = useCallback((createBillPayload) => {
+  const handleCreateBill = useCallback(async (createBillPayload) => {
+    const receiptNumber = await generateReceiptNumber();
+    createBillPayload.receiptNumber = receiptNumber;
     createPatientBill(createBillPayload).then(
       () => {
         showSnackbar({ title: 'Patient Bill', subtitle: 'Patient has been billed successfully', kind: 'success' });
@@ -121,7 +124,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
     );
   }
 
-  return (
+  return currentVisit == null || currentVisit.voided == true ? (
     <FormProvider {...formMethods}>
       <VisitAttributesForm setAttributes={setAttributes} />
       {paymentMethod && (
@@ -141,6 +144,8 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
         </section>
       )}
     </FormProvider>
+  ) : (
+    <div>Use bill manager to edit the bill</div>
   );
 };
 
