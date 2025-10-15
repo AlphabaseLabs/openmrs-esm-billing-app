@@ -17,7 +17,7 @@ import {
   Button,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
-import { isDesktop, launchWorkspace, useLayoutType, usePagination } from '@openmrs/esm-framework';
+import { isDesktop, launchWorkspace, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
 import {
   ErrorState,
   usePaginationInfo,
@@ -28,6 +28,8 @@ import {
 import { useBills } from '../billing.resource';
 import InvoiceTable from '../invoice/invoice-table.component';
 import styles from './bill-history.scss';
+import dayjs from 'dayjs';
+import { type BillingConfig } from '../config-schema';
 
 interface BillHistoryProps {
   patientUuid: string;
@@ -35,7 +37,13 @@ interface BillHistoryProps {
 
 const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
-  const { bills, isLoading, error } = useBills(patientUuid);
+  const config = useConfig<BillingConfig>();
+  const { bills, isLoading, error } = useBills(
+    patientUuid,
+    '',
+    dayjs().subtract(config.billHistoryDays, 'day').startOf('day').toDate(),
+    dayjs().endOf('day').toDate(),
+  );
   const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
