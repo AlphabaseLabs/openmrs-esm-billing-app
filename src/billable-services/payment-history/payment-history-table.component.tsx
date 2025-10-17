@@ -15,7 +15,7 @@ import {
 } from '@carbon/react';
 import { Download } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { useDebounce, useLayoutType, usePagination } from '@openmrs/esm-framework';
+import { useDebounce, useLayoutType, usePagination, navigate } from '@openmrs/esm-framework';
 import { usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import { convertToCurrency } from '../../helpers/functions';
 import { DataTableRow, type MappedBill } from '../../types';
@@ -71,6 +71,11 @@ export const PaymentHistoryTable = ({
         .join(', '),
     };
   });
+
+  const handleRowClick = (billUuid: string, patientUuid: string) => {
+    const billingUrl = `${window.getOpenmrsSpaBase()}home/billing/patient/${patientUuid}/${billUuid}`;
+    navigate({ to: billingUrl });
+  };
 
   const handleExport = () => {
     const dataForExport = rows.map((row) => {
@@ -137,17 +142,22 @@ export const PaymentHistoryTable = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    {...getRowProps({
-                      row,
-                    })}>
-                    {row.cells.map((cell) => (
-                      <TableCell key={cell.id}>{cell.value}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                {rows.map((row) => {
+                  const billData = transformedRows.find((tr) => tr.id === row.id);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      {...getRowProps({
+                        row,
+                      })}
+                      onClick={() => handleRowClick(billData?.uuid, billData?.patientUuid)}
+                      style={{ cursor: 'pointer' }}>
+                      {row.cells.map((cell) => (
+                        <TableCell key={cell.id}>{cell.value}</TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
