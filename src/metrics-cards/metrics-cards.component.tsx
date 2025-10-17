@@ -1,15 +1,23 @@
 import { InlineLoading, Layer, Tile } from '@carbon/react';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
 import classNames from 'classnames';
-import React, { useMemo } from 'react';
+import dayjs from 'dayjs';
+import React, { useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBills } from '../billing.resource';
+import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './metrics-cards.scss';
 import { useBillMetrics } from './metrics.resource';
 
 export default function MetricsCards() {
   const { t } = useTranslation();
-  const { bills, isLoading, error } = useBills('');
+  const { selectedDate } = useContext(SelectedDateContext);
+
+  // Convert selectedDate string to Date objects for start and end of day
+  const startDate = dayjs(selectedDate).startOf('day').toDate();
+  const endDate = dayjs(selectedDate).endOf('day').toDate();
+
+  const { bills, isLoading, error } = useBills('', '', startDate, endDate);
   const { totalBills, pendingBills, paidBills, exemptedBills } = useBillMetrics(bills);
 
   const cards = useMemo(

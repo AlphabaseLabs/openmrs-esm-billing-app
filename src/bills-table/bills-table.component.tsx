@@ -1,5 +1,6 @@
-import React, { useCallback, useId, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useId, useMemo, useState } from 'react';
 import classNames from 'classnames';
+import dayjs from 'dayjs';
 import {
   DataTable,
   DataTableSkeleton,
@@ -28,6 +29,7 @@ import {
 } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBills } from '../billing.resource';
+import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './bills-table.scss';
 
 const filterItems = [
@@ -50,7 +52,13 @@ const BillsTable: React.FC<BillTableProps> = ({ defaultBillPaymentStatus = '' })
   const [billPaymentStatus, setBillPaymentStatus] = useState(defaultBillPaymentStatus);
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 30, 40, 50];
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
-  const { bills, isLoading, isValidating, error } = useBills('', billPaymentStatus);
+  const { selectedDate } = useContext(SelectedDateContext);
+
+  // Convert selectedDate string to Date objects for start and end of day
+  const startDate = dayjs(selectedDate).startOf('day').toDate();
+  const endDate = dayjs(selectedDate).endOf('day').toDate();
+
+  const { bills, isLoading, isValidating, error } = useBills('', billPaymentStatus, startDate, endDate);
   const [searchString, setSearchString] = useState('');
 
   const headerData = [
