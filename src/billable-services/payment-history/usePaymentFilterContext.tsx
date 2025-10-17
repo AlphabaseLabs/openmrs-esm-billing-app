@@ -47,6 +47,7 @@ export const PaymentFilterContext = createContext<PaymentFilterContextType>({
     paymentMethods: [],
     cashiers: [],
     serviceTypes: [],
+    billStatus: PaymentStatus.PAID,
   },
   setFilters: () => {},
 });
@@ -63,10 +64,11 @@ export const PaymentFilterProvider = ({ children }: PaymentFilterProviderProps) 
     paymentMethods: [],
     cashiers: [],
     serviceTypes: [],
+    billStatus: PaymentStatus.PAID,
   };
   const [filters, setFilters] = useState<Filter>(defaultFilters);
 
-  const billsResponse = useBills('', PaymentStatus.PAID, dateRange[0], dateRange[1]);
+  const billsResponse = useBills('', filters.billStatus || PaymentStatus.PAID, dateRange[0], dateRange[1]);
   const { bills, isLoading, error } = billsResponse;
 
   const resetFilters = () => {

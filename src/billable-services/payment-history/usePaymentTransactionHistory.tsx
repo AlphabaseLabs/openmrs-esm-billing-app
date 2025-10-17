@@ -17,7 +17,7 @@ export const usePaymentTransactionHistory = (filters: Filter) => {
   const { dateRange } = usePaymentFilterContext();
   const { bills, isLoading, isValidating, error } = useBills(
     '',
-    PaymentStatus.PAID,
+    filters.billStatus || PaymentStatus.PAID,
     dayjs(dateRange[0]).startOf('day').toDate(),
     dayjs(dateRange[1]).endOf('day').toDate(),
   );

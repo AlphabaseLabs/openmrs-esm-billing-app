@@ -299,6 +299,7 @@ export interface Filter {
   serviceTypes?: Array<string>;
   cashiers?: Array<string>;
   status?: string;
+  billStatus?: string;
 }
 
 export interface DataTableRow {
