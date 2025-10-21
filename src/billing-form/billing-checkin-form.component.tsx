@@ -11,7 +11,6 @@ import styles from './billing-checkin-form.scss';
 import { visitAttributesFormSchema, type VisitAttributesFormValue } from './check-in-form.utils';
 import { hasPatientBeenExempted } from './helper';
 import VisitAttributesForm from './visit-attributes/visit-attributes-form.component';
-import { generateReceiptNumber } from '../helpers/receipt-number';
 
 type BillingCheckInFormProps = {
   patientUuid: string;
@@ -44,8 +43,6 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const paymentMethod = formMethods.watch('paymentMethods');
 
   const handleCreateBill = useCallback(async (createBillPayload) => {
-    const receiptNumber = await generateReceiptNumber();
-    createBillPayload.receiptNumber = receiptNumber;
     createPatientBill(createBillPayload).then(
       () => {
         showSnackbar({ title: 'Patient Bill', subtitle: 'Patient has been billed successfully', kind: 'success' });

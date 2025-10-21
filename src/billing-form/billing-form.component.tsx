@@ -21,7 +21,6 @@ import { type z } from 'zod';
 import { Autosuggest } from '../autosuggest/autosuggest.component';
 import { billingFormSchema, processBillItems } from '../billing.resource';
 import useBillableServices from '../hooks/useBillableServices';
-import { generateReceiptNumber } from '../helpers/receipt-number';
 import { type BillingService } from '../types';
 import styles from './billing-form.scss';
 import { mutate } from 'swr';
@@ -57,8 +56,7 @@ const BillingForm: React.FC<BillingFormProps> = ({ closeWorkspace }) => {
 
   const onSubmit = async (values: FormType) => {
     try {
-      const receiptNumber = await generateReceiptNumber();
-      const payload = { ...values, receiptNumber };
+      const payload = { ...values };
       await processBillItems(payload);
       mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill`), undefined, {
         revalidate: true,
