@@ -33,9 +33,7 @@ function BillingDashboard() {
         <UserHasAccess privilege="o3: View Billing Metrics">
           <MetricsCards />
         </UserHasAccess>
-        <section className={styles.billsTableContainer}>
-          <BillingTabs />
-        </section>
+        <BillingTabs />
       </main>
     </SelectedDateContext.Provider>
   );
