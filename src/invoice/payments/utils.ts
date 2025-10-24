@@ -126,6 +126,9 @@ export const createPaymentPayload = (
       value: attribute.value,
     })),
     instanceType: payment.instanceType.uuid,
+    dateCreated: payment.dateCreated,
+    voided: payment.voided,
+    resourceVersion: payment.resourceVersion,
   }));
 
   // Transform new payments
@@ -146,6 +149,9 @@ export const createPaymentPayload = (
       amountTendered: payment.amountTendered,
       attributes: payment.attributes,
       instanceType: payment?.instanceType,
+      dateCreated: payment?.dateCreated,
+      voided: payment?.voided,
+      resourceVersion: payment?.resourceVersion,
     })) ?? [];
   const totalPaidAmount = consolidatedPayments.reduce((sum, payment) => sum + payment.amountTendered, 0);
 

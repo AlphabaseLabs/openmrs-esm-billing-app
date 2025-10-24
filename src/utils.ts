@@ -32,6 +32,7 @@ const createPaymentPayload = (
   amount: number;
   attributes: Array<{ attributeType: string | undefined; value: string }>;
   instanceType: string | undefined;
+  dateCreated: number;
 } => {
   return {
     amountTendered: formatAmount(payment.amountTendered),
@@ -41,6 +42,7 @@ const createPaymentPayload = (
       value: attribute.value,
     })),
     instanceType: payment?.instanceType?.uuid,
+    dateCreated: payment.dateCreated,
   };
 };
 
