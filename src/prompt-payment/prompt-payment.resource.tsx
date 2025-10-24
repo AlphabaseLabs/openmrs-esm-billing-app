@@ -158,7 +158,7 @@ export const usePatientBills = (patientUuid: string) => {
   const url = patientBillsUrl.replace('${restBaseUrl}', restBaseUrl);
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<PatientInvoice> } }>(
     // a null key in useSWR essentially disables the fetch call until a patientUUID is available
-    patientUuid ? `${url}&patientUuid=${patientUuid}&includeVoided=true` : null,
+    patientUuid ? `${url}&patientUuid=${patientUuid}&includeVoided=false` : null,
     openmrsFetch,
     {
       errorRetryCount: 2,
