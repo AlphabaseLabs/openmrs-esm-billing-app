@@ -32,6 +32,7 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
 
   const tableHeaders = [
     { header: 'Date', key: 'date' },
+    { header: 'Identifier', key: 'identifier' },
     { header: 'Status', key: 'status' },
     { header: 'Total Amount', key: 'totalAmount' },
     { header: 'Amount Paid', key: 'amountPaid' },
@@ -57,6 +58,7 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
         bill.lineItems.filter((li) => Math.sign(li.price) === -1).reduce((acc, curr) => acc + Math.abs(curr.price), 0),
       ),
     }),
+    identifier: bill?.identifier,
   }));
 
   if (bills.length === 0) {
