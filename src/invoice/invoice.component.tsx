@@ -100,10 +100,17 @@ export function InvoiceSummary({
         <div className={styles.divider} />
         <div className={styles.invoiceCard}>
           <InvoiceSummaryItem label={t('totalAmount', 'Total Amount')} value={convertToCurrency(bill?.totalAmount)} />
-          <InvoiceSummaryItem
-            label={t('totalExempted', 'Total Exempted')}
-            value={convertToCurrency(bill?.totalExempted)}
-          />
+          {bill?.totalExempted > 0 ? (
+            <InvoiceSummaryItem
+              label={t('totalExempted', 'Total Exempted')}
+              value={convertToCurrency(bill?.totalExempted)}
+            />
+          ) : (
+            <InvoiceSummaryItem
+              label={t('totalWaived', 'Total Waived')}
+              value={convertToCurrency(bill?.totalWaived)}
+            />
+          )}
           <InvoiceSummaryItem
             label={t('totalPayments', 'Total Payments')}
             value={convertToCurrency(bill?.totalPayments)}

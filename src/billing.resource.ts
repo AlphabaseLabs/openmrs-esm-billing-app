@@ -27,9 +27,9 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     patientName: bill?.patient?.display.split('-')?.[1],
     identifier: bill?.patient?.display.split('-')?.[0],
     patientUuid: bill?.patient?.uuid,
-    status: bill?.lineItems.some((item) => item?.paymentStatus === PaymentStatus.PENDING)
-      ? PaymentStatus.PENDING
-      : PaymentStatus.PAID,
+    status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
+      ? PaymentStatus.PAID
+      : PaymentStatus.PENDING,
     receiptNumber: bill?.receiptNumber,
     cashier: bill?.cashier,
     cashPointUuid: bill?.cashPoint?.uuid,
@@ -64,6 +64,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalPayments: bill?.totalPayments,
     totalDeposits: bill?.totalDeposits,
     totalExempted: bill?.totalExempted,
+    totalWaived: bill?.payments?.filter((payment) => payment?.instanceType?.name === 'Waiver').reduce((prev, curr) => prev + curr?.amountTendered, 0),
     closed: bill?.closed,
   };
 
@@ -122,12 +123,9 @@ export const useBill = (billUuid: string) => {
       patientName: bill?.patient?.display.split('-')?.[1],
       identifier: bill?.patient?.display.split('-')?.[0],
       patientUuid: bill?.patient?.uuid,
-      status:
-        bill?.lineItems.length > 1
-          ? bill?.lineItems.some((item) => item?.paymentStatus === PaymentStatus.PENDING)
-            ? PaymentStatus.PENDING
-            : PaymentStatus.PAID
-          : bill?.status,
+      status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
+        ? PaymentStatus.PAID
+        : bill?.status,
       receiptNumber: bill?.receiptNumber,
       cashier: bill?.cashier,
       cashPointUuid: bill?.cashPoint?.uuid,
@@ -145,6 +143,7 @@ export const useBill = (billUuid: string) => {
       totalExempted: bill?.totalExempted,
       balance: bill?.balance,
       closed: bill?.closed,
+      totalWaived: bill?.payments?.filter((payment) => payment?.instanceType?.name === 'Waiver').reduce((prev, curr) => prev + curr?.amountTendered, 0),
     };
 
     return mappedBill;
