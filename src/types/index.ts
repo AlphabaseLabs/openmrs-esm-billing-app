@@ -28,6 +28,7 @@ export interface MappedBill {
   totalExempted?: number;
   balance?: number;
   closed?: boolean;
+  totalWaived?: number;
 }
 
 interface LocationLink {

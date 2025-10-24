@@ -18,17 +18,29 @@ export default function MetricsCards() {
   const endDate = dayjs(selectedDate).endOf('day').toDate();
 
   const { bills, isLoading, error } = useBills('', '', startDate, endDate);
-  const { totalBills, pendingBills, paidBills, exemptedBills } = useBillMetrics(bills);
+  const { totalBills, pendingBills, paidBills, exemptedBills, waivedBills, exemptedAmount } = useBillMetrics(bills);
 
-  const cards = useMemo(
-    () => [
-      { title: t('todayTotalBills', "Today's Total Bills"), count: totalBills },
-      { title: t('todayPaidBills', "Today's Paid Bills"), count: paidBills },
-      { title: t('todayPendingBills', "Today's Pending Bills"), count: pendingBills },
-      { title: t('todayExemptedBills', "Today's Exempted Bills"), count: exemptedBills },
-    ],
-    [totalBills, paidBills, pendingBills, exemptedBills, t],
-  );
+  const isToday = dayjs(selectedDate).isSame(dayjs(), 'day');
+  const prefix = isToday ? "Today's " : '';
+
+  const cards = useMemo(() => {
+    const allCards = [
+      { title: `${prefix}${t('totalBills', 'Total Bills')}`, count: totalBills },
+      { title: `${prefix}${t('paidBills', 'Paid Bills')}`, count: paidBills },
+      { title: `${prefix}${t('pendingBills', 'Pending Bills')}`, count: pendingBills },
+      { title: `${prefix}${t('waivedBills', 'Waived Bills')}`, count: waivedBills },
+    ];
+    
+    // Only show exempted bills if the amount is greater than 0
+    if (exemptedAmount > 0) {
+      allCards.push({
+        title: `${prefix}${t('exemptedBills', 'Exempted Bills')}`,
+        count: exemptedBills,
+      });
+    }
+    
+    return allCards;
+  }, [totalBills, paidBills, pendingBills, waivedBills, exemptedBills, exemptedAmount, prefix, t]);
 
   if (isLoading) {
     return (

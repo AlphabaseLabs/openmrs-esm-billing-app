@@ -18,13 +18,17 @@ export const useBillMetrics = (
   pendingBills: string;
   paidBills: string;
   exemptedBills: string;
+  waivedBills: string;
+  exemptedAmount: number;
 } => {
-  const { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal } = calculateBillTotals(bills);
+  const { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, waivedTotal } = calculateBillTotals(bills);
   return {
     totalBills: convertToCurrency(cumulativeTotal),
     pendingBills: convertToCurrency(pendingTotal),
     paidBills: convertToCurrency(paidTotal),
     exemptedBills: convertToCurrency(exemptedTotal),
+    waivedBills: convertToCurrency(waivedTotal),
+    exemptedAmount: exemptedTotal,
   };
 };
 
@@ -33,9 +37,12 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
   let pendingTotal = 0;
   let cumulativeTotal = 0;
   let exemptedTotal = 0;
+  let waivedTotal = 0;
 
   bills.forEach((bill) => {
     const amount = bill.totalAmount || 0; // Ensure totalAmount is a valid number
+    const waivedAmount = bill.totalWaived || 0;
+    
     if (bill.status === PaymentStatus.PAID) {
       paidTotal += amount;
     } else if (bill.status === PaymentStatus.PENDING) {
@@ -44,9 +51,10 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
       exemptedTotal += amount;
     }
     cumulativeTotal += amount; // Add to cumulative total regardless of status
+    waivedTotal += waivedAmount;
   });
 
-  return { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal };
+  return { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, waivedTotal };
 };
 
 export default calculateBillTotals;
