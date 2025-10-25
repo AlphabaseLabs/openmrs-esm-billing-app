@@ -29,6 +29,7 @@ export interface MappedBill {
   balance?: number;
   closed?: boolean;
   totalWaived?: number;
+  totalActualPayments?: number;
 }
 
 interface LocationLink {
@@ -282,6 +283,7 @@ export interface PatientInvoice {
   totalExempted?: number;
   balance?: number;
   closed?: boolean;
+  totalActualPayments?: number;
 }
 
 export type BillingService = {

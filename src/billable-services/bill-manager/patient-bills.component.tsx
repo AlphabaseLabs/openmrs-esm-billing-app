@@ -36,6 +36,7 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
     { header: 'Status', key: 'status' },
     { header: 'Total Amount', key: 'totalAmount' },
     { header: 'Amount Paid', key: 'amountPaid' },
+    { header: 'Amount Waived', key: 'amountWaived' },
   ];
 
   if (hasRefundedItems) {
@@ -52,7 +53,8 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
         : bill.tenderedAmount === 0
           ? PaymentStatus.PENDING
           : PaymentStatus.POSTED,
-    amountPaid: convertToCurrency(bill.tenderedAmount),
+    amountPaid: convertToCurrency(bill.totalActualPayments),
+    amountWaived: convertToCurrency(bill.totalWaived),
     ...(hasRefundedItems && {
       creditAmount: convertToCurrency(
         bill.lineItems.filter((li) => Math.sign(li.price) === -1).reduce((acc, curr) => acc + Math.abs(curr.price), 0),

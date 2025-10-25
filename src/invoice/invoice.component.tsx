@@ -106,14 +106,11 @@ export function InvoiceSummary({
               value={convertToCurrency(bill?.totalExempted)}
             />
           ) : (
-            <InvoiceSummaryItem
-              label={t('totalWaived', 'Total Waived')}
-              value={convertToCurrency(bill?.totalWaived)}
-            />
+            <InvoiceSummaryItem label={t('totalWaived', 'Total Waived')} value={convertToCurrency(bill?.totalWaived)} />
           )}
           <InvoiceSummaryItem
             label={t('totalPayments', 'Total Payments')}
-            value={convertToCurrency(bill?.totalPayments)}
+            value={convertToCurrency(bill?.totalActualPayments)}
           />
           <InvoiceSummaryItem
             label={t('totalDeposits', 'Total Deposits')}

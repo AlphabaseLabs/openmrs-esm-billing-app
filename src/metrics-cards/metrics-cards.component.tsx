@@ -27,10 +27,10 @@ export default function MetricsCards() {
     const allCards = [
       { title: `${prefix}${t('totalBills', 'Total Bills')}`, count: totalBills },
       { title: `${prefix}${t('paidBills', 'Paid Bills')}`, count: paidBills },
-      { title: `${prefix}${t('pendingBills', 'Pending Bills')}`, count: pendingBills },
       { title: `${prefix}${t('waivedBills', 'Waived Bills')}`, count: waivedBills },
+      { title: `${prefix}${t('pendingBills', 'Pending Bills')}`, count: pendingBills },
     ];
-    
+
     // Only show exempted bills if the amount is greater than 0
     if (exemptedAmount > 0) {
       allCards.push({
@@ -38,7 +38,7 @@ export default function MetricsCards() {
         count: exemptedBills,
       });
     }
-    
+
     return allCards;
   }, [totalBills, paidBills, pendingBills, waivedBills, exemptedBills, exemptedAmount, prefix, t]);
 

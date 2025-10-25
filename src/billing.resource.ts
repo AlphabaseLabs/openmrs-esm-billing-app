@@ -64,8 +64,11 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalPayments: bill?.totalPayments,
     totalDeposits: bill?.totalDeposits,
     totalExempted: bill?.totalExempted,
-    totalWaived: bill?.payments?.filter((payment) => payment?.instanceType?.name === 'Waiver').reduce((prev, curr) => prev + curr?.amountTendered, 0),
+    totalWaived: bill?.payments
+      ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
+      .reduce((prev, curr) => prev + curr?.amountTendered, 0),
     closed: bill?.closed,
+    totalActualPayments: bill?.totalActualPayments,
   };
 
   return mappedBill;
@@ -143,7 +146,10 @@ export const useBill = (billUuid: string) => {
       totalExempted: bill?.totalExempted,
       balance: bill?.balance,
       closed: bill?.closed,
-      totalWaived: bill?.payments?.filter((payment) => payment?.instanceType?.name === 'Waiver').reduce((prev, curr) => prev + curr?.amountTendered, 0),
+      totalWaived: bill?.payments
+        ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
+        .reduce((prev, curr) => prev + curr?.amountTendered, 0),
+      totalActualPayments: bill?.totalActualPayments,
     };
 
     return mappedBill;
