@@ -11,6 +11,12 @@ type PaymentHistoryProps = {
 
 const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
   const { t } = useTranslation();
+
+  // Check if any payment has reference codes
+  const hasReferenceCodes = bill?.payments?.some(
+    (payment) => payment.attributes && payment.attributes.length > 0 && payment.attributes.some((attr) => attr.value)
+  );
+
   const headers = [
     {
       key: 'dateCreated',
@@ -25,13 +31,27 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
       header: t('paymentMethod', 'Payment method'),
     },
   ];
-  const rows = bill?.payments?.map((payment) => ({
-    id: `${payment.uuid}`,
-    dateCreated: formatDate(new Date(payment.dateCreated)),
-    amountTendered: convertToCurrency(payment.amountTendered),
-    amount: convertToCurrency(payment.amount),
-    paymentMethod: payment.instanceType.name,
-  }));
+
+  // Add reference codes header only if any payment has it
+  if (hasReferenceCodes) {
+    headers.push({
+      key: 'referenceCodes',
+      header: t('referenceCodes', 'Reference codes'),
+    });
+  }
+
+  const rows = bill?.payments
+    ?.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
+    .map((payment) => ({
+      id: `${payment.uuid}`,
+      dateCreated: formatDate(new Date(payment.dateCreated)),
+      amountTendered: convertToCurrency(payment.amountTendered),
+      amount: convertToCurrency(payment.amount),
+      paymentMethod: payment.instanceType.name,
+      ...(hasReferenceCodes && {
+        referenceCodes: payment.attributes.map((attribute) => attribute.value).join(', '),
+      }),
+    }));
 
   if (Object.values(bill?.payments ?? {}).length === 0) {
     return;
