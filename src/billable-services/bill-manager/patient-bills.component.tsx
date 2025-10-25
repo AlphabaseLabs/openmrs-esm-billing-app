@@ -19,7 +19,7 @@ import { EmptyState } from '@openmrs/esm-patient-common-lib';
 import { type MappedBill, PaymentStatus } from '../../types';
 import styles from '../../bills-table/bills-table.scss';
 import BillLineItems from './bill-line-items.component';
-import { ExtensionSlot } from '@openmrs/esm-framework';
+import { ExtensionSlot, ConfigurableLink } from '@openmrs/esm-framework';
 
 type PatientBillsProps = {
   bills: Array<MappedBill>;
@@ -33,6 +33,7 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
   const tableHeaders = [
     { header: 'Date', key: 'date' },
     { header: 'Identifier', key: 'identifier' },
+    { header: 'Invoice Number', key: 'invoiceNumber' },
     { header: 'Status', key: 'status' },
     { header: 'Total Amount', key: 'totalAmount' },
     { header: 'Amount Paid', key: 'amountPaid' },
@@ -61,6 +62,7 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
       ),
     }),
     identifier: bill?.identifier,
+    invoiceNumber: bill?.receiptNumber,
   }));
 
   if (bills.length === 0) {
@@ -119,7 +121,17 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
                         row,
                       })}>
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id}>{cell.value}</TableCell>
+                        <TableCell key={cell.id}>
+                          {cell.info.header === 'invoiceNumber' ? (
+                            <ConfigurableLink
+                              to="${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}"
+                              templateParams={{ patientUuid: bills[index].patientUuid, uuid: bills[index].uuid }}>
+                              {cell.value}
+                            </ConfigurableLink>
+                          ) : (
+                            cell.value
+                          )}
+                        </TableCell>
                       ))}
                       <TableCell>
                         <ExtensionSlot
