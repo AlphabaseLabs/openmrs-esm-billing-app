@@ -39,7 +39,7 @@ export const createEditBillPayload = (lineItem, data, bill, adjustmentReason: st
   });
 
   // Create the bill update payload
-  return {
+  const payload: any = {
     cashPoint: bill.cashPointUuid,
     cashier: bill.cashier.uuid,
     lineItems: bill.lineItems.map((li) => formatLineItem(li.uuid === lineItem.uuid ? updatedLineItem : li)),
@@ -56,8 +56,15 @@ export const createEditBillPayload = (lineItem, data, bill, adjustmentReason: st
       instanceType: payment.instanceType.uuid,
     })),
     patient: bill.patientUuid,
-    status: bill.status,
     billAdjusted: bill.uuid,
     adjustmentReason,
   };
+
+  // Only include status if it exists to avoid triggering rounding logic
+  // when the status is a calculated value that differs from backend status
+  if (bill.status !== undefined && bill.status !== null) {
+    payload.status = bill.status;
+  }
+
+  return payload;
 };

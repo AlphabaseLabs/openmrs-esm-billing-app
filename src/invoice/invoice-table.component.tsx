@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
   DataTable,
   DataTableSkeleton,
+  IconButton,
   Layer,
   Table,
   TableBody,
@@ -17,10 +18,17 @@ import {
   TableToolbarSearch,
   TableSelectRow,
   Tile,
-  type DataTableHeader,
-  type DataTableRow,
 } from '@carbon/react';
-import { isDesktop, useDebounce, useLayoutType } from '@openmrs/esm-framework';
+import {
+  isDesktop,
+  useDebounce,
+  useLayoutType,
+  launchWorkspace,
+  EditIcon,
+  TrashCanIcon,
+  useConfig,
+  getCoreTranslation,
+} from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 
@@ -47,23 +55,50 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
     return debouncedSearchTerm
       ? fuzzy
-          .filter(debouncedSearchTerm, lineItems, {
-            extract: (lineItem: LineItem) => `${lineItem.item}`,
-          })
-          .sort((r1, r2) => r1.score - r2.score)
-          .map((result) => result.original)
+        .filter(debouncedSearchTerm, lineItems, {
+          extract: (lineItem: LineItem) => `${lineItem.item}`,
+        })
+        .sort((r1, r2) => r1.score - r2.score)
+        .map((result) => result.original)
       : lineItems;
   }, [debouncedSearchTerm, lineItems]);
 
   const tableHeaders = [
-    { header: 'No', key: 'no' },
-    { header: 'Bill item', key: 'billItem' },
-    { header: 'Bill code', key: 'billCode' },
-    { header: 'Status', key: 'status' },
-    { header: 'Quantity', key: 'quantity' },
-    { header: 'Price', key: 'price' },
-    { header: 'Total', key: 'total' },
+    { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
+    { header: t('billItem', 'Bill item'), key: 'billItem' },
+    { header: t('billCode', 'Bill code'), key: 'billCode' },
+    { header: t('status', 'Status'), key: 'status' },
+    { header: t('quantity', 'Quantity'), key: 'quantity' },
+    { header: t('price', 'Price'), key: 'price' },
+    { header: t('total', 'Total'), key: 'total' },
+    { header: getCoreTranslation('actions'), key: 'actionButton' },
   ];
+
+  const handleCancelLineItem = useCallback(
+    (row: LineItem) => {
+      launchWorkspace('cancel-bill-workspace', {
+        workspaceTitle: t('cancelBillForm', 'Cancel Bill Form'),
+        bill,
+        lineItem: row,
+      });
+    },
+    [bill, t],
+  );
+
+  const handleEditLineItem = useCallback(
+    (row: LineItem) => {
+      // Create a bill object without the computed status to avoid triggering rounding logic
+      // The status is calculated in mapBillProperties and may differ from the backend status
+      const { status, ...billWithoutStatus } = bill;
+      launchWorkspace('edit-bill-form', {
+        workspaceTitle: t('editBillForm', 'Edit Bill Form'),
+        lineItem: row,
+        bill: billWithoutStatus,
+      });
+    },
+    [bill, t],
+  );
+
   const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
 
   const tableRows = useMemo(
@@ -78,9 +113,37 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
           quantity: item.quantity,
           price: item.price,
           total: item.price * item.quantity,
+          actionButton: (
+            <div className={styles.actionButtons}>
+              {
+                <IconButton
+                  size="sm"
+                  data-testid={`edit-button-${item.uuid}`}
+                  label={t('editItem', 'Edit item')}
+                  kind="ghost"
+                  tooltipPosition="left"
+                  onClick={() => handleEditLineItem(item)}
+                  disabled={item.paymentStatus !== PaymentStatus.PENDING}>
+                  <EditIcon size={16} />
+                </IconButton>
+              }
+              {
+                <IconButton
+                  size="sm"
+                  data-testid={`cancel-button-${item.uuid}`}
+                  label={t('cancelItem', 'Cancel item')}
+                  kind="danger--ghost"
+                  tooltipPosition="left"
+                  onClick={() => handleCancelLineItem(item)}
+                  disabled={item.paymentStatus !== PaymentStatus.PENDING}>
+                  <TrashCanIcon size={16} />
+                </IconButton>
+              }
+            </div>
+          ),
         };
       }) ?? [],
-    [bill.receiptNumber, filteredLineItems],
+    [bill.receiptNumber, filteredLineItems, t, handleEditLineItem, handleCancelLineItem],
   );
 
   if (isLoadingBill) {
