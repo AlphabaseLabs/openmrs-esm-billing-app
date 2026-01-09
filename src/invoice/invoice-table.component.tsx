@@ -18,6 +18,7 @@ import {
   TableToolbarSearch,
   TableSelectRow,
   Tile,
+  Button,
 } from '@carbon/react';
 import {
   isDesktop,
@@ -31,6 +32,7 @@ import {
 } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
+import { TrashCan } from '@carbon/react/icons';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -55,11 +57,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
     return debouncedSearchTerm
       ? fuzzy
-        .filter(debouncedSearchTerm, lineItems, {
-          extract: (lineItem: LineItem) => `${lineItem.item}`,
-        })
-        .sort((r1, r2) => r1.score - r2.score)
-        .map((result) => result.original)
+          .filter(debouncedSearchTerm, lineItems, {
+            extract: (lineItem: LineItem) => `${lineItem.item}`,
+          })
+          .sort((r1, r2) => r1.score - r2.score)
+          .map((result) => result.original)
       : lineItems;
   }, [debouncedSearchTerm, lineItems]);
 
@@ -121,23 +123,21 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                   data-testid={`edit-button-${item.uuid}`}
                   label={t('editItem', 'Edit item')}
                   kind="ghost"
-                  tooltipPosition="left"
                   onClick={() => handleEditLineItem(item)}
                   disabled={item.paymentStatus !== PaymentStatus.PENDING}>
                   <EditIcon size={16} />
                 </IconButton>
               }
               {
-                <IconButton
+                <Button
                   size="sm"
+                  hasIconOnly
                   data-testid={`cancel-button-${item.uuid}`}
-                  label={t('cancelItem', 'Cancel item')}
+                  renderIcon={(props) => <TrashCan size={16} {...props} />}
+                  iconDescription={t('cancelItem', 'Cancel item')}
                   kind="danger--ghost"
-                  tooltipPosition="left"
                   onClick={() => handleCancelLineItem(item)}
-                  disabled={item.paymentStatus !== PaymentStatus.PENDING}>
-                  <TrashCanIcon size={16} />
-                </IconButton>
+                  disabled={item.paymentStatus !== PaymentStatus.PENDING}></Button>
               }
             </div>
           ),

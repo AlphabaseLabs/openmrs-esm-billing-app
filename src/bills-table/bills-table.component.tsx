@@ -141,9 +141,9 @@ const BillsTable: React.FC<BillTableProps> = ({ defaultBillPaymentStatus = '' })
 
   const handleFilterChange = ({ selectedItem }) => setBillPaymentStatus(selectedItem.id);
 
-  if (isLoading) {
+  if (isLoading && !bills?.length) {
     return (
-      <div className={styles.loaderContainer}>
+      <div className={styles.loaderContainer} role="progressbar" aria-label={t('loading', 'Loading')}>
         <DataTableSkeleton
           rowCount={pageSize}
           showHeader={false}

@@ -44,9 +44,25 @@ const SchemaViewer: React.FC<SchemaViewerProps> = ({ data }) => {
     }
   }, [data]);
 
-  const handleSelect = useCallback((selectedNodeIds: Array<string>) => {
-    setSelectedNodes(selectedNodeIds);
-  }, []);
+  const handleSelect = useCallback(
+    (
+      event: React.MouseEvent<Element, MouseEvent> | React.KeyboardEvent<Element>,
+      selectedNode: Pick<TreeNodeProps, 'value' | 'id' | 'label'> & { activeNodeId?: string | number },
+    ) => {
+      // Extract the node ID from the selected node object
+      const nodeId = selectedNode.id || selectedNode.value?.toString() || selectedNode.activeNodeId?.toString();
+      if (nodeId) {
+        setSelectedNodes((prev) => {
+          // For multiselect, toggle the node in the array
+          if (prev.includes(nodeId)) {
+            return prev.filter((id) => id !== nodeId);
+          }
+          return [...prev, nodeId];
+        });
+      }
+    },
+    [],
+  );
 
   const handleToggle = useCallback((nodeId: string) => {
     setExpandedNodes((prev) => {
@@ -81,7 +97,7 @@ const SchemaViewer: React.FC<SchemaViewerProps> = ({ data }) => {
       <TreeView
         label="Exemption schema"
         selected={selectedNodes}
-        onSelect={(_, selectedNodeIds) => handleSelect(selectedNodeIds)}
+        onSelect={(event, selectedNode) => handleSelect(event, selectedNode)}
         hideLabel
         multiselect>
         {renderTreeNodes(treeData)}
