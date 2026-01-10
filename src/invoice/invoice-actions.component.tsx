@@ -1,5 +1,5 @@
 import { Button, Popover, PopoverContent } from '@carbon/react';
-import { Close, Printer, Wallet, FolderOpen, BaggageClaim } from '@carbon/react/icons';
+import { Close, Printer, Wallet, FolderOpen, BaggageClaim, Scalpel } from '@carbon/react/icons';
 import {
   launchWorkspace,
   restBaseUrl,
@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { mutate } from 'swr';
 import { convertToCurrency } from '../helpers';
-import { type MappedBill, type LineItem } from '../types';
+import { type MappedBill, type LineItem, PaymentStatus } from '../types';
 import { spaBasePath } from '../constants';
 // import { useCheckShareGnum } from './invoice.resource';
 import styles from './invoice.scss';
@@ -53,6 +53,13 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
       onClose: () => dispose(),
       title: documentTitle,
       documentUrl: `/openmrs${restBaseUrl}/cashier/print?documentType=${documentType}&billId=${bill?.id}`,
+    });
+  };
+
+  const handleOpenWaiveBillWorkspace = () => {
+    launchWorkspace('waive-bill-form', {
+      workspaceTitle: t('waiveBillForm', 'Waive Bill Form'),
+      bill: bill,
     });
   };
 
@@ -154,6 +161,19 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
         }>
         {t('additionalPayment', 'Additional Payment')}
       </Button>
+      {bill.status !== PaymentStatus.PAID && (
+        <UserHasAccess privilege="o3: Delete Bill">
+          <Button
+            kind="danger--ghost"
+            size="sm"
+            renderIcon={Scalpel}
+            iconDescription={t('waiveBill', 'Waive Bill')}
+            tooltipPosition="right"
+            onClick={handleOpenWaiveBillWorkspace}>
+            {t('waiveBill', 'Waive Bill')}
+          </Button>
+        </UserHasAccess>
+      )}
     </div>
   );
 }

@@ -114,7 +114,13 @@ export const WaiveBillForm: React.FC<BillWaiverFormProps> = ({
           timeoutInMs: 3500,
           isLowContrast: true,
         });
+        // Mutate bill list queries
         mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill?status`), undefined, {
+          revalidate: true,
+        });
+        // Mutate specific bill query to update the invoice view
+        const billUrl = `${restBaseUrl}/cashier/bill/${bill.uuid}`;
+        mutate((key) => typeof key === 'string' && key.startsWith(billUrl), undefined, {
           revalidate: true,
         });
         closeWorkspaceWithSavedChanges();
