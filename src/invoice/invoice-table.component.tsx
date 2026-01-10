@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
@@ -29,10 +29,13 @@ import {
   TrashCanIcon,
   useConfig,
   getCoreTranslation,
+  usePatient,
+  setCurrentVisit,
 } from '@openmrs/esm-framework';
+import { getPatientChartStore, useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
-import { TrashCan } from '@carbon/react/icons';
+import { Add, TrashCan } from '@carbon/react/icons';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -50,6 +53,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
   const [selectedLineItems, setSelectedLineItems] = useState(paidLineItems ?? []);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm);
+  const { patient, isLoading: isLoadingPatient } = usePatient(bill.patientUuid);
+  const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
+  const state = useMemo(() => ({ patient, patientUuid: bill.patientUuid }), [patient, bill.patientUuid]);
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
       return lineItems;
@@ -100,6 +106,26 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     },
     [bill, t],
   );
+
+  const handleAddNewBillItem = useCallback(() => {
+    if (patient) {
+      setCurrentVisit(bill.patientUuid, null);
+      launchPatientWorkspace({
+        workspaceTitle: t('billingForm', 'Billing Form'),
+        patientUuid: bill.patientUuid,
+        patient,
+      });
+    }
+  }, [patient, bill.patientUuid, launchPatientWorkspace, t]);
+
+  useEffect(() => {
+    if (patient) {
+      getPatientChartStore().setState({ ...state });
+      return () => {
+        getPatientChartStore().setState({});
+      };
+    }
+  }, [state, patient]);
 
   const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
 
@@ -188,6 +214,15 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
+                  <Button
+                    kind="ghost"
+                    onClick={handleAddNewBillItem}
+                    renderIcon={Add}
+                    size={responsiveSize}
+                    className={styles.addBillItemButton}
+                    disabled={isLoadingPatient || !patient}>
+                    {t('addNewBillItem', 'Add New Bill Item')}
+                  </Button>
                 </TableToolbarContent>
               </TableToolbar>
             </div>
