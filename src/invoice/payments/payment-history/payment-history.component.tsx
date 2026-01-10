@@ -1,9 +1,11 @@
-import React from 'react';
-import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '@carbon/react';
-import { type MappedBill } from '../../../types';
-import { formatDate } from '@openmrs/esm-framework';
+import React, { useCallback } from 'react';
+import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell, Button } from '@carbon/react';
+import { PaymentStatus, type MappedBill, type Payment } from '../../../types';
+import { formatDate, launchWorkspace, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
 import { convertToCurrency } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import { TrashCan } from '@carbon/react/icons';
+import styles from './payment-history.scss';
 
 type PaymentHistoryProps = {
   bill: MappedBill;
@@ -14,7 +16,18 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
 
   // Check if any payment has reference codes
   const hasReferenceCodes = bill?.payments?.some(
-    (payment) => payment.attributes && payment.attributes.length > 0 && payment.attributes.some((attr) => attr.value)
+    (payment) => payment.attributes && payment.attributes.length > 0 && payment.attributes.some((attr) => attr.value),
+  );
+
+  const handleDeletePayment = useCallback(
+    (payment: Payment) => {
+      launchWorkspace('delete-payment-workspace', {
+        workspaceTitle: t('deletePayment', 'Delete Payment'),
+        bill,
+        payment,
+      });
+    },
+    [bill, t],
   );
 
   const headers = [
@@ -40,6 +53,12 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     });
   }
 
+  // Add actions header
+  headers.push({
+    key: 'actions',
+    header: getCoreTranslation('actions', 'Actions'),
+  });
+
   const rows = bill?.payments
     ?.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
     .map((payment) => ({
@@ -51,6 +70,22 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
       ...(hasReferenceCodes && {
         referenceCodes: payment.attributes.map((attribute) => attribute.value).join(', '),
       }),
+      actions: (
+        <div className={styles.actionButtons}>
+          <UserHasAccess privilege="o3: Delete Bill">
+            <Button
+              size="sm"
+              hasIconOnly
+              data-testid={`delete-payment-button-${payment.uuid}`}
+              renderIcon={(props) => <TrashCan size={16} {...props} />}
+              iconDescription={t('deletePayment', 'Delete payment')}
+              kind="danger--ghost"
+              onClick={() => handleDeletePayment(payment)}
+              disabled={bill.status === PaymentStatus.PAID}
+            />
+          </UserHasAccess>
+        </div>
+      ),
     }));
 
   if (Object.values(bill?.payments ?? {}).length === 0) {

@@ -296,6 +296,12 @@
       "component": "paymentWorkspace",
       "title": "Payment Workspace",
       "type": "other-form"
+    },
+    {
+      "name": "delete-payment-workspace",
+      "component": "deletePaymentWorkspace",
+      "title": "Delete Payment",
+      "type": "other-form"
     }
   ],
   "featureFlags": []

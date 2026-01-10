@@ -55,7 +55,6 @@ import DeleteDepositModal from './bill-deposit/components/modal/delete-deposit.m
 import DepositTransactionWorkspace from './bill-deposit/components/forms/deposit-transactions/deposit-transaction.workspace';
 import ReverseTransactionModal from './bill-deposit/components/modal/reverse-transaction.modal';
 
-
 import VisitAttributeTags from './invoice/payments/visit-tags/visit-attribute.component';
 import DeletePaymentModeModal from './payment-modes/delete-payment-mode.modal';
 import PaymentModeWorkspace from './payment-modes/payment-mode.workspace';
@@ -64,6 +63,7 @@ import RequirePaymentModal from './prompt-payment/prompt-payment-modal.component
 // Print Preview Components
 import PrintPreviewModal from './print-preview/print-preview.modal';
 import PaymentWorkspace from './invoice/payments/payment-form/payment.workspace';
+import DeletePaymentWorkspace from './invoice/payments/delete-payment/delete-payment.workspace';
 
 // Translation
 export const importTranslation = require.context('../translations', false, /.json$/, 'lazy');
@@ -194,6 +194,7 @@ export const visitAttributeTags = getSyncLifecycle(VisitAttributeTags, options);
 export const paymentModeWorkspace = getSyncLifecycle(PaymentModeWorkspace, options);
 export const deletePaymentModeModal = getSyncLifecycle(DeletePaymentModeModal, options);
 export const paymentWorkspace = getSyncLifecycle(PaymentWorkspace, options);
+export const deletePaymentWorkspace = getSyncLifecycle(DeletePaymentWorkspace, options);
 
 // Payment Points Components
 export const createPaymentPoint = getSyncLifecycle(CreatePaymentPoint, options);
