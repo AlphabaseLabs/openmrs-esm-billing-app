@@ -312,3 +312,85 @@ export const updateBillItems = (payload) => {
     },
   });
 };
+
+export interface BillsPaginatedResponse {
+  bills: MappedBill[];
+  totalCount: number | null;
+  error: Error | undefined;
+  isLoading: boolean;
+  isValidating: boolean;
+  mutate: () => void;
+}
+
+export interface UseBillsPaginatedParams {
+  patientUuid?: string;
+  billStatus?: PaymentStatus.PENDING | '' | string;
+  startingDate?: Date;
+  endDate?: Date;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Hook for fetching bills with server-side pagination.
+ * This is a new function that supports pagination without modifying existing useBills.
+ *
+ * @param params - Pagination and filter parameters
+ * @returns Paginated bills response with totalCount
+ */
+export const useBillsPaginated = ({
+  patientUuid = '',
+  billStatus = '',
+  startingDate = dayjs().subtract(10, 'year').startOf('day').toDate(),
+  endDate = dayjs().endOf('day').toDate(),
+  page = 1,
+  pageSize = 10,
+}: UseBillsPaginatedParams = {}): BillsPaginatedResponse => {
+  const startingDateISO = startingDate.toISOString();
+  const endDateISO = endDate.toISOString();
+  const startIndex = (page - 1) * pageSize;
+
+  // Build URL with pagination parameters
+  const urlParams = new URLSearchParams({
+    status: billStatus || '',
+    v: 'custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
+    createdOnOrAfter: startingDateISO,
+    createdOnOrBefore: endDateISO,
+    limit: pageSize.toString(),
+    startIndex: startIndex.toString(),
+    totalCount: 'true',
+  });
+
+  if (patientUuid) {
+    urlParams.append('patientUuid', patientUuid);
+  }
+
+  const url = `${restBaseUrl}/cashier/bill?${urlParams.toString()}`;
+
+  const { data, error, isLoading, isValidating, mutate } = useSWR<{
+    data: {
+      results: Array<PatientInvoice>;
+      length?: number;
+      totalCount?: number;
+      links?: Array<{ rel: string; uri: string }>;
+    };
+  }>(url, openmrsFetch, {
+    errorRetryCount: 2,
+  });
+
+  const sortBills = sortBy(data?.data?.results ?? [], ['dateCreated']).reverse();
+  const mappedResults = sortBills?.map((bill) => mapBillProperties(bill)) ?? [];
+
+  // Extract totalCount from response - AlreadyPagedWithLength returns 'length', but we'll check both
+  // for compatibility
+  const totalCount: number | null = data?.data?.length ?? data?.data?.totalCount ?? null;
+
+  return {
+    bills: mappedResults,
+    totalCount,
+    error,
+    isLoading,
+    isValidating,
+    mutate,
+  };
+};

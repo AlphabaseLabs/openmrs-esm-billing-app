@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from '@carbon/react';
-import { List, Search, BaggageClaim, TwoFactorAuthentication } from '@carbon/react/icons';
+import { List, Search, BaggageClaim, TwoFactorAuthentication, Account } from '@carbon/react/icons';
 
 import BillsTable from '../bills-table/bills-table.component';
 import PatientBillsScreen from '../past-patient-bills/patient-bills-dashboard/patient-bills-dashboard';
+import AllBillsTable from '../all-bills-table/all-bills-table.component';
 // import ClaimsManagementTable from '../claims/claims-management/table/claims-list-table.component';
 // import PreauthTableTemporary from '../claims/claims-management/table/preauth-table.tmp.component';
 
@@ -25,6 +26,7 @@ const BillingTabs = () => {
           <TabList style={{ paddingLeft: '1rem' }} aria-label={t('billingTabs', 'Billing tabs')} contained>
             <Tab renderIcon={List}>{t('billsToday', 'Bills Today')}</Tab>
             <Tab renderIcon={Search}>{t('patientBills', 'Patient Bills')}</Tab>
+            <Tab renderIcon={Account}>{t('allBills', 'All Bills')}</Tab>
             {/* <Tab renderIcon={BaggageClaim}>{t('claims', 'Claims')}</Tab> */}
             {/* <Tab renderIcon={TwoFactorAuthentication}>{t('preAuth', 'Pre-Authorization')}</Tab> */}
           </TabList>
@@ -35,6 +37,9 @@ const BillingTabs = () => {
           </TabPanel>
           <TabPanel>
             <PatientBillsScreen />
+          </TabPanel>
+          <TabPanel>
+            <AllBillsTable />
           </TabPanel>
           {/* <TabPanel>
             <ClaimsManagementTable />
