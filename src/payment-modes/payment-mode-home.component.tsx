@@ -3,9 +3,7 @@ import BillingHeader from '../billing-header/billing-header.component';
 import { useTranslation } from 'react-i18next';
 import PaymentModeDashboard from './payment-mode-dashboard.compont';
 
-type PaymentModeHomeProps = {};
-
-const PaymentModeHome: React.FC<PaymentModeHomeProps> = () => {
+const PaymentModeHome: React.FC = () => {
   const { t } = useTranslation();
   return (
     <>

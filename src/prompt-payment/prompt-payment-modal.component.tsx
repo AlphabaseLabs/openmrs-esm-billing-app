@@ -20,9 +20,7 @@ import { type BillingConfig } from '../config-schema';
 import { getPatientUuidFromStore } from '@openmrs/esm-patient-common-lib';
 import { useBillingPrompt } from './prompt-payment.resource';
 
-type PromptPaymentModalProps = {};
-
-const PromptPaymentModal: React.FC<PromptPaymentModalProps> = () => {
+const PromptPaymentModal: React.FC = () => {
   const { t } = useTranslation();
   const patientUuid = getPatientUuidFromStore();
   const { shouldShowBillingPrompt, isLoading, bills } = useBillingPrompt(patientUuid, 'patient-chart');
@@ -33,9 +31,11 @@ const PromptPaymentModal: React.FC<PromptPaymentModalProps> = () => {
     : t('proceedToCare', 'Proceed to care');
 
   const handleCloseModal = () => {
-    enforceBillPayment
-      ? navigate({ to: `\${openmrsSpaBase}/home` })
-      : setShowModal((prevState) => ({ ...prevState, billingModal: false }));
+    if (enforceBillPayment) {
+      navigate({ to: `\${openmrsSpaBase}/home` });
+    } else {
+      setShowModal((prevState) => ({ ...prevState, billingModal: false }));
+    }
   };
 
   const lineItems = bills

@@ -90,15 +90,17 @@ const ChargeSummaryTable: React.FC = () => {
   };
 
   const handleEdit = (service) => {
-    service?.serviceType?.display
-      ? launchWorkspace('billable-service-form', {
-          initialValues: service,
-          workspaceTitle: t('editServiceChargeItem', 'Edit Service Charge Item'),
-        })
-      : launchWorkspace('commodity-form', {
-          initialValues: service,
-          workspaceTitle: t('editChargeItem', 'Edit Charge Item'),
-        });
+    if (service?.serviceType?.display) {
+      launchWorkspace('billable-service-form', {
+        initialValues: service,
+        workspaceTitle: t('editServiceChargeItem', 'Edit Service Charge Item'),
+      });
+    } else {
+      launchWorkspace('commodity-form', {
+        initialValues: service,
+        workspaceTitle: t('editChargeItem', 'Edit Charge Item'),
+      });
+    }
   };
 
   const openBulkUploadModal = () => {

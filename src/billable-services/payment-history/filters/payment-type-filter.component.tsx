@@ -5,9 +5,7 @@ import styles from '../payment-history.scss';
 import { useTranslation } from 'react-i18next';
 import { usePaymentFilterContext } from '../usePaymentFilterContext';
 
-interface PaymentTypeFilterProps {}
-
-export const PaymentTypeFilter: React.FC<PaymentTypeFilterProps> = () => {
+export const PaymentTypeFilter: React.FC = () => {
   const { t } = useTranslation();
   const { isLoading, paymentModes } = usePaymentModes(false);
   const { filters, setFilters } = usePaymentFilterContext();

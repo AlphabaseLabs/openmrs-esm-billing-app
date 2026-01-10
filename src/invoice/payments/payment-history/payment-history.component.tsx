@@ -53,11 +53,13 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     });
   }
 
-  // Add actions header
-  headers.push({
-    key: 'actions',
-    header: getCoreTranslation('actions', 'Actions'),
-  });
+  // Add actions header only if bill is not fully paid
+  if (bill.status !== PaymentStatus.PAID) {
+    headers.push({
+      key: 'actions',
+      header: getCoreTranslation('actions', 'Actions'),
+    });
+  }
 
   const rows = bill?.payments
     ?.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
@@ -70,22 +72,23 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
       ...(hasReferenceCodes && {
         referenceCodes: payment.attributes.map((attribute) => attribute.value).join(', '),
       }),
-      actions: (
-        <div className={styles.actionButtons}>
-          <UserHasAccess privilege="o3: Delete Bill">
-            <Button
-              size="sm"
-              hasIconOnly
-              data-testid={`delete-payment-button-${payment.uuid}`}
-              renderIcon={(props) => <TrashCan size={16} {...props} />}
-              iconDescription={t('deletePayment', 'Delete payment')}
-              kind="danger--ghost"
-              onClick={() => handleDeletePayment(payment)}
-              disabled={bill.status === PaymentStatus.PAID}
-            />
-          </UserHasAccess>
-        </div>
-      ),
+      ...(bill.status !== PaymentStatus.PAID && {
+        actions: (
+          <div className={styles.actionButtons}>
+            <UserHasAccess privilege="o3: Delete Bill">
+              <Button
+                size="sm"
+                hasIconOnly
+                data-testid={`delete-payment-button-${payment.uuid}`}
+                renderIcon={(props) => <TrashCan size={16} {...props} />}
+                iconDescription={t('deletePayment', 'Delete payment')}
+                kind="danger--ghost"
+                onClick={() => handleDeletePayment(payment)}
+              />
+            </UserHasAccess>
+          </div>
+        ),
+      }),
     }));
 
   if (Object.values(bill?.payments ?? {}).length === 0) {

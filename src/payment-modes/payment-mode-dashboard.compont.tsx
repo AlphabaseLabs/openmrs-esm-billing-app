@@ -26,9 +26,7 @@ import { formatDate, launchWorkspace, showModal, useDebounce, useLayoutType } fr
 import { type PaymentMode } from '../types';
 import startCase from 'lodash/startCase';
 
-type PaymentModeDashboardProps = {};
-
-const PaymentModeDashboard: React.FC<PaymentModeDashboardProps> = () => {
+const PaymentModeDashboard: React.FC = () => {
   const { t } = useTranslation();
   const size = useLayoutType() === 'tablet' ? 'md' : 'sm';
   const { paymentModes = [], isLoading } = usePaymentModes(false);

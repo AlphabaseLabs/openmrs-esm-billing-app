@@ -98,8 +98,8 @@ interface SearchProps extends InputPropsBase {
 }
 
 interface AutosuggestProps extends SearchProps {
-  getDisplayValue: Function;
-  getFieldValue: Function;
+  getDisplayValue: (item: any) => string;
+  getFieldValue: (item: any) => string;
   getSearchResults: (query: string) => Promise<any>;
   onSuggestionSelected: (field: string, value: string) => void;
   invalid?: boolean | undefined;

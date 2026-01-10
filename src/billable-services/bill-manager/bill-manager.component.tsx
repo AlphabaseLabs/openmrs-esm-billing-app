@@ -9,15 +9,13 @@ import { useTranslation } from 'react-i18next';
 import BillingHeader from '../../billing-header/billing-header.component';
 import { usePatientBills } from '../../prompt-payment/prompt-payment.resource';
 
-type BillManagerProps = {};
-
 const headers = [
   { header: 'Date', key: 'date' },
   { header: 'Billable Service', key: 'billableService' },
   { header: 'Total Amount', key: 'totalAmount' },
 ];
 
-const BillManager: React.FC<BillManagerProps> = () => {
+const BillManager: React.FC = () => {
   const [patientUuid, setPatientUuid] = React.useState<string>(undefined);
   const { t } = useTranslation();
   const { patientBills: bills, isLoading } = usePatientBills(patientUuid);

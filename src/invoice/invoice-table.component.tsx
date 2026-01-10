@@ -61,26 +61,32 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
       return lineItems;
     }
 
-    return debouncedSearchTerm
-      ? fuzzy
-          .filter(debouncedSearchTerm, lineItems, {
-            extract: (lineItem: LineItem) => `${lineItem.item}`,
-          })
-          .sort((r1, r2) => r1.score - r2.score)
-          .map((result) => result.original)
-      : lineItems;
+    return fuzzy
+      .filter(debouncedSearchTerm, lineItems, {
+        extract: (lineItem: LineItem) => `${lineItem.billableService || ''} ${lineItem.item || ''}`,
+      })
+      .sort((r1, r2) => r1.score - r2.score)
+      .map((result) => result.original);
   }, [debouncedSearchTerm, lineItems]);
 
-  const tableHeaders = [
-    { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
-    { header: t('billItem', 'Bill item'), key: 'billItem' },
-    { header: t('billCode', 'Bill code'), key: 'billCode' },
-    { header: t('status', 'Status'), key: 'status' },
-    { header: t('quantity', 'Quantity'), key: 'quantity' },
-    { header: t('price', 'Price'), key: 'price' },
-    { header: t('total', 'Total'), key: 'total' },
-    { header: getCoreTranslation('actions'), key: 'actionButton' },
-  ];
+  const tableHeaders = useMemo(() => {
+    const headers = [
+      { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
+      { header: t('billItem', 'Bill item'), key: 'billItem' },
+      { header: t('billCode', 'Bill code'), key: 'billCode' },
+      { header: t('status', 'Status'), key: 'status' },
+      { header: t('quantity', 'Quantity'), key: 'quantity' },
+      { header: t('price', 'Price'), key: 'price' },
+      { header: t('total', 'Total'), key: 'total' },
+    ];
+    
+    // Only add Actions column if bill is not fully paid
+    if (bill.status !== PaymentStatus.PAID) {
+      headers.push({ header: getCoreTranslation('actions'), key: 'actionButton' });
+    }
+    
+    return headers;
+  }, [bill.status, t]);
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
@@ -141,35 +147,36 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
           quantity: item.quantity,
           price: item.price,
           total: item.price * item.quantity,
-          actionButton: (
-            <div className={styles.actionButtons}>
-              {
-                <IconButton
-                  size="sm"
-                  data-testid={`edit-button-${item.uuid}`}
-                  label={t('editItem', 'Edit item')}
-                  kind="ghost"
-                  onClick={() => handleEditLineItem(item)}
-                  disabled={item.paymentStatus !== PaymentStatus.PENDING}>
-                  <EditIcon size={16} />
-                </IconButton>
-              }
-              {
-                <Button
-                  size="sm"
-                  hasIconOnly
-                  data-testid={`cancel-button-${item.uuid}`}
-                  renderIcon={(props) => <TrashCan size={16} {...props} />}
-                  iconDescription={t('cancelItem', 'Cancel item')}
-                  kind="danger--ghost"
-                  onClick={() => handleCancelLineItem(item)}
-                  disabled={item.paymentStatus !== PaymentStatus.PENDING}></Button>
-              }
-            </div>
-          ),
+          actionButton:
+            bill.status !== PaymentStatus.PAID ? (
+              <div className={styles.actionButtons}>
+                {
+                  <IconButton
+                    size="sm"
+                    data-testid={`edit-button-${item.uuid}`}
+                    label={t('editItem', 'Edit item')}
+                    kind="ghost"
+                    onClick={() => handleEditLineItem(item)}
+                    disabled={item.paymentStatus !== PaymentStatus.PENDING}>
+                    <EditIcon size={16} />
+                  </IconButton>
+                }
+                {
+                  <Button
+                    size="sm"
+                    hasIconOnly
+                    data-testid={`cancel-button-${item.uuid}`}
+                    renderIcon={(props) => <TrashCan size={16} {...props} />}
+                    iconDescription={t('cancelItem', 'Cancel item')}
+                    kind="danger--ghost"
+                    onClick={() => handleCancelLineItem(item)}
+                    disabled={item.paymentStatus !== PaymentStatus.PENDING}></Button>
+                }
+              </div>
+            ) : null,
         };
       }) ?? [],
-    [bill.receiptNumber, filteredLineItems, t, handleEditLineItem, handleCancelLineItem],
+    [bill.receiptNumber, bill.status, filteredLineItems, t, handleEditLineItem, handleCancelLineItem],
   );
 
   if (isLoadingBill) {
@@ -214,15 +221,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
-                  <Button
-                    kind="ghost"
-                    onClick={handleAddNewBillItem}
-                    renderIcon={Add}
-                    size={responsiveSize}
-                    className={styles.addBillItemButton}
-                    disabled={isLoadingPatient || !patient}>
-                    {t('addNewBillItem', 'Add New Bill Item')}
-                  </Button>
+                  {!bill.closed && (
+                    <Button
+                      kind="ghost"
+                      onClick={handleAddNewBillItem}
+                      renderIcon={Add}
+                      size={responsiveSize}
+                      className={styles.addBillItemButton}
+                      disabled={isLoadingPatient || !patient}>
+                      {t('addNewBillItem', 'Add New Bill Item')}
+                    </Button>
+                  )}
                 </TableToolbarContent>
               </TableToolbar>
             </div>
@@ -236,7 +245,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((row, index) => {
+                {rows.map((row) => {
+                  // Find matching item to get payment status (following reference pattern)
+                  const matchingItem = filteredLineItems?.find((item) => `${item.uuid}` === row.id);
+                  const paymentStatus = matchingItem?.paymentStatus;
+                  
                   return (
                     <TableRow
                       key={row.id}
@@ -248,13 +261,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                           aria-label="Select row"
                           {...getSelectionProps({ row })}
                           disabled={
-                            tableRows[index].status === PaymentStatus.PAID ||
-                            tableRows[index].status === PaymentStatus.EXEMPTED
+                            paymentStatus === PaymentStatus.PAID ||
+                            paymentStatus === PaymentStatus.EXEMPTED
                           }
                           onChange={(checked: boolean) => handleRowSelection(row, checked)}
                           checked={
-                            tableRows[index].status === PaymentStatus.PAID ||
-                            tableRows[index].status === PaymentStatus.EXEMPTED ||
+                            paymentStatus === PaymentStatus.PAID ||
+                            paymentStatus === PaymentStatus.EXEMPTED ||
                             Boolean(selectedLineItems?.find((item) => item?.uuid === row?.id))
                           }
                         />

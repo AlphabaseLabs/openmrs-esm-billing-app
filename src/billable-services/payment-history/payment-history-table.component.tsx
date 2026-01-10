@@ -60,11 +60,18 @@ export const PaymentHistoryTable = ({
   const { pageSizes } = usePaginationInfo(pageSize, rows.length, currentPage, results.length);
 
   const transformedRows = results.map((row) => {
+    const totalPaid = row.payments
+      .filter((payment) => payment.instanceType?.name !== 'Waiver')
+      .reduce((acc, payment) => acc + payment.amountTendered, 0);
+    const totalWaived = row.totalWaived ?? 0;
+
     return {
       ...row,
       id: `${row.id}`,
       billingService: row.lineItems.map((item) => item.billableService).join(', '),
       totalAmount: convertToCurrency(row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0)),
+      totalPaid: convertToCurrency(totalPaid),
+      totalWaived: convertToCurrency(totalWaived),
       referenceCodes: row.payments
         .map(({ attributes }) => attributes.map(({ value }) => value).join(', '))
         .filter((code) => code !== '')
@@ -85,16 +92,22 @@ export const PaymentHistoryTable = ({
       };
     });
     const data = dataForExport.map((row) => {
+      const totalPaid = row.payments
+        .filter((payment) => payment.instanceType?.name !== 'Waiver')
+        .reduce((acc, payment) => acc + payment.amountTendered, 0);
+      const totalWaived = row.totalWaived ?? 0;
+
       return {
         'Receipt Number': row.receiptNumber,
         'Patient ID': row.identifier,
         'Patient Name': row.patientName,
-        'Mode of Payment': row.payments
-          .map((payment: (typeof row.payments)[0]) => payment.instanceType.name)
-          .join(', '),
         'Total Amount Due': row.lineItems.reduce((acc, item) => acc + item.price, 0),
+        'Total Paid': totalPaid,
+        'Total Waived': totalWaived,
         'Date of Payment': dayjs(row.payments[0].dateCreated).format('DD-MM-YYYY'),
-        'Total Amount Paid': row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0),
+        'Mode of Payment': row.payments
+        .map((payment: (typeof row.payments)[0]) => payment.instanceType.name)
+        .join(', '),
         'Reason/Reference': row.payments
           .map(({ attributes }) => attributes.map(({ value }) => value).join(' '))
           .filter((code) => code !== '')
