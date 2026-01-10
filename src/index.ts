@@ -80,7 +80,7 @@ export const billingDashboardNavGroup = getSyncLifecycle(
     slotName: 'billing-dashboard-group-nav-slot',
     title: 'Accounting',
     icon: null,
-    isExpanded: false,
+    isExpanded: true,
   }),
   options,
 );
