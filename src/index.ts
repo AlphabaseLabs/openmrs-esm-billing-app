@@ -78,7 +78,7 @@ const options = {
 export const billingDashboardNavGroup = getSyncLifecycle(
   createDashboardGroup({
     slotName: 'billing-dashboard-group-nav-slot',
-    title: 'Accounting',
+    title: 'Billing',
     icon: null,
     isExpanded: true,
   }),
