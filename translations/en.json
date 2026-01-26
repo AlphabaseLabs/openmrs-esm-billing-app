@@ -117,6 +117,8 @@
   "conceptMissing": "Concept missing",
   "conceptMissingSubtitle": "Please select a stock item",
   "continue": "Continue",
+  "costOverview": "Cost Overview",
+  "costs": "Costs",
   "create": "Create",
   "createBillForOrder": "Create bill for order {{order}} by selecting the correct unit price",
   "createNewDeposit": "Create a new deposit for this patient",

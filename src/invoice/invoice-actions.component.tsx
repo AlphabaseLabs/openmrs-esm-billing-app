@@ -1,5 +1,5 @@
 import { Button, Popover, PopoverContent } from '@carbon/react';
-import { Close, Printer, Wallet, FolderOpen, BaggageClaim, Scalpel } from '@carbon/react/icons';
+import { Close, Printer, Wallet, FolderOpen, BaggageClaim, Scalpel, EmissionsManagement } from '@carbon/react/icons';
 import {
   launchWorkspace,
   restBaseUrl,
@@ -63,8 +63,24 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
     });
   };
 
+  const handleOpenCostsWorkspace = () => {
+    launchWorkspace('costs-workspace', {
+      workspaceTitle: t('costOverview', 'Cost Overview'),
+      bill: bill,
+    });
+  };
+
   return (
     <div className="invoiceSummaryActions">
+      <Button
+        kind="ghost"
+        size="sm"
+        renderIcon={EmissionsManagement}
+        iconDescription={t('costs', 'Costs')}
+        tooltipPosition="right"
+        onClick={handleOpenCostsWorkspace}>
+        {t('costs', 'Costs')}
+      </Button>
       <Popover isTabTip align="bottom-right" onKeyDown={() => {}} onRequestClose={() => setIsOpen(false)} open={isOpen}>
         <button
           className={styles.printButton}
