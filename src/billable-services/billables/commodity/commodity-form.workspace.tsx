@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ButtonSet, Button, Stack, Toggle, InlineNotification, InlineLoading } from '@carbon/react';
+import { ButtonSet, Button, Stack, Toggle, InlineNotification, InlineLoading, ComboBox } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
 import { useForm, FormProvider, useFieldArray, Controller } from 'react-hook-form';
 
@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import PriceField from '../services/price.component';
 import { billableFormSchema, type BillableFormSchema } from '../form-schemas';
 import { formatBillableServicePayloadForSubmission, mapInputToPayloadSchema } from '../form-helper';
-import { createBillableService } from '../../billable-service.resource';
+import { createBillableService, useSalesTaxes } from '../../billable-service.resource';
 import { handleMutate } from '../../utils';
 
 type CommodityFormProps = DefaultPatientWorkspaceProps & {
@@ -28,6 +28,8 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
 }) => {
   const { t } = useTranslation();
   const isTablet = useLayoutType() === 'tablet';
+  const inEditMode = !!initialValues;
+  const { isLoading: isLoadingSalesTaxes, salesTaxes } = useSalesTaxes();
   const formMethods = useForm<BillableFormSchema>({
     resolver: zodResolver(billableFormSchema),
     defaultValues: initialValues
@@ -38,7 +40,7 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
             display: initialValues.serviceType?.display ?? '',
           },
         }
-      : { servicePrices: [], serviceStatus: 'ENABLED' },
+      : { servicePrices: [], serviceStatus: 'ENABLED', serviceTax: null },
   });
 
   const {
@@ -46,6 +48,7 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
     control,
     handleSubmit,
     trigger,
+    getValues,
     formState: { errors, isDirty, isSubmitting },
   } = formMethods;
 
@@ -59,6 +62,16 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
       trigger();
     }
   }, [initialValues, trigger]);
+
+  // When editing: resolve sales tax label from concept set once options have loaded
+  useEffect(() => {
+    if (!inEditMode || !salesTaxes?.length) return;
+    const current = getValues('serviceTax');
+    if (current?.uuid && !current?.display) {
+      const match = salesTaxes.find((t: { uuid: string }) => t.uuid === current.uuid);
+      if (match) setValue('serviceTax', match);
+    }
+  }, [salesTaxes, inEditMode, getValues, setValue]);
 
   const onSubmit = async (formValues: BillableFormSchema) => {
     const payload = formatBillableServicePayloadForSubmission(formValues, initialValues?.['uuid']);
@@ -159,6 +172,31 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
                 subtitle={t('conceptMissingSubtitle', 'Please delete the current item and re-create the charge item')}
               />
             )}
+            <ResponsiveWrapper>
+              <Controller
+                name="serviceTax"
+                control={control}
+                render={({ field }) => (
+                  <ComboBox
+                    id="serviceTax"
+                    onChange={({ selectedItem }) => field.onChange(selectedItem ?? null)}
+                    titleText={t('salesTax', 'Sales tax')}
+                    items={salesTaxes ?? []}
+                    itemToString={(item) => (item ? item.display : '')}
+                    placeholder={t('selectSalesTax', 'Select sales tax')}
+                    disabled={isLoadingSalesTaxes}
+                    selectedItem={field.value ?? null}
+                    invalid={!!errors.serviceTax}
+                    invalidText={errors?.serviceTax?.message}
+                    itemToElement={(item) => (
+                      <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
+                        {item?.display}
+                      </div>
+                    )}
+                  />
+                )}
+              />
+            </ResponsiveWrapper>
             <ResponsiveWrapper>
               <Controller
                 control={control}
