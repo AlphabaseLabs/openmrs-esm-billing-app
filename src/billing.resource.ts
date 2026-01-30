@@ -20,6 +20,7 @@ import { extractString } from './helpers';
 import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, PaymentStatus } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
+
   // create base object
   const mappedBill: MappedBill = {
     id: bill?.id,
@@ -43,7 +44,13 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     ),
     payments: bill?.payments,
     display: bill?.display,
-    totalAmount: bill?.lineItems?.map((item) => item?.price * item?.quantity).reduce((prev, curr) => prev + curr, 0),
+    totalAmount:
+      bill?.lineItems?.reduce((sum, item) => {
+        const subtotal = (item?.price ?? 0) * (item?.quantity ?? 0);
+        const tax = (item?.taxes ?? []).reduce((acc, t) => acc + (t?.amount ?? 0), 0);
+        const discount = (item?.discounts ?? []).reduce((acc, d) => acc + (d?.amount ?? 0), 0);
+        return sum + subtotal + tax - discount;
+      }, 0) ?? 0,
     tenderedAmount: bill?.payments?.map((item) => item?.amountTendered).reduce((prev, curr) => prev + curr, 0),
     referenceCodes: bill?.payments
       .map((payment) =>
@@ -61,16 +68,17 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
       .join(', '),
     adjustmentReason: bill?.adjustmentReason,
     balance: bill?.balance,
-    totalPayments: bill?.totalPayments,
-    totalDeposits: bill?.totalDeposits,
-    totalExempted: bill?.totalExempted,
-    totalWaived: bill?.payments
-      ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
-      .reduce((prev, curr) => prev + curr?.amountTendered, 0),
+    totalPayments: bill?.totalPayments ?? 0,
+    totalDeposits: bill?.totalDeposits ?? 0,
+    totalExempted: bill?.totalExempted ?? 0,
+    totalWaived: bill?.totalWaivers,
     closed: bill?.closed,
-    totalActualPayments: bill?.totalActualPayments,
+    totalActualPayments: bill?.totalActualPayments ?? 0,
+    totalTax: bill?.totalTax,
+    billLineItemDiscounts: bill?.totalDiscount,
+    totalAmountWithoutTaxAndDiscount: bill?.lineItems?.map((item) => item?.price * item?.quantity).reduce((prev, curr) => prev + curr, 0),
   };
-
+  mappedBill.totalDiscounts = mappedBill.billLineItemDiscounts + mappedBill.totalWaived;
   return mappedBill;
 };
 
@@ -117,43 +125,6 @@ export const useBill = (billUuid: string) => {
       errorRetryCount: 2,
     },
   );
-
-  const mapBillProperties = (bill: PatientInvoice): MappedBill => {
-    // create base object
-    const mappedBill: MappedBill = {
-      id: bill?.id,
-      uuid: bill?.uuid,
-      patientName: bill?.patient?.display.split('-')?.[1],
-      identifier: bill?.patient?.display.split('-')?.[0],
-      patientUuid: bill?.patient?.uuid,
-      status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
-        ? PaymentStatus.PAID
-        : bill?.status,
-      receiptNumber: bill?.receiptNumber,
-      cashier: bill?.cashier,
-      cashPointUuid: bill?.cashPoint?.uuid,
-      cashPointName: bill?.cashPoint?.name,
-      cashPointLocation: bill?.cashPoint?.location?.display,
-      dateCreated: bill?.dateCreated ?? '--',
-      dateCreatedUnformatted: bill?.dateCreated,
-      lineItems: bill?.lineItems,
-      billingService: bill?.lineItems.map((bill) => bill?.item).join(' '),
-      payments: bill?.payments,
-      totalAmount: bill?.lineItems?.map((item) => item.price * item.quantity).reduce((prev, curr) => prev + curr, 0),
-      tenderedAmount: bill?.payments?.map((item) => item.amountTendered).reduce((prev, curr) => prev + curr, 0),
-      totalPayments: bill?.totalPayments,
-      totalDeposits: bill?.totalDeposits,
-      totalExempted: bill?.totalExempted,
-      balance: bill?.balance,
-      closed: bill?.closed,
-      totalWaived: bill?.payments
-        ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
-        .reduce((prev, curr) => prev + curr?.amountTendered, 0),
-      totalActualPayments: bill?.totalActualPayments,
-    };
-
-    return mappedBill;
-  };
 
   // filter out voided line items to prevent them from being included in the bill
   // TODO: add backend support for voided line items

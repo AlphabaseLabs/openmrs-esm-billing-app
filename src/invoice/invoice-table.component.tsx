@@ -26,16 +26,13 @@ import {
   useLayoutType,
   launchWorkspace,
   EditIcon,
-  TrashCanIcon,
-  useConfig,
   getCoreTranslation,
   usePatient,
-  setCurrentVisit,
 } from '@openmrs/esm-framework';
 import { getPatientChartStore, useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
-import { Add, TrashCan } from '@carbon/react/icons';
+import { Add, Document, TrashCan } from '@carbon/react/icons';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -73,20 +70,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     const headers = [
       { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
       { header: t('billItem', 'Bill item'), key: 'billItem' },
-      { header: t('billCode', 'Bill code'), key: 'billCode' },
       { header: t('status', 'Status'), key: 'status' },
       { header: t('quantity', 'Quantity'), key: 'quantity' },
       { header: t('price', 'Price'), key: 'price' },
+      { header: t('discount', 'Discount'), key: 'discount' },
+      { header: t('salesTax', 'S.Tax'), key: 'tax' },
       { header: t('total', 'Total'), key: 'total' },
+      { header: getCoreTranslation('actions'), key: 'actionButton' },
     ];
-    
-    // Only add Actions column if bill is not fully paid
-    if (bill.status !== PaymentStatus.PAID) {
-      headers.push({ header: getCoreTranslation('actions'), key: 'actionButton' });
-    }
-    
+
     return headers;
-  }, [bill.status, t]);
+  }, [t]);
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
@@ -113,16 +107,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     [bill, t],
   );
 
-  const handleAddNewBillItem = useCallback(() => {
-    if (patient) {
-      setCurrentVisit(bill.patientUuid, null);
-      launchPatientWorkspace({
-        workspaceTitle: t('billingForm', 'Billing Form'),
-        patientUuid: bill.patientUuid,
-        patient,
-      });
-    }
-  }, [patient, bill.patientUuid, launchPatientWorkspace, t]);
+  // const handleAddNewBillItem = useCallback(() => {
+  //   if (patient) {
+  //     setCurrentVisit(bill.patientUuid, null);
+  //     launchPatientWorkspace({
+  //       workspaceTitle: t('billingForm', 'Billing Form'),
+  //       patientUuid: bill.patientUuid,
+  //       patient,
+  //     });
+  //   }
+  // }, [patient, bill.patientUuid, launchPatientWorkspace, t]);
 
   useEffect(() => {
     if (patient) {
@@ -133,24 +127,28 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     }
   }, [state, patient]);
 
-  const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
+  const tableRows = useMemo(() => {
+    const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
+    const getLineItemDiscount = (item: LineItem) =>
+      (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0);
+    const getLineItemTax = (item: LineItem) => (item?.taxes ?? []).reduce((sum, tax) => sum + (tax?.amount ?? 0), 0);
 
-  const tableRows = useMemo(
-    () =>
+    return (
       filteredLineItems?.map((item, index) => {
         return {
           no: `${index + 1}`,
           id: `${item.uuid}`,
           billItem: processBillItem(item),
-          billCode: bill.receiptNumber,
           status: item.paymentStatus,
           quantity: item.quantity,
           price: item.price,
-          total: item.price * item.quantity,
-          actionButton:
-            bill.status !== PaymentStatus.PAID ? (
-              <div className={styles.actionButtons}>
-                {
+          discount: getLineItemDiscount(item),
+          tax: getLineItemTax(item),
+          total: item.price * item.quantity + getLineItemTax(item) - getLineItemDiscount(item),
+          actionButton: (
+            <div className={styles.actionButtons}>
+              {bill.status !== PaymentStatus.PAID && (
+                <>
                   <IconButton
                     size="sm"
                     data-testid={`edit-button-${item.uuid}`}
@@ -160,8 +158,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     disabled={item.paymentStatus !== PaymentStatus.PENDING}>
                     <EditIcon size={16} />
                   </IconButton>
-                }
-                {
                   <Button
                     size="sm"
                     hasIconOnly
@@ -170,14 +166,29 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     iconDescription={t('cancelItem', 'Cancel item')}
                     kind="danger--ghost"
                     onClick={() => handleCancelLineItem(item)}
-                    disabled={item.paymentStatus !== PaymentStatus.PENDING}></Button>
+                    disabled={item.paymentStatus !== PaymentStatus.PENDING}
+                  />
+                </>
+              )}
+              <Button
+                size="sm"
+                hasIconOnly
+                renderIcon={(props) => <Document size={16} {...props} />}
+                iconDescription={t('costs', 'Costs')}
+                kind="ghost"
+                onClick={() =>
+                  launchWorkspace('costs-workspace', {
+                    workspaceTitle: t('costOverview', 'Cost Overview'),
+                    bill: bill,
+                  })
                 }
-              </div>
-            ) : null,
+              />
+            </div>
+          ),
         };
-      }) ?? [],
-    [bill.receiptNumber, bill.status, filteredLineItems, t, handleEditLineItem, handleCancelLineItem],
-  );
+      }) ?? []
+    );
+  }, [bill, filteredLineItems, t, handleEditLineItem, handleCancelLineItem]);
 
   if (isLoadingBill) {
     return (
@@ -221,7 +232,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
-                  {!bill.closed && (
+                  {/* Uncomment this to enable the add new bill item button when visit issue is fixed */}
+                  {/* {!bill.closed && (
                     <Button
                       kind="ghost"
                       onClick={handleAddNewBillItem}
@@ -231,7 +243,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                       disabled={isLoadingPatient || !patient}>
                       {t('addNewBillItem', 'Add New Bill Item')}
                     </Button>
-                  )}
+                  )} */}
                 </TableToolbarContent>
               </TableToolbar>
             </div>
@@ -249,7 +261,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                   // Find matching item to get payment status (following reference pattern)
                   const matchingItem = filteredLineItems?.find((item) => `${item.uuid}` === row.id);
                   const paymentStatus = matchingItem?.paymentStatus;
-                  
+
                   return (
                     <TableRow
                       key={row.id}
@@ -260,10 +272,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                         <TableSelectRow
                           aria-label="Select row"
                           {...getSelectionProps({ row })}
-                          disabled={
-                            paymentStatus === PaymentStatus.PAID ||
-                            paymentStatus === PaymentStatus.EXEMPTED
-                          }
+                          disabled={paymentStatus === PaymentStatus.PAID || paymentStatus === PaymentStatus.EXEMPTED}
                           onChange={(checked: boolean) => handleRowSelection(row, checked)}
                           checked={
                             paymentStatus === PaymentStatus.PAID ||

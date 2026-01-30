@@ -79,6 +79,12 @@ export function InvoiceSummary({
   readonly activeVisit?: any;
 }) {
   const { t } = useTranslation();
+  const totalDiscounts =
+    bill?.lineItems?.reduce(
+      (sum, item) => sum + (item?.discounts ?? []).reduce((acc, discount) => acc + (discount?.amount ?? 0), 0),
+      0,
+    ) ?? 0;
+  const totalWaivedAndDiscounts = (bill?.totalWaived ?? 0) + totalDiscounts;
 
   return (
     <>
@@ -91,7 +97,7 @@ export function InvoiceSummary({
           <InvoiceSummaryItem label={t('invoiceNumber', 'Invoice Number')} value={bill.receiptNumber} />
           <InvoiceSummaryItem
             label={t('dateAndTime', 'Date And Time')}
-            value={formatDatetime(parseDate(bill.dateCreated), { mode: 'standard', noToday: true })}
+            value={formatDatetime(parseDate(bill.dateCreatedUnformatted), { mode: 'standard', noToday: true })}
           />
           <InvoiceSummaryItem label={t('invoiceStatus', 'Invoice Status')} value={bill?.status} />
           <InvoiceSummaryItem label={t('cashPoint', 'Cash Point')} value={bill?.cashPointName} />
@@ -106,7 +112,10 @@ export function InvoiceSummary({
               value={convertToCurrency(bill?.totalExempted)}
             />
           ) : (
-            <InvoiceSummaryItem label={t('totalWaived', 'Total Waived')} value={convertToCurrency(bill?.totalWaived)} />
+            <InvoiceSummaryItem
+              label={t('totalWaivedAndDiscounts', 'Total Waived/Discounts')}
+              value={convertToCurrency(totalWaivedAndDiscounts)}
+            />
           )}
           <InvoiceSummaryItem
             label={t('totalPayments', 'Total Payments')}

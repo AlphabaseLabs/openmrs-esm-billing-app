@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { type LineItem, type MappedBill } from '../../../../types';
+import { type BillLineItemDiscount, type LineItem, type MappedBill } from '../../../../types';
+
+const DISCOUNT_METHODS = ['percentage', 'fixed'] as const;
 import { useMemo } from 'react';
 import { useBillableServices } from '../../../billable-service.resource';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +14,7 @@ const BILL_FORM_VALIDATION_RULES = {
   MINIMUM_PRICE: 0,
   MINIMUM_QUANTITY: 0,
   MINIMUM_REASON_LENGTH: 1,
+  MINIMUM_DISCOUNT: 0,
 } as const;
 
 /**
@@ -31,6 +34,14 @@ export const useEditBillFormSchema = () => {
       .refine((quantityStr) => parseInt(quantityStr) > BILL_FORM_VALIDATION_RULES.MINIMUM_QUANTITY, {
         message: t('quantityShouldBeGreaterThanZero', 'Quantity should be greater than zero'),
       }),
+    discountValue: z
+      .union([z.string(), z.number()])
+      .optional()
+      .transform((v) => (v === '' || v == null ? 0 : typeof v === 'number' ? v : parseFloat(v) || 0))
+      .pipe(z.number().min(BILL_FORM_VALIDATION_RULES.MINIMUM_DISCOUNT)),
+    discountMethod: z.enum(DISCOUNT_METHODS).optional().default('percentage'),
+    discountDescription: z.string().optional(),
+    provider: z.object({ id: z.string(), uuid: z.string(), label: z.string() }).optional().nullable(),
     adjustmentReason: z
       .string()
       .min(BILL_FORM_VALIDATION_RULES.MINIMUM_REASON_LENGTH, {
@@ -51,10 +62,34 @@ export type EditBillFormData = z.infer<ReturnType<typeof useEditBillFormSchema>>
  * @param {MappedBill} existingBill - The bill containing adjustment reason
  * @returns {EditBillFormData} Default form values
  */
+function getDefaultDiscountFromLineItem(lineItem: LineItem): { discountValue: number; discountMethod: 'percentage' | 'fixed' } {
+  const first = (lineItem?.discounts ?? [])[0] as BillLineItemDiscount | undefined;
+  if (!first || first.amount == null) {
+    return { discountValue: 0, discountMethod: 'percentage' };
+  }
+  if (first.rate != null && first.rate > 0) {
+    return { discountValue: Math.round(first.rate * 100), discountMethod: 'percentage' };
+  }
+  return { discountValue: first.amount, discountMethod: 'fixed' };
+}
+
+/** Sponsor UUID from line item's first discount (for pre-selecting provider when options load). */
+export function getDiscountSponsorFromLineItem(lineItem: LineItem): string | undefined {
+  const first = (lineItem?.discounts ?? [])[0] as BillLineItemDiscount | undefined;
+  return first?.sponsor;
+}
+
 export const useDefaultEditBillFormValues = (billLineItem: LineItem, existingBill: MappedBill): EditBillFormData => {
+  const { discountValue, discountMethod } = getDefaultDiscountFromLineItem(billLineItem);
+  const firstDiscount = (billLineItem?.discounts ?? [])[0] as BillLineItemDiscount | undefined;
+
   return {
     price: billLineItem?.price.toString(),
     quantity: billLineItem?.quantity.toString(),
+    discountValue,
+    discountMethod,
+    discountDescription: firstDiscount?.description ?? '',
+    provider: null,
     adjustmentReason: existingBill?.adjustmentReason,
   };
 };

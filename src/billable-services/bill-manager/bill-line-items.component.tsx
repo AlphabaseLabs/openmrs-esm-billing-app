@@ -24,7 +24,9 @@ const BillLineItems: React.FC<{ bill: MappedBill }> = ({ bill }) => {
           <StructuredListRow head>
             <StructuredListCell head>{t('billItem', 'Bill item')}</StructuredListCell>
             <StructuredListCell head>{t('quantity', 'Quantity')}</StructuredListCell>
-            <StructuredListCell head>{t('unitPrice', 'Unit Price')}</StructuredListCell>
+            <StructuredListCell head>{t('amount', 'Amount')}</StructuredListCell>
+            <StructuredListCell head>{t('tax', 'Tax')}</StructuredListCell>
+            <StructuredListCell head>{t('discount', 'Discount')}</StructuredListCell>
             <StructuredListCell head>{t('total', 'Total')}</StructuredListCell>
             <StructuredListCell head>{t('status', 'Status')}</StructuredListCell>
             <StructuredListCell head>{t('actions', 'Actions')}</StructuredListCell>
@@ -59,8 +61,10 @@ const LineItemRow = ({ lineItem, bill }: { lineItem: LineItem; bill: MappedBill 
         {lineItem.item === '' ? lineItem.billableService.split(':')[1] : extractString(lineItem.item)}
       </StructuredListCell>
       <StructuredListCell>{lineItem.quantity}</StructuredListCell>
-      <StructuredListCell>{convertToCurrency(lineItem.price)}</StructuredListCell>
       <StructuredListCell>{convertToCurrency(lineItem.price * lineItem.quantity)}</StructuredListCell>
+      <StructuredListCell>{convertToCurrency(lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0))}</StructuredListCell>
+      <StructuredListCell>{convertToCurrency(lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0))}</StructuredListCell>
+      <StructuredListCell>{convertToCurrency(lineItem.price * lineItem.quantity + lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0) - lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0))}</StructuredListCell>
       <StructuredListCell>{lineItem.paymentStatus}</StructuredListCell>
 
       <StructuredListCell>

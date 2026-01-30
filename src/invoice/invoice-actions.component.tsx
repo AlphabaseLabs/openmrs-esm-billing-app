@@ -5,23 +5,11 @@ import {
   restBaseUrl,
   showModal,
   UserHasAccess,
-  useFeatureFlag,
-  useVisit,
-  useVisitContextStore,
-  defaultVisitCustomRepresentation,
-  navigate,
-  showSnackbar,
-  showToast,
-  updateVisit,
 } from '@openmrs/esm-framework';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
-import { mutate } from 'swr';
 import { convertToCurrency } from '../helpers';
 import { type MappedBill, type LineItem, PaymentStatus } from '../types';
-import { spaBasePath } from '../constants';
-// import { useCheckShareGnum } from './invoice.resource';
 import styles from './invoice.scss';
 import startCase from 'lodash-es/startCase';
 
@@ -34,9 +22,6 @@ interface InvoiceActionsProps {
 export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: InvoiceActionsProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const { billUuid, patientUuid } = useParams();
-  // const { checkSHARegNum } = useCheckShareGnum();
-  const { patientUuid: visitStorePatientUuid, manuallySetVisitUuid } = useVisitContextStore();
 
   const launchBillCloseOrReopenModal = (action: 'close' | 'reopen') => {
     const dispose = showModal('bill-action-modal', {
@@ -56,32 +41,16 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
     });
   };
 
-  const handleOpenWaiveBillWorkspace = () => {
-    launchWorkspace('waive-bill-form', {
-      workspaceTitle: t('waiveBillForm', 'Waive Bill Form'),
-      bill: bill,
-    });
-  };
-
-  const handleOpenCostsWorkspace = () => {
-    launchWorkspace('costs-workspace', {
-      workspaceTitle: t('costOverview', 'Cost Overview'),
-      bill: bill,
-    });
-  };
+  // const handleOpenWaiveBillWorkspace = () => {
+  //   launchWorkspace('waive-bill-form', {
+  //     workspaceTitle: t('waiveBillForm', 'Waive Bill Form'),
+  //     bill: bill,
+  //   });
+  // };
 
   return (
     <div className="invoiceSummaryActions">
-      <Button
-        kind="ghost"
-        size="sm"
-        renderIcon={EmissionsManagement}
-        iconDescription={t('costs', 'Costs')}
-        tooltipPosition="right"
-        onClick={handleOpenCostsWorkspace}>
-        {t('costs', 'Costs')}
-      </Button>
-      <Popover isTabTip align="bottom-right" onKeyDown={() => {}} onRequestClose={() => setIsOpen(false)} open={isOpen}>
+      <Popover isTabTip align="bottom-right" onKeyDown={() => { }} onRequestClose={() => setIsOpen(false)} open={isOpen}>
         <button
           className={styles.printButton}
           aria-expanded
@@ -177,7 +146,8 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
         }>
         {t('additionalPayment', 'Additional Payment')}
       </Button>
-      {bill.status !== PaymentStatus.PAID && (
+      {/* Uncomment this to enable the waiver button */}
+      {/* {bill.status !== PaymentStatus.PAID && (
         <UserHasAccess privilege="o3: Delete Bill">
           <Button
             kind="danger--ghost"
@@ -189,7 +159,7 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
             {t('waiveBill', 'Waive Bill')}
           </Button>
         </UserHasAccess>
-      )}
+      )} */}
     </div>
   );
 }

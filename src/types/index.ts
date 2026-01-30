@@ -30,6 +30,10 @@ export interface MappedBill {
   closed?: boolean;
   totalWaived?: number;
   totalActualPayments?: number;
+  totalTax?: number;
+  billLineItemDiscounts?: number;
+  totalDiscounts?: number;
+  totalAmountWithoutTaxAndDiscount?: number;
 }
 
 interface LocationLink {
@@ -64,6 +68,25 @@ interface Provider {
   links: ProviderLink[];
 }
 
+/** Discount on a bill line item. Request: amount, baseAmount, rate?, description?, sponsor?; Response: same + uuid */
+export interface BillLineItemDiscount {
+  uuid?: string;
+  amount: number;
+  baseAmount: number;
+  rate?: number;
+  description?: string;
+  sponsor?: string;
+}
+
+/** Tax on a bill line item. Request: amount, baseAmount, rate?, concept?; Response: same + uuid */
+export interface BillLineItemTax {
+  uuid?: string;
+  amount: number;
+  baseAmount: number;
+  rate?: number;
+  concept?: string;
+}
+
 export interface LineItem {
   uuid: string;
   display: string;
@@ -81,6 +104,8 @@ export interface LineItem {
   itemOrServiceConceptUuid: string;
   serviceTypeUuid: string;
   order: OpenmrsResource;
+  discounts?: BillLineItemDiscount[];
+  taxes?: BillLineItemTax[];
 }
 
 interface PatientLink {
@@ -284,6 +309,9 @@ export interface PatientInvoice {
   balance?: number;
   closed?: boolean;
   totalActualPayments?: number;
+  totalWaivers?: number;
+  totalTax?: number;
+  totalDiscount?: number;
 }
 
 export type BillingService = {
