@@ -31,6 +31,7 @@ export interface BillingConfig {
   concepts: {
     emergencyPriorityConceptUuid: string;
     serviceConceptSetUuid: string;
+    salesTaxConceptSetUuid: string;
   };
 }
 
@@ -196,6 +197,11 @@ export const configSchema: ConfigSchema = {
       _type: Type.String,
       _description: 'The concept uuid containing all available services e.g lab, pharmacy, surgical etc',
       _default: 'a8f3f64a-11d5-4a09-b0fb-c8118fa349f3',
+    },
+    salesTaxConceptSetUuid: {
+      _type: Type.String,
+      _description: 'The concept set uuid for sales tax options in billable service form',
+      _default: 'b4af9c5f-70af-4db8-899d-4c37afccc871',
     },
   },
 };

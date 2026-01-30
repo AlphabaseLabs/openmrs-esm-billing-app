@@ -17,7 +17,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useLayoutType, useDebounce, ResponsiveWrapper, showSnackbar, restBaseUrl } from '@openmrs/esm-framework';
 import { type DefaultPatientWorkspaceProps } from '@openmrs/esm-patient-common-lib';
 
-import { createBillableService, useConceptsSearch, useServiceTypes } from '../../billable-service.resource';
+import {
+  createBillableService,
+  useConceptsSearch,
+  useServiceTypes,
+  useSalesTaxes,
+} from '../../billable-service.resource';
 import PriceField from './price.component';
 import { billableFormSchema, type BillableFormSchema } from '../form-schemas';
 
@@ -45,6 +50,7 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
   const inEditMode = !!initialValues;
 
   const { isLoading: isLoadingServiceTypes, serviceTypes } = useServiceTypes();
+  const { isLoading: isLoadingSalesTaxes, salesTaxes } = useSalesTaxes();
   const { isSearching, searchResults: concepts } = useConceptsSearch(debouncedConceptToLookup);
   const formMethods = useForm<BillableFormSchema>({
     resolver: zodResolver(billableFormSchema),
@@ -55,6 +61,7 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
           shortName: '',
           concept: null,
           serviceType: null,
+          serviceTax: null,
           serviceStatus: 'ENABLED',
           servicePrices: [],
         },
@@ -65,6 +72,7 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
     control,
     handleSubmit,
     trigger,
+    getValues,
     formState: { errors, isDirty, defaultValues, isSubmitting },
   } = formMethods;
 
@@ -74,6 +82,16 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
       trigger();
     }
   }, [initialValues, trigger]);
+
+  // When editing: resolve sales tax label from concept set once options have loaded
+  useEffect(() => {
+    if (!inEditMode || !salesTaxes?.length) return;
+    const current = getValues('serviceTax');
+    if (current?.uuid && !current?.display) {
+      const match = salesTaxes.find((t: { uuid: string }) => t.uuid === current.uuid);
+      if (match) setValue('serviceTax', match);
+    }
+  }, [salesTaxes, inEditMode, getValues, setValue]);
 
   const {
     fields: servicePriceFields,
@@ -242,6 +260,31 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
                     />
                   );
                 }}
+              />
+            </ResponsiveWrapper>
+            <ResponsiveWrapper>
+              <Controller
+                name="serviceTax"
+                control={control}
+                render={({ field }) => (
+                  <ComboBox
+                    id="serviceTax"
+                    onChange={({ selectedItem }) => field.onChange(selectedItem ?? null)}
+                    titleText={t('salesTax', 'Sales tax')}
+                    items={salesTaxes ?? []}
+                    itemToString={(item) => (item ? item.display : '')}
+                    placeholder={t('selectSalesTax', 'Select sales tax')}
+                    disabled={isLoadingSalesTaxes}
+                    selectedItem={field.value ?? null}
+                    invalid={!!errors.serviceTax}
+                    invalidText={errors?.serviceTax?.message}
+                    itemToElement={(item) => (
+                      <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
+                        {item?.display}
+                      </div>
+                    )}
+                  />
+                )}
               />
             </ResponsiveWrapper>
             <ResponsiveWrapper>

@@ -26,6 +26,14 @@ export function useServiceTypes() {
   return { serviceTypes: data?.data.setMembers ?? [], error, isLoading };
 }
 
+export function useSalesTaxes() {
+  const config = useConfig();
+  const salesTaxConceptSetUuid = config.concepts.salesTaxConceptSetUuid;
+  const url = `/ws/rest/v1/concept/${salesTaxConceptSetUuid}?v=custom:(setMembers:(uuid,display,id))`;
+  const { data, error, isLoading } = useSWR<{ data: ServiceTypesResponse }>(url, openmrsFetch, {});
+  return { salesTaxes: data?.data.setMembers ?? [], error, isLoading: isLoading };
+}
+
 export const usePaymentModes = () => {
   const url = `/ws/rest/v1/cashier/paymentMode`;
   const { data, error, isLoading } = useSWR<{ data: ResponseObject }>(url, openmrsFetch, {});

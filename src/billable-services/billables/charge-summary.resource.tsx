@@ -20,6 +20,16 @@ export type ChargeAble = {
     uuid: string;
     display: string;
   };
+  serviceTaxes?: Array<{
+    uuid: string;
+    concept: string;
+    overrideRate?: number;
+    priority?: number;
+    inclusive?: boolean;
+    conceptDisplay?: {
+      display: string;
+    };
+  }>;
 };
 
 type ChargeAblesResponse = {
@@ -27,7 +37,7 @@ type ChargeAblesResponse = {
 };
 
 export const useChargeSummaries = () => {
-  const url = `${restBaseUrl}/cashier/billableService?v=custom:(uuid,name,shortName,serviceStatus,serviceType:(uuid,display),servicePrices:(uuid,name,paymentMode,price),concept:(uuid,display),stockItem:(uuid,display))`;
+  const url = `${restBaseUrl}/cashier/billableService?v=custom:(uuid,name,shortName,serviceStatus,serviceType:(uuid,display),servicePrices:(uuid,name,paymentMode,price),concept:(uuid,display),stockItem:(uuid,display),serviceTaxes:(uuid,concept))`;
   const { data, isLoading, isValidating, error, mutate } = useSWR<{ data: ChargeAblesResponse }>(url, openmrsFetch, {
     errorRetryCount: 0,
   });
