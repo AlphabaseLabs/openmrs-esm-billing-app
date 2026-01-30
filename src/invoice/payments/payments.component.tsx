@@ -11,7 +11,7 @@ import { processBillPayment } from '../../billing.resource';
 import { convertToCurrency } from '../../helpers';
 import { useClockInStatus } from '../../payment-points/use-clock-in-status';
 import { type LineItem, type PaymentFormValue, PaymentStatus, type MappedBill } from '../../types';
-import { computeWaivedAmount, extractErrorMessagesFromResponse } from '../../utils';
+import { extractErrorMessagesFromResponse } from '../../utils';
 import { InvoiceBreakDown } from './invoice-breakdown/invoice-breakdown.component';
 import PaymentForm from './payment-form/payment-form.component';
 import PaymentHistory from './payment-history/payment-history.component';
@@ -34,6 +34,7 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
     defaultValues: { payment: [] },
     resolver: zodResolver(z.object({ payment: z.array(paymentSchema) })),
   });
+
   const formArrayMethods = useFieldArray({ name: 'payment', control: methods.control });
 
   const formValues = useWatch({
@@ -41,15 +42,17 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
     control: methods.control,
   });
 
-  const totalWaivedAmount = computeWaivedAmount(bill);
+  // const totalAmountTendered = bill.tenderedAmount;
   const totalAmountTendered = formValues?.reduce((curr: number, prev) => Number(prev.amount) + curr, 0) ?? 0;
-  const amountDue = bill.balance - totalAmountTendered;
+  const amountDue = bill.balance;
 
   // selected line items amount due
   const selectedLineItemsAmountDue =
     selectedLineItems
       .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
-      .reduce((curr: number, prev) => curr + Number(prev.price * prev.quantity), 0) - totalWaivedAmount;
+      .reduce((curr: number, prev) => curr + Number(prev.price * prev.quantity) +
+        Number(prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+          Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0))), 0);
 
   const handleNavigateToBillingDashboard = () =>
     navigate({
@@ -97,9 +100,8 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
 
   const isFullyPaid = totalAmountTendered >= selectedLineItemsAmountDue;
   const hasAmountPaidExceeded =
-    formValues.some((item) => item.amount !== 0) &&
-    totalAmountTendered > selectedLineItemsAmountDue &&
-    bill.lineItems.length > 1;
+    bill.balance > 0 && formValues.some((item) => Number(item.amount) > bill.balance);
+
   const isPaymentInvalid = !isFullyPaid && formValues.some((item) => item.amount !== 0) && bill.lineItems.length > 1;
 
   return (
@@ -131,7 +133,7 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
                 title={t('overPayment', 'Over payment')}
                 subtitle={t(
                   'overPaymentSubtitle',
-                  'Amount paid {{totalAmountTendered}} should not be greater than amount due {{selectedLineItemsAmountDue}} for selected line items',
+                  'Amount paid {{totalAmountTendered}} should not be greater than amount due {{amountDue}} for selected line items',
                   {
                     totalAmountTendered: convertToCurrency(totalAmountTendered),
                     selectedLineItemsAmountDue: convertToCurrency(selectedLineItemsAmountDue),
@@ -147,16 +149,12 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
+          <InvoiceBreakDown label={t('subtotal', 'Subtotal')} value={convertToCurrency(bill.totalAmountWithoutTaxAndDiscount)} />
+          <InvoiceBreakDown label={t('totalDiscounts', 'Total Discounts')} value={convertToCurrency(bill.totalDiscounts)} />
+          <InvoiceBreakDown label={t('totalTaxes', 'Total Taxes')} value={convertToCurrency(bill.totalTax)} />
           <InvoiceBreakDown label={t('totalAmount', 'Total Amount')} value={convertToCurrency(bill.totalAmount)} />
-          <InvoiceBreakDown
-            label={t('totalDeposits', 'Total Deposits')}
-            value={convertToCurrency(bill.totalDeposits)}
-          />
-          <InvoiceBreakDown
-            label={t('totalTendered', 'Total Tendered')}
-            value={convertToCurrency(bill.tenderedAmount + totalAmountTendered)}
-          />
-          <InvoiceBreakDown label={t('discount', 'Discount')} value={'--'} />
+          {bill.totalDeposits > 0 && <InvoiceBreakDown label={t('totalDeposits', 'Total Deposits')} value={convertToCurrency(bill.totalDeposits)} />}
+          <InvoiceBreakDown label={t('totalTendered', 'Total Tendered')} value={convertToCurrency(bill.tenderedAmount + totalAmountTendered)} />
           <InvoiceBreakDown
             hasBalance={amountDue < 0}
             label={amountDueDisplay(amountDue)}
@@ -166,6 +164,10 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
             <Button onClick={handleNavigateToBillingDashboard} kind="secondary">
               {t('discard', 'Discard')}
             </Button>
+            {/* Process Payment is disabled when ANY of these are true:
+                1. No payment rows (formValues empty)
+                2. Form invalid: usePaymentSchema validates each row (method required, amount > 0 and amount <= bill.balance per row, referenceCode when method requires it)
+                3. Overpayment: any single row has amount > bill.balance (hasAmountPaidExceeded) */}
             <Button
               onClick={() => handleProcessPayment()}
               disabled={!formValues?.length || !methods.formState.isValid || hasAmountPaidExceeded}>

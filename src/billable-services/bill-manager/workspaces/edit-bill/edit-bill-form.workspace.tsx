@@ -2,16 +2,21 @@ import React, { useEffect } from 'react';
 import { mutate } from 'swr';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
-import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
+import { Controller, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
 import {
   Button,
   ComboBox,
   ButtonSet,
+  ContentSwitcher,
+  Dropdown,
   Form,
   NumberInput,
   InlineLoading,
   InlineNotification,
+  Switch,
   TextArea,
+  TextInput,
+  FormLabel,
 } from '@carbon/react';
 import {
   type DefaultWorkspaceProps,
@@ -19,7 +24,9 @@ import {
   restBaseUrl,
   showSnackbar,
   useLayoutType,
+  useSession,
 } from '@openmrs/esm-framework';
+import { useProviderOptions, type ProviderOption } from '../../../../payment-points/payment-points.resource';
 
 import { type LineItem, type MappedBill } from '../../../../types';
 import { processBillPayment } from '../../../../billing.resource';
@@ -29,10 +36,12 @@ import { createEditBillPayload } from './edit-bill-util';
 import classNames from 'classnames';
 import {
   type EditBillFormData,
+  getDiscountSponsorFromLineItem,
   useDefaultEditBillFormValues,
   useEditBillFormSchema,
   useFormInitialValues,
 } from './useEditBillFormSchema';
+const DISCOUNT_METHODS = { PERCENTAGE: 'percentage', FIXED: 'fixed' } as const;
 
 type EditBillFormProps = DefaultWorkspaceProps & { lineItem: LineItem; bill: MappedBill };
 
@@ -48,10 +57,14 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
   const editBillFormSchema = useEditBillFormSchema();
   const defaultValues = useDefaultEditBillFormValues(lineItem, bill);
   const { selectedServicePrice, isLoadingServices, selectedBillableService } = useFormInitialValues(lineItem);
+  const { providerOptions, isLoading: isLoadingProviders } = useProviderOptions();
+  const { currentProvider } = useSession();
 
   const {
     control,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors, isValid, isSubmitting, isDirty },
   } = useForm<EditBillFormData>({
     defaultValues,
@@ -62,6 +75,32 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
   useEffect(() => {
     promptBeforeClosing(() => isDirty);
   }, [isDirty, promptBeforeClosing]);
+
+  const sponsorUuid = getDiscountSponsorFromLineItem(lineItem);
+  useEffect(() => {
+    if (!providerOptions.length) return;
+    const defaultProviderUuid = sponsorUuid ?? currentProvider?.uuid;
+    if (!defaultProviderUuid) return;
+
+    const selectedProvider = getValues('provider');
+    if (!sponsorUuid && selectedProvider?.uuid) return;
+
+    const match = providerOptions.find((p) => p.uuid === defaultProviderUuid);
+    if (match) setValue('provider', match, { shouldDirty: false });
+  }, [sponsorUuid, currentProvider?.uuid, providerOptions, setValue, getValues]);
+
+  const watchedPrice = useWatch({ control, name: 'price', defaultValue: defaultValues.price });
+  const watchedQuantity = useWatch({ control, name: 'quantity', defaultValue: defaultValues.quantity });
+  const watchedDiscountValue = useWatch({ control, name: 'discountValue', defaultValue: defaultValues.discountValue });
+  const discountMethod =
+    useWatch({ control, name: 'discountMethod', defaultValue: defaultValues.discountMethod }) ??
+    DISCOUNT_METHODS.PERCENTAGE;
+
+  const subtotal = (parseFloat(watchedPrice ?? '0') || 0) * (parseInt(watchedQuantity ?? '0', 10) || 0);
+  const discountAmount =
+    discountMethod === DISCOUNT_METHODS.PERCENTAGE
+      ? subtotal * ((parseFloat(String(watchedDiscountValue ?? 0)) || 0) / 100)
+      : parseFloat(String(watchedDiscountValue ?? 0)) || 0;
 
   const onSubmit: SubmitHandler<EditBillFormData> = async (formData) => {
     const updateBill = createEditBillPayload(lineItem, formData, bill, formData.adjustmentReason);
@@ -157,6 +196,69 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
             )}
           />
         </ResponsiveWrapper>
+        <ResponsiveWrapper>
+          <Controller
+            control={control}
+            name="provider"
+            render={({ field }) => (
+              <Dropdown
+                id="provider"
+                titleText={t('discountSponsor', 'Discount sponsor')}
+                label={
+                  isLoadingProviders
+                    ? t('loadingProviders', 'Loading providers...')
+                    : t('selectProvider', 'Select provider')
+                }
+                items={providerOptions}
+                itemToString={(item: ProviderOption | null) => (item ? item.label : '')}
+                selectedItem={field.value}
+                onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                invalid={!!errors.provider}
+                invalidText={errors.provider?.message}
+                disabled={isLoadingProviders}
+              />
+            )}
+          />
+        </ResponsiveWrapper>
+        <ResponsiveWrapper>
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '0', alignItems: 'center' }}>
+            <Controller
+              control={control}
+              name="discountValue"
+              render={({ field }) => (
+                <NumberInput
+                  {...field}
+                  size="md"
+                  label={t('discountValue', 'Discount Value')}
+                  placeholder={t('pleaseEnterDiscountValue', 'Discount Value')}
+                  invalid={!!errors.discountValue}
+                  invalidText={errors.discountValue?.message}
+                  className={styles.formField}
+                  min={0}
+                  max={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 100 : undefined}
+                  step={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0.0001 : 1}
+                  value={field.value}
+                  id={`${field.name}-${field.value}`}
+                  hideSteppers
+                  disableWheel
+                />
+              )}
+            />
+            <ContentSwitcher
+              selectedIndex={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0 : 1}
+              onChange={({ name }) =>
+                setValue('discountMethod', name as typeof DISCOUNT_METHODS.PERCENTAGE | typeof DISCOUNT_METHODS.FIXED)
+              }
+              size="md">
+              <Switch name={DISCOUNT_METHODS.PERCENTAGE} text={t('percentage', 'Percentage')} />
+              <Switch name={DISCOUNT_METHODS.FIXED} text={t('fixedAmount', 'Value')} />
+            </ContentSwitcher>
+          </div>
+        </ResponsiveWrapper>
+        <FormLabel>
+          {t('Discount', 'Discount')}:{' '}
+          {formatCurrencySimple(discountAmount, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
+        </FormLabel>
         <ResponsiveWrapper>
           <Controller
             control={control}
