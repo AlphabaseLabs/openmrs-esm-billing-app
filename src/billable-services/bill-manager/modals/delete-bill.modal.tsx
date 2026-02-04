@@ -1,9 +1,8 @@
 import React from 'react';
 import { ModalBody, ModalFooter, Button, TextArea } from '@carbon/react';
 import cancelBillStyles from './delete-services.scss';
-import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
-import { processBillPayment } from '../../../billing.resource';
-import { ResponsiveWrapper, restBaseUrl, showSnackbar } from '@openmrs/esm-framework';
+import { type MappedBill } from '../../../types';
+import { ResponsiveWrapper, openmrsFetch, restBaseUrl, showSnackbar } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { mutate } from 'swr';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,31 +12,6 @@ import { z } from 'zod';
 type DeleteBillModalProps = {
   onClose: () => void;
   bill: MappedBill;
-};
-
-const formatLineItem = (props: LineItem) => ({
-  item: props.item,
-  quantity: props.quantity,
-  price: props.price,
-  priceName: props.priceName,
-  priceUuid: props.priceUuid,
-  lineItemOrder: props.lineItemOrder,
-  paymentStatus: PaymentStatus.CANCELLED,
-  voided: props.voided,
-  voidReason: props.voidReason,
-});
-const deleteBillPayload = (bill: MappedBill, reason: string) => {
-  return {
-    cashPoint: bill.cashPointUuid,
-    cashier: bill.cashier.uuid,
-    lineItems: bill.lineItems.map((li) => formatLineItem({ ...li, voided: true, voidReason: reason })),
-    payments: bill.payments,
-    patient: bill.patientUuid,
-    status: PaymentStatus.CANCELLED,
-    voided: true,
-    voidReason: reason,
-    billAdjusted: bill.uuid,
-  };
 };
 
 const deleteSchema = z.object({
@@ -56,9 +30,13 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
     resolver: zodResolver(deleteSchema),
   });
   const onSubmit = async (formData: DeleteBillFormData) => {
-    const payload = deleteBillPayload(bill, formData.reason);
     try {
-      const response = await processBillPayment(payload, bill.uuid);
+      const response = await openmrsFetch(
+        `${restBaseUrl}/cashier/bill/${bill.uuid}?reason=${encodeURIComponent(formData.reason)}`,
+        {
+          method: 'DELETE',
+        },
+      );
       if (response.ok) {
         showSnackbar({
           title: t('billDelete', 'Bill delete'),
@@ -67,7 +45,7 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
           timeoutInMs: 5000,
         });
         // mutate the bill
-        mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill?status`), undefined, {
+        mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
           revalidate: true,
         });
         onClose();
