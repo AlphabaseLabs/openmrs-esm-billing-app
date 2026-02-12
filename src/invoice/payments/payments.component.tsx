@@ -43,16 +43,23 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
   });
 
   // const totalAmountTendered = bill.tenderedAmount;
-  const totalAmountTendered = formValues?.reduce((curr: number, prev) => Number(prev.amount) + curr, 0) ?? 0;
+  const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount) + curr, 0) ?? 0;
   const amountDue = bill.balance;
 
   // selected line items amount due
   const selectedLineItemsAmountDue =
     selectedLineItems
       .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
-      .reduce((curr: number, prev) => curr + Number(prev.price * prev.quantity) +
-        Number(prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
-          Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0))), 0);
+      .reduce(
+        (curr: number, prev) =>
+          curr +
+          Number(prev.price * prev.quantity) +
+          Number(
+            prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+              Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
+          ),
+        0,
+      );
 
   const handleNavigateToBillingDashboard = () =>
     navigate({
@@ -98,9 +105,8 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
 
   const amountDueDisplay = (amount: number) => (amount < 0 ? 'Client balance' : 'Amount Due');
 
-  const isFullyPaid = totalAmountTendered >= selectedLineItemsAmountDue;
-  const hasAmountPaidExceeded =
-    bill.balance > 0 && formValues.some((item) => Number(item.amount) > bill.balance);
+  const isFullyPaid = totalNewPayments >= selectedLineItemsAmountDue;
+  const hasAmountPaidExceeded = bill.balance > 0 && formValues.some((item) => Number(item.amount) > bill.balance);
 
   const isPaymentInvalid = !isFullyPaid && formValues.some((item) => item.amount !== 0) && bill.lineItems.length > 1;
 
@@ -133,9 +139,9 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
                 title={t('overPayment', 'Over payment')}
                 subtitle={t(
                   'overPaymentSubtitle',
-                  'Amount paid {{totalAmountTendered}} should not be greater than amount due {{amountDue}} for selected line items',
+                  'Amount paid {{totalNewPayments}} should not be greater than amount due {{amountDue}} for selected line items',
                   {
-                    totalAmountTendered: convertToCurrency(totalAmountTendered),
+                    totalNewPayments: convertToCurrency(totalNewPayments),
                     selectedLineItemsAmountDue: convertToCurrency(selectedLineItemsAmountDue),
                   },
                 )}
@@ -149,12 +155,26 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
-          <InvoiceBreakDown label={t('subtotal', 'Subtotal')} value={convertToCurrency(bill.totalAmountWithoutTaxAndDiscount)} />
-          <InvoiceBreakDown label={t('totalDiscounts', 'Total Discounts')} value={convertToCurrency(bill.totalDiscounts)} />
+          <InvoiceBreakDown
+            label={t('subtotal', 'Subtotal')}
+            value={convertToCurrency(bill.totalAmountWithoutTaxAndDiscount)}
+          />
+          <InvoiceBreakDown
+            label={t('totalDiscounts', 'Total Discounts')}
+            value={convertToCurrency(bill.totalDiscounts)}
+          />
           <InvoiceBreakDown label={t('totalTaxes', 'Total Taxes')} value={convertToCurrency(bill.totalTax)} />
           <InvoiceBreakDown label={t('totalAmount', 'Total Amount')} value={convertToCurrency(bill.totalAmount)} />
-          {bill.totalDeposits > 0 && <InvoiceBreakDown label={t('totalDeposits', 'Total Deposits')} value={convertToCurrency(bill.totalDeposits)} />}
-          <InvoiceBreakDown label={t('totalTendered', 'Total Tendered')} value={convertToCurrency(bill.tenderedAmount + totalAmountTendered)} />
+          {bill.totalDeposits > 0 && (
+            <InvoiceBreakDown
+              label={t('totalDeposits', 'Total Deposits')}
+              value={convertToCurrency(bill.totalDeposits)}
+            />
+          )}
+          <InvoiceBreakDown
+            label={t('totalTendered', 'Total Tendered')}
+            value={convertToCurrency(bill.totalActualPayments)}
+          />
           <InvoiceBreakDown
             hasBalance={amountDue < 0}
             label={amountDueDisplay(amountDue)}

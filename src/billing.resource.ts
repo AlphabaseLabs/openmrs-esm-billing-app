@@ -17,10 +17,9 @@ import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
 import { extractString } from './helpers';
-import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, PaymentStatus } from './types';
+import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, type PaymentStatus } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
-
   // create base object
   const mappedBill: MappedBill = {
     id: bill?.id,
@@ -28,9 +27,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     patientName: bill?.patient?.display.split('-')?.[1],
     identifier: bill?.patient?.display.split('-')?.[0],
     patientUuid: bill?.patient?.uuid,
-    status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
-      ? PaymentStatus.PAID
-      : PaymentStatus.PENDING,
+    status: bill?.status,
     receiptNumber: bill?.receiptNumber,
     cashier: bill?.cashier,
     cashPointUuid: bill?.cashPoint?.uuid,
@@ -76,7 +73,9 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalActualPayments: bill?.totalActualPayments ?? 0,
     totalTax: bill?.totalTax,
     billLineItemDiscounts: bill?.totalDiscount,
-    totalAmountWithoutTaxAndDiscount: bill?.lineItems?.map((item) => item?.price * item?.quantity).reduce((prev, curr) => prev + curr, 0),
+    totalAmountWithoutTaxAndDiscount: bill?.lineItems
+      ?.map((item) => item?.price * item?.quantity)
+      .reduce((prev, curr) => prev + curr, 0),
   };
   mappedBill.totalDiscounts = mappedBill.billLineItemDiscounts + mappedBill.totalWaived;
   return mappedBill;
@@ -203,8 +202,9 @@ export const usePaymentModes = (excludeWaiver: boolean = true) => {
   });
   const allowedPaymentModes =
     excludedPaymentMode?.length > 0
-      ? data?.data?.results.filter((mode) => !excludedPaymentMode.some((excluded) => excluded.uuid === mode.uuid)) ?? []
-      : data?.data?.results ?? [];
+      ? (data?.data?.results.filter((mode) => !excludedPaymentMode.some((excluded) => excluded.uuid === mode.uuid)) ??
+        [])
+      : (data?.data?.results ?? []);
   return {
     paymentModes: excludeWaiver ? allowedPaymentModes : data?.data?.results,
     isLoading,
