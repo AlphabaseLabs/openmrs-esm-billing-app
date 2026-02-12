@@ -3,6 +3,7 @@ import { ModalHeader, ModalBody, ModalFooter, Button, Loading } from '@carbon/re
 import { useTranslation } from 'react-i18next';
 import { showSnackbar } from '@openmrs/esm-framework';
 import { processBillItems } from '../../../billing.resource';
+import { processAccountingRefund } from '../../../accounting.resource';
 import { mutate } from 'swr';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import styles from './cancel-bill.scss';
@@ -56,6 +57,27 @@ export const RefundBillModal: React.FC<RefundBillModalProps> = ({ onClose, bill,
       mutate((key) => typeof key === 'string' && key.startsWith('/ws/rest/v1/cashier/bill'), undefined, {
         revalidate: true,
       });
+
+      // If the refunded line item had provider shares recorded, create matching negative provider shares.
+      try {
+        await processAccountingRefund({
+          billId: bill.id,
+          billLineItemUuid: lineItem.uuid,
+          description: t('providerShare', 'Provider share'),
+        });
+      } catch (error) {
+        showSnackbar({
+          title: t('providerShareRefundWarning', 'Provider share reversal warning'),
+          kind: 'warning',
+          subtitle:
+            error?.message ??
+            t(
+              'providerShareRefundWarningSubtitle',
+              'Refund completed, but an error occurred while reversing provider shares.',
+            ),
+        });
+      }
+
       showSnackbar({
         title: t('refundItems', 'Refund Items'),
         subtitle: t('refundSuccessful', 'Item has been successfully refunded.'),
