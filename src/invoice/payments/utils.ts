@@ -119,12 +119,14 @@ export const createPaymentPayload = (
 
   // Transform existing payments
   const existingPayments = payments.map((payment) => ({
+    // uuid: payment.uuid,
     amount: payment.amount,
     amountTendered: payment.amountTendered,
     attributes: payment.attributes.map((attribute) => ({
       attributeType: attribute.attributeType?.uuid,
       value: attribute.value,
     })),
+    allocations: payment.allocations ? payment.allocations.map(({ uuid, ...rest }) => ({ ...rest })) : [],
     instanceType: payment.instanceType.uuid,
     dateCreated: payment.dateCreated,
     voided: payment.voided,
@@ -145,10 +147,12 @@ export const createPaymentPayload = (
   // Combine and calculate payments
   const consolidatedPayments =
     [...currentPayments, ...existingPayments]?.map((payment) => ({
+      // uuid: payment?.uuid,
       amount: payment.amount,
       amountTendered: payment.amountTendered,
       attributes: payment.attributes,
       instanceType: payment?.instanceType,
+      allocations: payment?.allocations,
       dateCreated: payment?.dateCreated,
       voided: payment?.voided,
       resourceVersion: payment?.resourceVersion,

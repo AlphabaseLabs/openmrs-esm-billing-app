@@ -68,6 +68,15 @@ interface Provider {
   links: ProviderLink[];
 }
 
+export interface LinePaymentAllocation {
+  uuid?: string;
+  billLineItem?: { uuid: string; display?: string } | string;
+  allocatedAmount: number;
+  dateCreated?: string | number;
+  voided?: boolean;
+  resourceVersion?: string;
+}
+
 /** Discount on a bill line item. Request: amount, baseAmount, rate?, description?, sponsor?; Response: same + uuid */
 export interface BillLineItemDiscount {
   uuid?: string;
@@ -106,6 +115,11 @@ export interface LineItem {
   order: OpenmrsResource;
   discounts?: BillLineItemDiscount[];
   taxes?: BillLineItemTax[];
+  amount?: number;
+  totalAllocated?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  total?: number;
 }
 
 interface PatientLink {
@@ -151,17 +165,6 @@ interface PaymentInstanceType {
   name: string;
   description: string;
   retired: boolean;
-}
-
-export interface Payment {
-  uuid: string;
-  instanceType: PaymentInstanceType;
-  attributes: Attribute[];
-  amount: number;
-  amountTendered: number;
-  dateCreated: number;
-  voided: boolean;
-  resourceVersion: string;
 }
 
 export interface PatientDetails {
@@ -378,6 +381,7 @@ export interface Payment {
   attributes: Attribute[];
   amount: number;
   amountTendered: number;
+  allocations?: LinePaymentAllocation[];
   dateCreated: number;
   voided: boolean;
   resourceVersion: string;
