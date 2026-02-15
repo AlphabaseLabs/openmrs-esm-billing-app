@@ -119,7 +119,7 @@ export const createPaymentPayload = (
 
   // Transform existing payments
   const existingPayments = payments.map((payment) => ({
-    // uuid: payment.uuid,
+    uuid: payment.uuid,
     amount: payment.amount,
     amountTendered: payment.amountTendered,
     attributes: payment.attributes.map((attribute) => ({
@@ -147,7 +147,7 @@ export const createPaymentPayload = (
   // Combine and calculate payments
   const consolidatedPayments =
     [...currentPayments, ...existingPayments]?.map((payment) => ({
-      // uuid: payment?.uuid,
+      uuid: payment?.uuid,
       amount: payment.amount,
       amountTendered: payment.amountTendered,
       attributes: payment.attributes,

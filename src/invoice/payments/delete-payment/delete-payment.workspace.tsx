@@ -7,7 +7,6 @@ import {
   restBaseUrl,
   showSnackbar,
   useLayoutType,
-  useSession,
   type DefaultWorkspaceProps,
 } from '@openmrs/esm-framework';
 import classNames from 'classnames';
@@ -16,9 +15,9 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { convertToCurrency } from '../../../helpers';
-import { createDeletePaymentPayload } from './delete-payment.resource';
-import { processBillPayment } from '../../../billing.resource';
+import { deleteBillPayment } from './delete-payment.resource';
 import { mutate } from 'swr';
+import { extractErrorMessagesFromResponse } from '../../../utils';
 
 type DeletePaymentWorkspaceProps = DefaultWorkspaceProps & {
   bill: MappedBill;
@@ -33,7 +32,6 @@ const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
 }) => {
   const { t } = useTranslation();
   const isTablet = useLayoutType() === 'tablet';
-  const { user } = useSession();
 
   const deleteSchema = z.object({
     reason: z.string().min(1, { message: 'Reason is required' }),
@@ -50,10 +48,8 @@ const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
   });
 
   const onSubmit = async (formData: DeletePaymentFormData) => {
-    const payload = createDeletePaymentPayload(bill, payment, formData.reason, user?.uuid);
-
     try {
-      const response = await processBillPayment(payload, bill.uuid);
+      const response = await deleteBillPayment(bill.uuid, payment.uuid, formData.reason);
       if (response.ok) {
         showSnackbar({
           title: t('paymentDelete', 'Payment delete'),
@@ -70,7 +66,9 @@ const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
     } catch (error) {
       showSnackbar({
         title: t('paymentDelete', 'Payment delete'),
-        subtitle: t('paymentDeleteError', 'An error occurred while deleting the payment'),
+        subtitle:
+          t('paymentDeleteError', 'An error occurred while deleting the payment') +
+          `: ${extractErrorMessagesFromResponse(error?.responseBody)}`,
         kind: 'error',
         timeoutInMs: 5000,
       });

@@ -15,9 +15,9 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { convertToCurrency } from '../../../../helpers';
-import { createCancelBillPayload } from './cance-bill.resource';
-import { processBillPayment } from '../../../../billing.resource';
+import { purgeBillLineItem } from './cance-bill.resource';
 import { mutate } from 'swr';
+import { extractErrorMessagesFromResponse } from '../../../../utils';
 
 type CancelBillWorkspaceProps = DefaultWorkspaceProps & {
   patientUuid: string;
@@ -50,11 +50,8 @@ const CancelBillWorkspace: React.FC<CancelBillWorkspaceProps> = ({
   });
 
   const onSubmit = async (formData: CancelBillFormData) => {
-    // Remove current line item from bill
-    const payload = createCancelBillPayload(bill, lineItem, formData.reason);
-
     try {
-      const response = await processBillPayment(payload, bill.uuid);
+      const response = await purgeBillLineItem(lineItem.uuid);
       if (response.ok) {
         showSnackbar({
           title: t('billUpdate', 'Bill update'),
@@ -71,7 +68,9 @@ const CancelBillWorkspace: React.FC<CancelBillWorkspaceProps> = ({
     } catch (error) {
       showSnackbar({
         title: t('billUpdate', 'Bill update'),
-        subtitle: t('billUpdateError', 'An error occurred while updating the bill'),
+        subtitle:
+          t('billUpdateError', 'An error occurred while updating the bill') +
+          `: ${extractErrorMessagesFromResponse(error?.responseBody)}`,
         kind: 'error',
         timeoutInMs: 5000,
       });

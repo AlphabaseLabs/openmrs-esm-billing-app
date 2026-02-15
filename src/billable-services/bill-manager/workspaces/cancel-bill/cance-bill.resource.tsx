@@ -1,50 +1,6 @@
-import { type LineItem, PaymentStatus } from '../../../../types';
+import { openmrsFetch, restBaseUrl } from '@openmrs/esm-framework';
 
-export const createCancelBillPayload = (bill, lineItem, reason) => {
-  // Void the line item to prevent it from being included in the bill
-  const updatedLineItems = bill.lineItems.map((currentLineItem) =>
-    currentLineItem.uuid === lineItem.uuid
-      ? { ...currentLineItem, voided: true, voidReason: reason, paymentStatus: PaymentStatus.CANCELLED }
-      : currentLineItem,
-  );
-
-  const formatLineItem = (props: LineItem) => ({
-    item: props.item,
-    quantity: props.quantity,
-    price: props.price,
-    priceName: props.priceName,
-    priceUuid: props.priceUuid,
-    lineItemOrder: props.lineItemOrder,
-    uuid: props.uuid,
-    paymentStatus: props.paymentStatus,
-    voided: props.voided,
-    voidReason: props.voidReason,
-  });
-
-  const hasOneLineItem = bill.lineItems.length === 1;
-
-  const adjustBillPayload = {
-    cashPoint: bill.cashPointUuid,
-    cashier: bill.cashier.uuid,
-    lineItems: updatedLineItems.map((li) => formatLineItem(li)),
-    payments: bill.payments.map((payment) => ({
-      dateCreated: payment.dateCreated,
-      voided: payment.voided,
-      resourceVersion: payment.resourceVersion,
-      amount: payment.amount,
-      amountTendered: payment.amountTendered,
-      attributes: payment.attributes.map((attribute) => ({
-        attributeType: attribute.attributeType?.uuid,
-        value: attribute.value,
-      })),
-      instanceType: payment.instanceType.uuid,
-    })),
-    patient: bill.patientUuid,
-    status: hasOneLineItem ? PaymentStatus.CANCELLED : PaymentStatus.ADJUSTED,
-    billAdjusted: bill.uuid,
-    adjustmentReason: reason,
-    ...(hasOneLineItem && { voided: true }),
-  };
-
-  return adjustBillPayload;
+export const purgeBillLineItem = (lineItemUuid: string) => {
+  const url = `${restBaseUrl}/cashier/billLineItem/${lineItemUuid}?purge=true`;
+  return openmrsFetch(url, { method: 'DELETE' });
 };

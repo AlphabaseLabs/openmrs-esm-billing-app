@@ -1,5 +1,7 @@
 {
   "Accounting": "Accounting",
+  "accountingUpdated": "Accounting updated",
+  "accountingUpdatedSubtitle": "Reversed: {{reversed}}. Voided: {{voided}}.",
   "actions": "Actions",
   "activeVisitRequired": "Start visit to modify",
   "addAttributeType": "Add attribute type",
