@@ -33,6 +33,16 @@ export interface BillingConfig {
     serviceConceptSetUuid: string;
     salesTaxConceptSetUuid: string;
   };
+  paymentMethodTaxes: {
+    enabled: boolean;
+    taxExpenseAccountUuid: string;
+    paymentTypeTaxPercents: Array<{
+      paymentModeUuid?: string;
+      paymentModeName?: string;
+      taxPercent: number;
+      deductibleFromProviderShare?: boolean;
+    }>;
+  };
 }
 
 export const configSchema: ConfigSchema = {
@@ -202,6 +212,17 @@ export const configSchema: ConfigSchema = {
       _type: Type.String,
       _description: 'The concept set uuid for sales tax options in billable service form',
       _default: 'b4af9c5f-70af-4db8-899d-4c37afccc871',
+    },
+  },
+  paymentMethodTaxes: {
+    _type: Type.Object,
+    _description: 'Optional taxes applied to payment modes (e.g. card surcharge) and posted as accounting expenses',
+    _default: {
+      enabled: false,
+      // Default to "Other Direct Costs" account (see accounting app default direct cost categories)
+      taxExpenseAccountUuid: 'b1000000-0000-0000-0000-000000000027',
+      // Default: Card payments 2.5%
+      paymentTypeTaxPercents: [{ paymentModeName: 'Card', taxPercent: 2.5, deductibleFromProviderShare: true }],
     },
   },
 };

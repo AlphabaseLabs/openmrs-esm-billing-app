@@ -1,13 +1,14 @@
 import React from 'react';
 import { Button, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { navigate, showSnackbar } from '@openmrs/esm-framework';
+import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { mutate } from 'swr';
 import { z } from 'zod';
 import { processBillPayment } from '../../billing.resource';
+import { processPaymentMethodTaxExpenses } from '../../accounting.resource';
 import { convertToCurrency } from '../../helpers';
 import { useClockInStatus } from '../../payment-points/use-clock-in-status';
 import { type LineItem, type PaymentFormValue, PaymentStatus, type MappedBill } from '../../types';
@@ -18,6 +19,7 @@ import PaymentHistory from './payment-history/payment-history.component';
 import styles from './payments.scss';
 import { createPaymentPayload } from './utils';
 import { usePaymentSchema } from '../../hooks/usePaymentSchema';
+import { type BillingConfig } from '../../config-schema';
 
 type PaymentProps = {
   bill: MappedBill;
@@ -26,6 +28,7 @@ type PaymentProps = {
 
 const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
   const { t } = useTranslation();
+  const { paymentMethodTaxes } = useConfig<BillingConfig>();
   const paymentSchema = usePaymentSchema(bill);
   const { globalActiveSheet } = useClockInStatus();
 
@@ -47,19 +50,18 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
   const amountDue = bill.balance;
 
   // selected line items amount due
-  const selectedLineItemsAmountDue =
-    selectedLineItems
-      .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
-      .reduce(
-        (curr: number, prev) =>
-          curr +
-          Number(prev.price * prev.quantity) +
-          Number(
-            prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
-              Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
-          ),
-        0,
-      );
+  const selectedLineItemsAmountDue = selectedLineItems
+    .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
+    .reduce(
+      (curr: number, prev) =>
+        curr +
+        Number(prev.price * prev.quantity) +
+        Number(
+          prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+            Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
+        ),
+      0,
+    );
 
   const handleNavigateToBillingDashboard = () =>
     navigate({
@@ -86,6 +88,29 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
           kind: 'success',
           timeoutInMs: 3000,
         });
+
+        // Create allocation-based payment method tax expenses (if configured)
+        const updatedBill = resp?.data;
+        if (paymentMethodTaxes?.enabled && updatedBill?.payments) {
+          processPaymentMethodTaxExpenses({
+            previousBill: { uuid: bill.uuid, id: bill.id, payments: bill.payments ?? [] },
+            updatedBill: { uuid: bill.uuid, id: updatedBill?.id ?? bill.id, payments: updatedBill?.payments ?? [] },
+            paymentMethodTaxes,
+          }).catch((err) => {
+            showSnackbar({
+              title: t('paymentTaxAccountingWarning', 'Payment tax accounting warning'),
+              kind: 'warning',
+              subtitle:
+                err?.message ??
+                t(
+                  'paymentTaxAccountingWarningSubtitle',
+                  'Payment completed, but an error occurred while posting payment tax expenses.',
+                ),
+              timeoutInMs: 5000,
+            });
+          });
+        }
+
         const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
         mutate((key) => typeof key === 'string' && key.startsWith(url), undefined, { revalidate: true });
       },
