@@ -9,6 +9,7 @@ import { createLeftPanelLink } from './left-panel-link.component';
 import RootComponent from './root.component';
 
 import BillableServicesCardLink from './billable-services-admin-card-link.component';
+import { ChargeItemsDashboard } from './billable-services/dashboard/dashboard.component';
 
 // Billing Core Components
 import BillingForm from './billing-form/billing-form.component';
@@ -163,6 +164,7 @@ export const billingDashboard = getAsyncLifecycle(
   () => import('./billing-dashboard/billing-dashboard.component'),
   options,
 );
+export const billableServicesHome = getSyncLifecycle(ChargeItemsDashboard, options);
 
 // Bill Manager Components
 export const deleteBillableServiceModal = getSyncLifecycle(DeleteBillableServiceModal, options);

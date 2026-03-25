@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import {
-  type DefaultWorkspaceProps,
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   useLayoutType,
   useSession,
   showToast,
@@ -19,7 +20,7 @@ import { mutate } from 'swr';
 import { type BillDeposit } from '../../types/bill-deposit.types';
 import { generateReferenceNumber, saveDeposit } from '../../utils/bill-deposit.utils';
 
-type AddDepositWorkspaceProps = DefaultWorkspaceProps & {
+type AddDepositWorkspaceProps = {
   patientUuid: string;
   deposit?: BillDeposit;
 };
@@ -34,14 +35,12 @@ const depositFormSchema = z.object({
 
 type DepositFormType = z.infer<typeof depositFormSchema>;
 
-const AddDepositWorkspace: React.FC<AddDepositWorkspaceProps> = ({
-  patientUuid,
+const AddDepositWorkspace: React.FC<Workspace2DefinitionProps<AddDepositWorkspaceProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  closeWorkspaceWithSavedChanges,
-  promptBeforeClosing,
-  deposit,
 }) => {
   const { t } = useTranslation();
+  const { patientUuid, deposit } = workspaceProps ?? ({} as AddDepositWorkspaceProps);
   const session = useSession();
   const location = session?.sessionLocation?.display;
   const isTablet = useLayoutType() === 'tablet';
@@ -96,7 +95,7 @@ const AddDepositWorkspace: React.FC<AddDepositWorkspaceProps> = ({
         undefined,
         { revalidate: true },
       );
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (error: any) {
       showSnackbar({
         title: t('error', 'Error'),
@@ -114,98 +113,98 @@ const AddDepositWorkspace: React.FC<AddDepositWorkspaceProps> = ({
     });
   };
 
-  useEffect(() => {
-    promptBeforeClosing(() => isDirty);
-  }, [isDirty, promptBeforeClosing]);
-
   return (
-    <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
-      <div className={styles.formContainer}>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="depositType"
-            render={({ field }) => (
-              <TextInput
-                id="depositType"
-                placeholder={t('depositType', 'Deposit Type')}
-                labelText={t('depositType', 'Deposit Type')}
-                value={field.value}
-                onChange={field.onChange}
-                invalid={!!errors.depositType?.message}
-                invalidText={errors.depositType?.message}
-              />
+    <Workspace2
+      title={deposit?.uuid ? t('editDeposit', 'Edit Deposit') : t('addDeposit', 'Add Deposit')}
+      hasUnsavedChanges={isDirty}>
+      <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
+        <div className={styles.formContainer}>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="depositType"
+              render={({ field }) => (
+                <TextInput
+                  id="depositType"
+                  placeholder={t('depositType', 'Deposit Type')}
+                  labelText={t('depositType', 'Deposit Type')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  invalid={!!errors.depositType?.message}
+                  invalidText={errors.depositType?.message}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field }) => (
+                <NumberInput
+                  id="amount"
+                  invalidText={errors.amount?.message}
+                  label={t('amount', 'Amount')}
+                  onChange={(e, { value }) => field.onChange(parseInt(value.toString(), 10))}
+                  size="md"
+                  step={1}
+                  value={field.value}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="referenceNumber"
+              render={({ field }) => (
+                <TextInput
+                  id="referenceNumber"
+                  placeholder={t('referenceNumber', 'Reference Number')}
+                  labelText={t('referenceNumber', 'Reference Number')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  invalid={!!errors.referenceNumber?.message}
+                  invalidText={errors.referenceNumber?.message}
+                  readOnly
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field }) => (
+                <TextInput
+                  id="description"
+                  placeholder={t('description', 'Description')}
+                  labelText={t('description', 'Description')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  invalid={!!errors.description?.message}
+                  invalidText={errors.description?.message}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
+            {isSubmitting ? (
+              <span style={{ display: 'flex', justifyItems: 'center' }}>
+                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+              </span>
+            ) : (
+              t('saveAndClose', 'Save & close')
             )}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="amount"
-            render={({ field }) => (
-              <NumberInput
-                id="amount"
-                invalidText={errors.amount?.message}
-                label={t('amount', 'Amount')}
-                onChange={(e, { value }) => field.onChange(parseInt(value.toString(), 10))}
-                size="md"
-                step={1}
-                value={field.value}
-              />
-            )}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="referenceNumber"
-            render={({ field }) => (
-              <TextInput
-                id="referenceNumber"
-                placeholder={t('referenceNumber', 'Reference Number')}
-                labelText={t('referenceNumber', 'Reference Number')}
-                value={field.value}
-                onChange={field.onChange}
-                invalid={!!errors.referenceNumber?.message}
-                invalidText={errors.referenceNumber?.message}
-                readOnly
-              />
-            )}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="description"
-            render={({ field }) => (
-              <TextInput
-                id="description"
-                placeholder={t('description', 'Description')}
-                labelText={t('description', 'Description')}
-                value={field.value}
-                onChange={field.onChange}
-                invalid={!!errors.description?.message}
-                invalidText={errors.description?.message}
-              />
-            )}
-          />
-        </ResponsiveWrapper>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
-          {isSubmitting ? (
-            <span style={{ display: 'flex', justifyItems: 'center' }}>
-              {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-            </span>
-          ) : (
-            t('saveAndClose', 'Save & close')
-          )}
-        </Button>
-      </ButtonSet>
-    </form>
+          </Button>
+        </ButtonSet>
+      </form>
+    </Workspace2>
   );
 };
 

@@ -4,10 +4,11 @@ import { type Payment, type MappedBill } from '../../../types';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   restBaseUrl,
   showSnackbar,
   useLayoutType,
-  type DefaultWorkspaceProps,
 } from '@openmrs/esm-framework';
 import classNames from 'classnames';
 import { Form, Button, ButtonSet, InlineLoading, TextArea, InlineNotification } from '@carbon/react';
@@ -19,18 +20,17 @@ import { deleteBillPayment } from './delete-payment.resource';
 import { mutate } from 'swr';
 import { extractErrorMessagesFromResponse } from '../../../utils';
 
-type DeletePaymentWorkspaceProps = DefaultWorkspaceProps & {
+type DeletePaymentWorkspaceProps = {
   bill: MappedBill;
   payment: Payment;
 };
 
-const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
-  bill,
-  payment,
+const DeletePaymentWorkspace: React.FC<Workspace2DefinitionProps<DeletePaymentWorkspaceProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  closeWorkspaceWithSavedChanges,
 }) => {
   const { t } = useTranslation();
+  const { bill, payment } = workspaceProps ?? ({} as DeletePaymentWorkspaceProps);
   const isTablet = useLayoutType() === 'tablet';
 
   const deleteSchema = z.object({
@@ -62,7 +62,7 @@ const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
       mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
         revalidate: true,
       });
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (error) {
       showSnackbar({
         title: t('paymentDelete', 'Payment delete'),
@@ -81,42 +81,44 @@ const DeletePaymentWorkspace: React.FC<DeletePaymentWorkspaceProps> = ({
   )}: ${convertToCurrency(payment.amountTendered)}`;
 
   return (
-    <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-      <div className={styles.formContainer}>
-        <InlineNotification
-          title={t('deletePayment', 'Delete Payment')}
-          subtitle={subtitleText}
-          kind="warning"
-          lowContrast
-          hideCloseButton
-        />
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="reason"
-            render={({ field }) => (
-              <TextArea
-                {...field}
-                placeholder={t('pleaseEnterReasonForDeletion', 'Please enter reason for deletion')}
-                labelText={t('reasonForDeletion', 'Reason for deletion')}
-              />
-            )}
+    <Workspace2 title={t('deletePayment', 'Delete Payment')}>
+      <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+        <div className={styles.formContainer}>
+          <InlineNotification
+            title={t('deletePayment', 'Delete Payment')}
+            subtitle={subtitleText}
+            kind="warning"
+            lowContrast
+            hideCloseButton
           />
-        </ResponsiveWrapper>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button className={styles.button} disabled={!isValid || !isDirty || isSubmitting} kind="danger" type="submit">
-          {isSubmitting ? (
-            <InlineLoading description={t('deletingPayment', 'Deleting payment...')} />
-          ) : (
-            <span>{t('deleteAndClose', 'Delete & close')}</span>
-          )}
-        </Button>
-      </ButtonSet>
-    </Form>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="reason"
+              render={({ field }) => (
+                <TextArea
+                  {...field}
+                  placeholder={t('pleaseEnterReasonForDeletion', 'Please enter reason for deletion')}
+                  labelText={t('reasonForDeletion', 'Reason for deletion')}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button className={styles.button} disabled={!isValid || !isDirty || isSubmitting} kind="danger" type="submit">
+            {isSubmitting ? (
+              <InlineLoading description={t('deletingPayment', 'Deleting payment...')} />
+            ) : (
+              <span>{t('deleteAndClose', 'Delete & close')}</span>
+            )}
+          </Button>
+        </ButtonSet>
+      </Form>
+    </Workspace2>
   );
 };
 

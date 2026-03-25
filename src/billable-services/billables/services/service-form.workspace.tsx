@@ -14,8 +14,15 @@ import { Add } from '@carbon/react/icons';
 import { Controller, useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useLayoutType, useDebounce, ResponsiveWrapper, showSnackbar, restBaseUrl } from '@openmrs/esm-framework';
-import { type DefaultPatientWorkspaceProps } from '@openmrs/esm-patient-common-lib';
+import {
+  useLayoutType,
+  useDebounce,
+  ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
+  showSnackbar,
+  restBaseUrl,
+} from '@openmrs/esm-framework';
 
 import {
   createBillableService,
@@ -32,17 +39,16 @@ import { formatBillableServicePayloadForSubmission, mapInputToPayloadSchema } fr
 import ConceptSearch from './concept-search.component';
 import { handleMutate } from '../../utils';
 
-interface AddServiceFormProps extends DefaultPatientWorkspaceProps {
+interface AddServiceFormProps {
   initialValues?: BillableFormSchema;
 }
 
-const AddServiceForm: React.FC<AddServiceFormProps> = ({
+const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> = ({
   closeWorkspace,
-  promptBeforeClosing,
-  closeWorkspaceWithSavedChanges,
-  initialValues,
+  workspaceProps,
 }) => {
   const { t } = useTranslation();
+  const { initialValues } = workspaceProps ?? {};
   const isTablet = useLayoutType() === 'tablet';
   const [conceptToLookup, setConceptToLookup] = useState('');
   const debouncedConceptToLookup = useDebounce(conceptToLookup, 500);
@@ -108,10 +114,6 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
     setConceptToLookup('');
   };
 
-  useEffect(() => {
-    promptBeforeClosing(() => isDirty);
-  }, [isDirty, promptBeforeClosing]);
-
   const onSubmit = async (data: BillableFormSchema) => {
     const formPayload = formatBillableServicePayloadForSubmission(data, initialValues?.['uuid']);
     try {
@@ -130,7 +132,7 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
         });
         handleMutate(`${restBaseUrl}/cashier/billableService?v`);
 
-        closeWorkspaceWithSavedChanges();
+        closeWorkspace({ discardUnsavedChanges: true });
       }
     } catch (e) {
       const formSchemaError = JSON.stringify(e, null, 2);
@@ -180,161 +182,169 @@ const AddServiceForm: React.FC<AddServiceFormProps> = ({
   };
 
   return (
-    <FormProvider {...formMethods}>
-      <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
-        <div className={styles.formContainer}>
-          <Stack className={styles.formStackControl} gap={7}>
-            {errors.concept && (
-              <InlineNotification
-                kind="error"
-                title={t('conceptMissing', 'Concept missing')}
-                subtitle={t('conceptMissingSubtitle', 'Please select a stock item')}
-              />
-            )}
-            <ResponsiveWrapper>
-              <Controller
-                name="name"
-                control={control}
-                render={({ field }) => (
-                  <TextInput
-                    id="serviceName"
-                    {...field}
-                    type="text"
-                    labelText={t('serviceName', 'Service name')}
-                    invalid={!!errors.name}
-                    invalidText={errors?.name?.message}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            <ResponsiveWrapper>
-              <Controller
-                name="shortName"
-                control={control}
-                render={({ field }) => (
-                  <TextInput
-                    id="serviceShortName"
-                    {...field}
-                    type="text"
-                    labelText={t('serviceShortName', 'Service short name')}
-                    invalid={!!errors.shortName}
-                    invalidText={errors?.shortName?.message}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
+    <Workspace2
+      title={
+        initialValues
+          ? t('editServiceChargeItem', 'Edit Service Charge Item')
+          : t('chargeServiceForm', 'Charge Service Form')
+      }
+      hasUnsavedChanges={isDirty}>
+      <FormProvider {...formMethods}>
+        <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
+          <div className={styles.formContainer}>
+            <Stack className={styles.formStackControl} gap={7}>
+              {errors.concept && (
+                <InlineNotification
+                  kind="error"
+                  title={t('conceptMissing', 'Concept missing')}
+                  subtitle={t('conceptMissingSubtitle', 'Please select a stock item')}
+                />
+              )}
+              <ResponsiveWrapper>
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="serviceName"
+                      {...field}
+                      type="text"
+                      labelText={t('serviceName', 'Service name')}
+                      invalid={!!errors.name}
+                      invalidText={errors?.name?.message}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  name="shortName"
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      id="serviceShortName"
+                      {...field}
+                      type="text"
+                      labelText={t('serviceShortName', 'Service short name')}
+                      invalid={!!errors.shortName}
+                      invalidText={errors?.shortName?.message}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
 
-            <ConceptSearch
-              selectedConcept={selectedConcept}
-              setConceptToLookup={setConceptToLookup}
-              conceptToLookup={conceptToLookup}
-              defaultValues={defaultValues}
-              errors={errors}
-              isSearching={isSearching}
-              concepts={concepts}
-              handleSelectConcept={handleSelectConcept}
-            />
+              <ConceptSearch
+                selectedConcept={selectedConcept}
+                setConceptToLookup={setConceptToLookup}
+                conceptToLookup={conceptToLookup}
+                defaultValues={defaultValues}
+                errors={errors}
+                isSearching={isSearching}
+                concepts={concepts}
+                handleSelectConcept={handleSelectConcept}
+              />
 
-            <ResponsiveWrapper>
-              <Controller
-                name="serviceType"
-                control={control}
-                render={({ field }) => {
-                  return (
+              <ResponsiveWrapper>
+                <Controller
+                  name="serviceType"
+                  control={control}
+                  render={({ field }) => {
+                    return (
+                      <ComboBox
+                        id="serviceType"
+                        onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                        titleText={t('serviceType', 'Service type')}
+                        items={serviceTypes ?? []}
+                        itemToString={(item) => (item ? item.display : '')}
+                        placeholder={t('selectServiceType', 'Select service type')}
+                        disabled={isLoadingServiceTypes}
+                        initialSelectedItem={field.value}
+                        invalid={!!errors.serviceType}
+                        invalidText={errors?.serviceType?.message}
+                        itemToElement={(item) => (
+                          <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
+                            {item?.display}
+                          </div>
+                        )}
+                      />
+                    );
+                  }}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  name="serviceTax"
+                  control={control}
+                  render={({ field }) => (
                     <ComboBox
-                      id="serviceType"
-                      onChange={({ selectedItem }) => field.onChange(selectedItem)}
-                      titleText={t('serviceType', 'Service type')}
-                      items={serviceTypes ?? []}
+                      id="serviceTax"
+                      onChange={({ selectedItem }) => field.onChange(selectedItem ?? null)}
+                      titleText={t('salesTax', 'Sales tax')}
+                      items={salesTaxes ?? []}
                       itemToString={(item) => (item ? item.display : '')}
-                      placeholder={t('selectServiceType', 'Select service type')}
-                      disabled={isLoadingServiceTypes}
-                      initialSelectedItem={field.value}
-                      invalid={!!errors.serviceType}
-                      invalidText={errors?.serviceType?.message}
+                      placeholder={t('selectSalesTax', 'Select sales tax')}
+                      disabled={isLoadingSalesTaxes}
+                      selectedItem={field.value ?? null}
+                      invalid={!!errors.serviceTax}
+                      invalidText={errors?.serviceTax?.message}
                       itemToElement={(item) => (
                         <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
                           {item?.display}
                         </div>
                       )}
                     />
-                  );
-                }}
-              />
-            </ResponsiveWrapper>
-            <ResponsiveWrapper>
-              <Controller
-                name="serviceTax"
-                control={control}
-                render={({ field }) => (
-                  <ComboBox
-                    id="serviceTax"
-                    onChange={({ selectedItem }) => field.onChange(selectedItem ?? null)}
-                    titleText={t('salesTax', 'Sales tax')}
-                    items={salesTaxes ?? []}
-                    itemToString={(item) => (item ? item.display : '')}
-                    placeholder={t('selectSalesTax', 'Select sales tax')}
-                    disabled={isLoadingSalesTaxes}
-                    selectedItem={field.value ?? null}
-                    invalid={!!errors.serviceTax}
-                    invalidText={errors?.serviceTax?.message}
-                    itemToElement={(item) => (
-                      <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
-                        {item?.display}
-                      </div>
-                    )}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            <ResponsiveWrapper>
-              <Controller
-                control={control}
-                name="serviceStatus"
-                render={({ field }) => (
-                  <Toggle
-                    labelText={t('status', 'Status')}
-                    labelA="Off"
-                    labelB="On"
-                    defaultToggled={field.value === 'ENABLED'}
-                    id="serviceStatus"
-                    onToggle={(value) => (value ? field.onChange('ENABLED') : field.onChange('DISABLED'))}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            {renderServicePriceFields}
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => appendServicePrice({})}>
-              {t('addPaymentMethod', 'Add payment method')}
+                  )}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  control={control}
+                  name="serviceStatus"
+                  render={({ field }) => (
+                    <Toggle
+                      labelText={t('status', 'Status')}
+                      labelA="Off"
+                      labelB="On"
+                      defaultToggled={field.value === 'ENABLED'}
+                      id="serviceStatus"
+                      onToggle={(value) => (value ? field.onChange('ENABLED') : field.onChange('DISABLED'))}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              {renderServicePriceFields}
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => appendServicePrice({})}>
+                {t('addPaymentMethod', 'Add payment method')}
+              </Button>
+              {!!errors.servicePrices && (
+                <InlineNotification
+                  aria-label="closes notification"
+                  kind="error"
+                  lowContrast={true}
+                  statusIconDescription="notification"
+                  title={t('paymentMethodRequired', 'Payment method required')}
+                  subtitle={t('atLeastOnePriceRequired', 'At least one price is required')}
+                />
+              )}
+            </Stack>
+          </div>
+          <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+            <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+              {t('cancel', 'Cancel')}
             </Button>
-            {!!errors.servicePrices && (
-              <InlineNotification
-                aria-label="closes notification"
-                kind="error"
-                lowContrast={true}
-                statusIconDescription="notification"
-                title={t('paymentMethodRequired', 'Payment method required')}
-                subtitle={t('atLeastOnePriceRequired', 'At least one price is required')}
-              />
-            )}
-          </Stack>
-        </div>
-        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-            {t('cancel', 'Cancel')}
-          </Button>
-          <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
-            {isSubmitting ? (
-              <span style={{ display: 'flex', justifyItems: 'center' }}>
-                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-              </span>
-            ) : (
-              t('saveAndClose', 'Save & close')
-            )}
-          </Button>
-        </ButtonSet>
-      </form>
-    </FormProvider>
+            <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
+              {isSubmitting ? (
+                <span style={{ display: 'flex', justifyItems: 'center' }}>
+                  {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+                </span>
+              ) : (
+                t('saveAndClose', 'Save & close')
+              )}
+            </Button>
+          </ButtonSet>
+        </form>
+      </FormProvider>
+    </Workspace2>
   );
 };
 

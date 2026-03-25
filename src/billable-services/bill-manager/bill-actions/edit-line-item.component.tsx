@@ -1,8 +1,8 @@
-import { launchWorkspace } from '@openmrs/esm-framework';
 import React from 'react';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import { useTranslation } from 'react-i18next';
 import { OverflowMenuItem } from '@carbon/react';
+import { launchBillingWorkspace } from '../../../workspaces';
 
 type EditLineItemProps = {
   lineItem: LineItem;
@@ -17,8 +17,7 @@ const EditLineItem: React.FC<EditLineItemProps> = ({ lineItem, bill }) => {
   }
 
   const handleOpenEditLineItemWorkspace = (lineItem: LineItem) => {
-    launchWorkspace('edit-bill-form', {
-      workspaceTitle: t('editBillForm', 'Edit Bill Form'),
+    launchBillingWorkspace('edit-bill-form', {
       lineItem,
       bill,
     });

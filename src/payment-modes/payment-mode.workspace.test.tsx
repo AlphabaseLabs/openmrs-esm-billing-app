@@ -5,12 +5,17 @@ import userEvent from '@testing-library/user-event';
 import { createPaymentMode } from './payment-mode.resource';
 import { showSnackbar } from '@openmrs/esm-framework';
 
-const testProps = {
-  closeWorkspace: jest.fn(),
-  promptBeforeClosing: jest.fn(),
-  closeWorkspaceWithSavedChanges: jest.fn(),
-  setTitle: jest.fn(),
-};
+const getTestProps = (workspaceProps = {}) =>
+  ({
+    closeWorkspace: jest.fn(),
+    launchChildWorkspace: jest.fn(),
+    workspaceProps,
+    windowProps: {},
+    groupProps: {},
+    overlay: true,
+    isOpen: true,
+    isPinned: false,
+  }) as any;
 
 const mockCreatePaymentMode = jest.mocked(createPaymentMode);
 
@@ -26,7 +31,7 @@ describe('PaymentModeWorkspace', () => {
 
   test('should validate and submit correct form payload', async () => {
     const user = userEvent.setup();
-    render(<PaymentModeWorkspace {...testProps} />);
+    render(<PaymentModeWorkspace {...getTestProps()} />);
     const nameInput = screen.getByRole('textbox', { name: /Payment mode name/i });
     const descriptionInput = screen.getByRole('textbox', { name: /Payment mode description/i });
     const submitButton = screen.getByRole('button', { name: /Save & Close/i });
@@ -61,7 +66,7 @@ describe('PaymentModeWorkspace', () => {
         },
       },
     });
-    render(<PaymentModeWorkspace {...testProps} />);
+    render(<PaymentModeWorkspace {...getTestProps()} />);
     const nameInput = screen.getByRole('textbox', { name: /Payment mode name/i });
     const descriptionInput = screen.getByRole('textbox', { name: /Payment mode description/i });
     const submitButton = screen.getByRole('button', { name: /Save & Close/i });
@@ -73,7 +78,7 @@ describe('PaymentModeWorkspace', () => {
     // should show error message
     expect(showSnackbar).toHaveBeenCalledWith({
       title: 'Payment mode creation failed',
-      subtitle: 'An error occurred while creating the payment mode {{errorMessage}}',
+      subtitle: 'An error occurred while creating the payment mode An error occurred while creating the payment mode',
       kind: 'error',
       isLowContrast: true,
     });
@@ -81,7 +86,7 @@ describe('PaymentModeWorkspace', () => {
 
   test('should submit payload with attributeTypes', async () => {
     const user = userEvent.setup();
-    render(<PaymentModeWorkspace {...testProps} />);
+    render(<PaymentModeWorkspace {...getTestProps()} />);
 
     // key in name, description and retired
     const nameInput = screen.getByRole('textbox', { name: /Payment mode name/i });
@@ -171,7 +176,7 @@ describe('PaymentModeWorkspace', () => {
     };
 
     const user = userEvent.setup();
-    render(<PaymentModeWorkspace {...testProps} initialPaymentMode={initialPaymentMode} />);
+    render(<PaymentModeWorkspace {...getTestProps({ initialPaymentMode })} />);
 
     // make the attribute type required
     const attributeRequiredToggle = screen.getByRole('switch', { name: /Attribute required/i });

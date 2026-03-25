@@ -24,15 +24,21 @@ import {
   isDesktop,
   useDebounce,
   useLayoutType,
-  launchWorkspace,
+  useConfig,
   EditIcon,
   getCoreTranslation,
   usePatient,
 } from '@openmrs/esm-framework';
-import { getPatientChartStore, useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
+import { type BillingConfig } from '../config-schema';
+import { navigateAndLaunchWorkspace } from '../billable-services/billiable-item/order-actions/hooks/useModalHandler';
+import {
+  billingWorkspaceGroupName,
+  launchBillingWorkspace,
+  useLaunchBillingWorkspaceRequiringVisit,
+} from '../workspaces';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -43,6 +49,8 @@ type InvoiceTableProps = {
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, isLoadingBill, onSelectItem }) => {
   const { t } = useTranslation();
+  const config = useConfig<BillingConfig>();
+  const shouldRequireVisit = config.visitRequired ?? true;
   const { lineItems } = bill;
   const paidLineItems = lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
   const layout = useLayoutType();
@@ -51,8 +59,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm);
   const { patient, isLoading: isLoadingPatient } = usePatient(bill.patientUuid);
-  const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
-  const state = useMemo(() => ({ patient, patientUuid: bill.patientUuid }), [patient, bill.patientUuid]);
+  const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit<{
+    patientUuid: string;
+    patient: fhir.Patient;
+  }>(bill.patientUuid, 'billing-form');
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
       return lineItems;
@@ -84,13 +94,12 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
-      launchWorkspace('cancel-bill-workspace', {
-        workspaceTitle: t('cancelBillForm', 'Cancel Bill Form'),
+      launchBillingWorkspace('cancel-bill-workspace', {
         bill,
         lineItem: row,
       });
     },
-    [bill, t],
+    [bill],
   );
 
   const handleEditLineItem = useCallback(
@@ -98,46 +107,49 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
       // Create a bill object without the computed status to avoid triggering rounding logic
       // The status is calculated in mapBillProperties and may differ from the backend status
       const { status, ...billWithoutStatus } = bill;
-      launchWorkspace('edit-bill-form', {
-        workspaceTitle: t('editBillForm', 'Edit Bill Form'),
+      launchBillingWorkspace('edit-bill-form', {
         lineItem: row,
         bill: billWithoutStatus,
       });
     },
-    [bill, t],
+    [bill],
   );
 
   const handleCostsWorkspaceLaunch = useCallback(
     (row: LineItem) => {
-      launchWorkspace('costs-workspace', {
-        workspaceTitle: t('costOverview', 'Cost Overview'),
+      launchBillingWorkspace('costs-workspace', {
         bill: bill,
         lineItemUuid: row.uuid,
         lineItem: row,
       });
     },
-    [bill, t],
+    [bill],
   );
 
-  // const handleAddNewBillItem = useCallback(() => {
-  //   if (patient) {
-  //     setCurrentVisit(bill.patientUuid, null);
-  //     launchPatientWorkspace({
-  //       workspaceTitle: t('billingForm', 'Billing Form'),
-  //       patientUuid: bill.patientUuid,
-  //       patient,
-  //     });
-  //   }
-  // }, [patient, bill.patientUuid, launchPatientWorkspace, t]);
-
-  useEffect(() => {
-    if (patient) {
-      getPatientChartStore().setState({ ...state });
-      return () => {
-        getPatientChartStore().setState({});
-      };
+  const handleAddNewBillItem = useCallback(() => {
+    if (!patient) {
+      return;
     }
-  }, [state, patient]);
+
+    const workspaceProps = {
+      patientUuid: bill.patientUuid,
+      patient,
+    };
+
+    if (shouldRequireVisit) {
+      launchPatientWorkspaceRequiringVisit(workspaceProps);
+      return;
+    }
+
+    navigateAndLaunchWorkspace(
+      `\${openmrsSpaBase}/patient/${bill.patientUuid}/chart`,
+      `patient/${bill.patientUuid}`,
+      'billing-form',
+      workspaceProps,
+      bill.patientUuid,
+      billingWorkspaceGroupName,
+    );
+  }, [bill.patientUuid, patient, shouldRequireVisit, launchPatientWorkspaceRequiringVisit]);
 
   const tableRows = useMemo(() => {
     const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
@@ -239,8 +251,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
-                  {/* Uncomment this to enable the add new bill item button when visit issue is fixed */}
-                  {/* {!bill.closed && (
+                  {!bill.closed && (
                     <Button
                       kind="ghost"
                       onClick={handleAddNewBillItem}
@@ -250,7 +261,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                       disabled={isLoadingPatient || !patient}>
                       {t('addNewBillItem', 'Add New Bill Item')}
                     </Button>
-                  )} */}
+                  )}
                 </TableToolbarContent>
               </TableToolbar>
             </div>

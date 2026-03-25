@@ -22,9 +22,10 @@ import {
 } from '@carbon/react';
 
 import styles from './payment-mode-dashboard.scss';
-import { formatDate, launchWorkspace, showModal, useDebounce, useLayoutType } from '@openmrs/esm-framework';
+import { formatDate, showModal, useDebounce, useLayoutType } from '@openmrs/esm-framework';
 import { type PaymentMode } from '../types';
 import startCase from 'lodash/startCase';
+import { launchBillingWorkspace } from '../workspaces';
 
 const PaymentModeDashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -62,9 +63,7 @@ const PaymentModeDashboard: React.FC = () => {
       <EmptyState
         displayText={t('noPaymentModes', 'No payment modes')}
         headerTitle={t('paymentModes', 'Payment Modes')}
-        launchForm={() =>
-          launchWorkspace('payment-mode-workspace', { workspaceTitle: t('addPaymentMode', 'Add Payment Mode') })
-        }
+        launchForm={() => launchBillingWorkspace('payment-mode-workspace')}
       />
     );
   }
@@ -104,9 +103,7 @@ const PaymentModeDashboard: React.FC = () => {
     <div>
       <CardHeader title={t('paymentModes', 'Payment Modes')}>
         <Button
-          onClick={() =>
-            launchWorkspace('payment-mode-workspace', { workspaceTitle: t('addPaymentMode', 'Add Payment Mode') })
-          }
+          onClick={() => launchBillingWorkspace('payment-mode-workspace')}
           className={styles.addPaymentModeButton}
           size={size}
           kind="ghost">
@@ -155,8 +152,7 @@ const PaymentModeDashboard: React.FC = () => {
                           <OverflowMenu size={size} iconDescription={t('actions', 'Actions')} flipped>
                             <OverflowMenuItem
                               onClick={() =>
-                                launchWorkspace('payment-mode-workspace', {
-                                  workspaceTitle: t('editPaymentMode', 'Edit Payment Mode'),
+                                launchBillingWorkspace('payment-mode-workspace', {
                                   initialPaymentMode: paymentModes[index],
                                 })
                               }

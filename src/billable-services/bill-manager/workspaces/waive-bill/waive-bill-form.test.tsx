@@ -89,13 +89,16 @@ describe('BillWaiverForm', () => {
     });
     render(
       <WaiveBillForm
-        bill={mockedBill}
-        closeWorkspace={jest.fn()}
-        patientUuid="some-patient-uuid"
-        promptBeforeClosing={jest.fn()}
-        setTitle={jest.fn()}
-        closeWorkspaceWithSavedChanges={jest.fn()}
-        patient={null}
+        {...({
+          closeWorkspace: jest.fn(),
+          launchChildWorkspace: jest.fn(),
+          workspaceProps: { bill: mockedBill },
+          windowProps: {},
+          groupProps: {},
+          overlay: true,
+          isOpen: true,
+          isPinned: false,
+        } as any)}
       />,
     );
     expect(screen.getByText('Bill Items')).toBeInTheDocument();

@@ -1,17 +1,13 @@
 import { Button, Popover, PopoverContent } from '@carbon/react';
 import { Close, Printer, Wallet, FolderOpen, BaggageClaim, Scalpel, EmissionsManagement } from '@carbon/react/icons';
-import {
-  launchWorkspace,
-  restBaseUrl,
-  showModal,
-  UserHasAccess,
-} from '@openmrs/esm-framework';
+import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertToCurrency } from '../helpers';
 import { type MappedBill, type LineItem, PaymentStatus } from '../types';
 import styles from './invoice.scss';
 import startCase from 'lodash-es/startCase';
+import { launchBillingWorkspace } from '../workspaces';
 
 interface InvoiceActionsProps {
   readonly bill: MappedBill;
@@ -50,7 +46,7 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
 
   return (
     <div className="invoiceSummaryActions">
-      <Popover isTabTip align="bottom-right" onKeyDown={() => { }} onRequestClose={() => setIsOpen(false)} open={isOpen}>
+      <Popover isTabTip align="bottom-right" onKeyDown={() => {}} onRequestClose={() => setIsOpen(false)} open={isOpen}>
         <button
           className={styles.printButton}
           aria-expanded
@@ -136,14 +132,7 @@ export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: In
         renderIcon={Wallet}
         iconDescription="Add"
         tooltipPosition="right"
-        onClick={() =>
-          launchWorkspace('payment-workspace', {
-            bill,
-            workspaceTitle: t('additionalPayment', 'Additional Payment (Balance {{billBalance}})', {
-              billBalance: convertToCurrency(bill.balance),
-            }),
-          })
-        }>
+        onClick={() => launchBillingWorkspace('payment-workspace', { bill })}>
         {t('additionalPayment', 'Additional Payment')}
       </Button>
       {/* Uncomment this to enable the waiver button */}

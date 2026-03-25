@@ -13,13 +13,15 @@ import {
 } from '@carbon/react';
 import { Add, Close } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { ConfigurableLink, getPatientName, usePatient, setCurrentVisit } from '@openmrs/esm-framework';
-import { getPatientChartStore, useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
+import { ConfigurableLink, getPatientName, useConfig, usePatient, setCurrentVisit } from '@openmrs/esm-framework';
 import capitalize from 'lodash/capitalize';
 
 import { convertToCurrency } from '../helpers';
 import { type MappedBill } from '../types';
 import EmptyPatientBill from './patient-bills-dashboard/empty-patient-bill.component';
+import { type BillingConfig } from '../config-schema';
+import { navigateAndLaunchWorkspace } from '../billable-services/billiable-item/order-actions/hooks/useModalHandler';
+import { billingWorkspaceGroupName, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 import styles from './patient-bills.scss';
 
@@ -123,16 +125,12 @@ type PatientHeaderProps = {
 export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCancel }) => {
   const { t } = useTranslation();
   const { patient, isLoading } = usePatient(patientUuid);
-  const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
-
-  useEffect(() => {
-    if (patient) {
-      getPatientChartStore().setState({ patient, patientUuid: patient?.id });
-      return () => {
-        getPatientChartStore().setState({});
-      };
-    }
-  }, [patient]);
+  const { visitRequired } = useConfig<BillingConfig>();
+  const shouldRequireVisit = visitRequired ?? true;
+  const launchPatientWorkspace = useLaunchBillingWorkspaceRequiringVisit<{
+    patientUuid: string;
+    patient: fhir.Patient;
+  }>(patientUuid, 'billing-form');
 
   if (isLoading || !patient) {
     return <InlineLoading status="active" description={t('loading', 'Loading...')} />;
@@ -143,7 +141,19 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCan
 
   const handleAddNewBill = () => {
     setCurrentVisit(patient.id, null);
-    launchPatientWorkspace({ workspaceTitle: t('billingForm', 'Billing Form'), patientUuid: patient.id, patient });
+    if (shouldRequireVisit) {
+      launchPatientWorkspace({ patientUuid: patient.id, patient });
+      return;
+    }
+
+    navigateAndLaunchWorkspace(
+      `\${openmrsSpaBase}/patient/${patient.id}/chart`,
+      `patient/${patient.id}`,
+      'billing-form',
+      { patientUuid: patient.id, patient },
+      patient.id,
+      billingWorkspaceGroupName,
+    );
   };
 
   return (

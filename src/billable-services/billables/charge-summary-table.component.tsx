@@ -19,7 +19,7 @@ import {
   TableToolbarSearch,
 } from '@carbon/react';
 import { CategoryAdd, Download, Upload, WatsonHealthScalpelSelect } from '@carbon/react/icons';
-import { ErrorState, launchWorkspace, showModal, useLayoutType, usePagination } from '@openmrs/esm-framework';
+import { ErrorState, showModal, useLayoutType, usePagination } from '@openmrs/esm-framework';
 import { EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import React, { type ChangeEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,7 @@ import { convertToCurrency } from '../../helpers';
 import styles from './charge-summary-table.scss';
 import { type ChargeAble, useChargeSummaries } from './charge-summary.resource';
 import { downloadExcelTemplateFile, searchTableData } from './form-helper';
+import { launchBillingWorkspace } from '../../workspaces';
 
 const defaultPageSize = 10;
 
@@ -91,14 +92,12 @@ const ChargeSummaryTable: React.FC = () => {
 
   const handleEdit = (service) => {
     if (service?.serviceType?.display) {
-      launchWorkspace('billable-service-form', {
+      launchBillingWorkspace('billable-service-form', {
         initialValues: service,
-        workspaceTitle: t('editServiceChargeItem', 'Edit Service Charge Item'),
       });
     } else {
-      launchWorkspace('commodity-form', {
+      launchBillingWorkspace('commodity-form', {
         initialValues: service,
-        workspaceTitle: t('editChargeItem', 'Edit Charge Item'),
       });
     }
   };
@@ -121,7 +120,7 @@ const ChargeSummaryTable: React.FC = () => {
     return (
       <EmptyState
         headerTitle={t('chargeItems', 'Charge Items')}
-        launchForm={() => launchWorkspace('billable-service-form')}
+        launchForm={() => launchBillingWorkspace('billable-service-form')}
         displayText={t('chargeItemsDescription', 'Charge Items')}
       />
     );
@@ -146,20 +145,12 @@ const ChargeSummaryTable: React.FC = () => {
                 <ComboButton tooltipAlignment="left" label={t('actions', 'Action')}>
                   <MenuItem
                     renderIcon={CategoryAdd}
-                    onClick={() =>
-                      launchWorkspace('billable-service-form', {
-                        workspaceTitle: t('chargeServiceForm', 'Charge Service Form'),
-                      })
-                    }
+                    onClick={() => launchBillingWorkspace('billable-service-form')}
                     label={t('addServiceChargeItem', 'Add charge service')}
                   />
                   <MenuItem
                     renderIcon={WatsonHealthScalpelSelect}
-                    onClick={() =>
-                      launchWorkspace('commodity-form', {
-                        workspaceTitle: t('chargeCommodityForm', 'Charge Commodity Form'),
-                      })
-                    }
+                    onClick={() => launchBillingWorkspace('commodity-form')}
                     label={t('addCommodityChargeItem', 'Add charge item')}
                   />
                   <MenuItem onClick={openBulkUploadModal} label={t('bulkUpload', 'Bulk Upload')} renderIcon={Upload} />

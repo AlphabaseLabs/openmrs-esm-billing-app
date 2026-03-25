@@ -15,11 +15,12 @@ import {
   OverflowMenuItem,
   Pagination,
 } from '@carbon/react';
-import { launchWorkspace, showModal, usePagination } from '@openmrs/esm-framework';
+import { showModal, usePagination } from '@openmrs/esm-framework';
 import { usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import { type FormattedDeposit } from '../../../types/bill-deposit.types';
 import { BILL_DEPOSIT_STATUS } from '../../../constants/bill-deposit.constants';
 import TransactionList from './transaction-list/transaction-list.component';
+import { launchBillingWorkspace } from '../../../../workspaces';
 
 interface DepositTableProps {
   deposits: Array<FormattedDeposit>;
@@ -41,7 +42,7 @@ const DepositTable: React.FC<DepositTableProps> = ({ deposits }) => {
   ];
 
   const handleEditDeposit = (deposit: FormattedDeposit) => {
-    launchWorkspace('add-deposit-workspace', {
+    launchBillingWorkspace('add-deposit-workspace', {
       deposit: { ...deposit, uuid: deposit.id },
       patientUuid: deposit?.patient?.uuid,
     });
@@ -56,7 +57,7 @@ const DepositTable: React.FC<DepositTableProps> = ({ deposits }) => {
   };
 
   const handleApplyDepositToBill = (deposit: FormattedDeposit) => {
-    launchWorkspace('deposit-transaction-workspace', {
+    launchBillingWorkspace('deposit-transaction-workspace', {
       deposit: { ...deposit, uuid: deposit.id },
       patientUuid: deposit?.patient?.uuid,
     });

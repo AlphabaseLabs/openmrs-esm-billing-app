@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
-import { launchWorkspace, showModal } from '@openmrs/esm-framework';
+import { showModal } from '@openmrs/esm-framework';
 import { type Order } from '@openmrs/esm-patient-common-lib';
 import { BaseOrderButton } from './base-order-button.component';
 import { useLabOrderAction } from '../hooks/useLabOrderAction';
 import { useModalHandler } from '../hooks/useModalHandler';
 import styles from '../styles/order-action.scss';
+import { launchBillingWorkspace } from '../../../../workspaces';
 
 export interface GenericOrderButtonProps {
   order?: Order;
@@ -32,7 +33,7 @@ export const GenericOrderButton: React.FC<GenericOrderButtonProps> = ({
 
   const launchModal = useCallback(() => {
     if (shouldShowBillModal) {
-      launchWorkspace('create-bill-workspace', {
+      launchBillingWorkspace('create-bill-workspace', {
         order,
         patientUuid: order?.patient?.uuid,
       });

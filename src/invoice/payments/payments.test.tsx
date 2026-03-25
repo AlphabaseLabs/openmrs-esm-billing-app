@@ -1,5 +1,5 @@
 import { showSnackbar } from '@openmrs/esm-framework';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockedActiveSheet, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
@@ -77,6 +77,16 @@ const updatedMockLineItems: LineItem[] = mockLineItems.map((item) => ({
   },
 }));
 
+const paymentBill = {
+  ...mockBill,
+  balance: 100,
+  totalAmountWithoutTaxAndDiscount: 100,
+  totalDiscounts: 0,
+  totalTax: 0,
+  totalActualPayments: 0,
+  totalDeposits: 0,
+};
+
 describe('Payment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -111,7 +121,7 @@ describe('Payment', () => {
       isClockedInCurrentPaymentPoint: false,
     });
 
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
     const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
     await user.click(addPaymentMethod);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
@@ -126,6 +136,8 @@ describe('Payment', () => {
     await user.type(referenceInput, 'MPESA123456');
 
     const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await user.tab();
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
     await user.click(submitButton);
 
     expect(mockProcessBillPayment).toHaveBeenCalledTimes(1);
@@ -267,7 +279,7 @@ describe('Payment', () => {
       isClockedInCurrentPaymentPoint: false,
     });
 
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
     const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
     await user.click(addPaymentMethod);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
@@ -278,6 +290,8 @@ describe('Payment', () => {
     await user.type(amountInput, '100');
 
     const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await user.tab();
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
     await user.click(submitButton);
 
     expect(mockProcessBillPayment).toHaveBeenCalledTimes(1);
@@ -304,7 +318,7 @@ describe('Payment', () => {
       error: null,
       mutate: jest.fn(),
     });
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
     const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
     await user.click(addPaymentMethod);
 

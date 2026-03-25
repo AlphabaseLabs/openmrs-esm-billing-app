@@ -19,8 +19,9 @@ import {
   FormLabel,
 } from '@carbon/react';
 import {
-  type DefaultWorkspaceProps,
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   restBaseUrl,
   showSnackbar,
   useLayoutType,
@@ -43,16 +44,14 @@ import {
 } from './useEditBillFormSchema';
 const DISCOUNT_METHODS = { PERCENTAGE: 'percentage', FIXED: 'fixed' } as const;
 
-type EditBillFormProps = DefaultWorkspaceProps & { lineItem: LineItem; bill: MappedBill };
+type EditBillFormProps = { lineItem: LineItem; bill: MappedBill };
 
-export const EditBillForm: React.FC<EditBillFormProps> = ({
-  lineItem,
+export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  bill,
-  promptBeforeClosing,
-  closeWorkspaceWithSavedChanges,
 }) => {
   const { t } = useTranslation();
+  const { lineItem, bill } = workspaceProps ?? ({} as EditBillFormProps);
   const isTablet = useLayoutType() === 'tablet';
   const editBillFormSchema = useEditBillFormSchema();
   const defaultValues = useDefaultEditBillFormValues(lineItem, bill);
@@ -71,10 +70,6 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
     resolver: zodResolver(editBillFormSchema),
     mode: 'all',
   });
-
-  useEffect(() => {
-    promptBeforeClosing(() => isDirty);
-  }, [isDirty, promptBeforeClosing]);
 
   const sponsorUuid = getDiscountSponsorFromLineItem(lineItem);
   useEffect(() => {
@@ -125,12 +120,16 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
       mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
         revalidate: true,
       });
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     }
   };
 
   if (isLoadingServices) {
-    return <InlineLoading description={t('loading', 'Loading')} />;
+    return (
+      <Workspace2 title={t('editBillForm', 'Edit Bill Form')} hasUnsavedChanges={isDirty}>
+        <InlineLoading description={t('loading', 'Loading')} />
+      </Workspace2>
+    );
   }
 
   const formattedPrice = formatCurrencySimple(lineItem.price);
@@ -141,102 +140,54 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
   )}: ${formattedPrice} ${t('quantity', 'Quantity')}: ${lineItem.quantity}`;
 
   return (
-    <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-      <div className={styles.formContainer}>
-        <InlineNotification
-          title={lineItem.billableService?.split(':')[1]}
-          subtitle={subtitleText}
-          kind="info"
-          lowContrast
-          hideCloseButton
-        />
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="price"
-            render={({ field }) => (
-              <ComboBox
-                id={`${field.name}-${field.value}`}
-                onChange={({ selectedItem }) => {
-                  if (selectedItem) {
-                    field.onChange(selectedItem?.price?.toString());
-                  }
-                }}
-                titleText={t('priceOption', 'Price option')}
-                items={selectedBillableService?.servicePrices ?? []}
-                itemToString={(item) => `${item?.name} - (${item?.price})`}
-                placeholder={t('selectPrice', 'Select price')}
-                initialSelectedItem={selectedServicePrice}
-                disabled={isLoadingServices}
-                invalid={!!errors.price}
-                invalidText={errors.price?.message}
-              />
-            )}
+    <Workspace2 title={t('editBillForm', 'Edit Bill Form')} hasUnsavedChanges={isDirty}>
+      <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+        <div className={styles.formContainer}>
+          <InlineNotification
+            title={lineItem.billableService?.split(':')[1]}
+            subtitle={subtitleText}
+            kind="info"
+            lowContrast
+            hideCloseButton
           />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="quantity"
-            render={({ field }) => (
-              <NumberInput
-                {...field}
-                size="md"
-                label={t('quantity', 'Quantity')}
-                placeholder={t('pleaseEnterQuantity', 'Please enter Quantity')}
-                invalid={!!errors.quantity}
-                invalidText={errors.quantity?.message}
-                className={styles.formField}
-                min={1}
-                value={field.value}
-                id={`${field.name}-${field.value}`}
-                hideSteppers
-                disableWheel
-              />
-            )}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="provider"
-            render={({ field }) => (
-              <Dropdown
-                id="provider"
-                titleText={t('discountSponsor', 'Discount sponsor')}
-                label={
-                  isLoadingProviders
-                    ? t('loadingProviders', 'Loading providers...')
-                    : t('selectProvider', 'Select provider')
-                }
-                items={providerOptions}
-                itemToString={(item: ProviderOption | null) => (item ? item.label : '')}
-                selectedItem={field.value}
-                onChange={({ selectedItem }) => field.onChange(selectedItem)}
-                invalid={!!errors.provider}
-                invalidText={errors.provider?.message}
-                disabled={isLoadingProviders}
-              />
-            )}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '0', alignItems: 'center' }}>
+          <ResponsiveWrapper>
             <Controller
               control={control}
-              name="discountValue"
+              name="price"
+              render={({ field }) => (
+                <ComboBox
+                  id={`${field.name}-${field.value}`}
+                  onChange={({ selectedItem }) => {
+                    if (selectedItem) {
+                      field.onChange(selectedItem?.price?.toString());
+                    }
+                  }}
+                  titleText={t('priceOption', 'Price option')}
+                  items={selectedBillableService?.servicePrices ?? []}
+                  itemToString={(item) => `${item?.name} - (${item?.price})`}
+                  placeholder={t('selectPrice', 'Select price')}
+                  initialSelectedItem={selectedServicePrice}
+                  disabled={isLoadingServices}
+                  invalid={!!errors.price}
+                  invalidText={errors.price?.message}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="quantity"
               render={({ field }) => (
                 <NumberInput
                   {...field}
                   size="md"
-                  label={t('discountValue', 'Discount Value')}
-                  placeholder={t('pleaseEnterDiscountValue', 'Discount Value')}
-                  invalid={!!errors.discountValue}
-                  invalidText={errors.discountValue?.message}
+                  label={t('quantity', 'Quantity')}
+                  placeholder={t('pleaseEnterQuantity', 'Please enter Quantity')}
+                  invalid={!!errors.quantity}
+                  invalidText={errors.quantity?.message}
                   className={styles.formField}
-                  min={0}
-                  max={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 100 : undefined}
-                  step={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0.0001 : 1}
+                  min={1}
                   value={field.value}
                   id={`${field.name}-${field.value}`}
                   hideSteppers
@@ -244,49 +195,103 @@ export const EditBillForm: React.FC<EditBillFormProps> = ({
                 />
               )}
             />
-            <ContentSwitcher
-              selectedIndex={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0 : 1}
-              onChange={({ name }) =>
-                setValue('discountMethod', name as typeof DISCOUNT_METHODS.PERCENTAGE | typeof DISCOUNT_METHODS.FIXED)
-              }
-              size="md">
-              <Switch name={DISCOUNT_METHODS.PERCENTAGE} text={t('percentage', 'Percentage')} />
-              <Switch name={DISCOUNT_METHODS.FIXED} text={t('fixedAmount', 'Value')} />
-            </ContentSwitcher>
-          </div>
-        </ResponsiveWrapper>
-        <FormLabel>
-          {t('Discount', 'Discount')}:{' '}
-          {formatCurrencySimple(discountAmount, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
-        </FormLabel>
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="adjustmentReason"
-            render={({ field }) => (
-              <TextArea
-                {...field}
-                labelText={t('adjustmentReason', 'Adjustment reason')}
-                placeholder={t('pleaseEnterAdjustmentReason', 'Please enter adjustment reason')}
-                invalid={!!errors.adjustmentReason}
-                invalidText={errors.adjustmentReason?.message}
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="provider"
+              render={({ field }) => (
+                <Dropdown
+                  id="provider"
+                  titleText={t('discountSponsor', 'Discount sponsor')}
+                  label={
+                    isLoadingProviders
+                      ? t('loadingProviders', 'Loading providers...')
+                      : t('selectProvider', 'Select provider')
+                  }
+                  items={providerOptions}
+                  itemToString={(item: ProviderOption | null) => (item ? item.label : '')}
+                  selectedItem={field.value}
+                  onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                  invalid={!!errors.provider}
+                  invalidText={errors.provider?.message}
+                  disabled={isLoadingProviders}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '0', alignItems: 'center' }}>
+              <Controller
+                control={control}
+                name="discountValue"
+                render={({ field }) => (
+                  <NumberInput
+                    {...field}
+                    size="md"
+                    label={t('discountValue', 'Discount Value')}
+                    placeholder={t('pleaseEnterDiscountValue', 'Discount Value')}
+                    invalid={!!errors.discountValue}
+                    invalidText={errors.discountValue?.message}
+                    className={styles.formField}
+                    min={0}
+                    max={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 100 : undefined}
+                    step={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0.0001 : 1}
+                    value={field.value}
+                    id={`${field.name}-${field.value}`}
+                    hideSteppers
+                    disableWheel
+                  />
+                )}
               />
+              <ContentSwitcher
+                selectedIndex={discountMethod === DISCOUNT_METHODS.PERCENTAGE ? 0 : 1}
+                onChange={({ name }) =>
+                  setValue('discountMethod', name as typeof DISCOUNT_METHODS.PERCENTAGE | typeof DISCOUNT_METHODS.FIXED)
+                }
+                size="md">
+                <Switch name={DISCOUNT_METHODS.PERCENTAGE} text={t('percentage', 'Percentage')} />
+                <Switch name={DISCOUNT_METHODS.FIXED} text={t('fixedAmount', 'Value')} />
+              </ContentSwitcher>
+            </div>
+          </ResponsiveWrapper>
+          <FormLabel>
+            {t('Discount', 'Discount')}:{' '}
+            {formatCurrencySimple(discountAmount, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
+          </FormLabel>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="adjustmentReason"
+              render={({ field }) => (
+                <TextArea
+                  {...field}
+                  labelText={t('adjustmentReason', 'Adjustment reason')}
+                  placeholder={t('pleaseEnterAdjustmentReason', 'Please enter adjustment reason')}
+                  invalid={!!errors.adjustmentReason}
+                  invalidText={errors.adjustmentReason?.message}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button
+            className={styles.button}
+            disabled={!isValid || !isDirty || isSubmitting}
+            kind="primary"
+            type="submit">
+            {isSubmitting ? (
+              <InlineLoading className={styles.spinner} description={t('updatingBill', 'Updating bill...')} />
+            ) : (
+              <span>{t('saveAndClose', 'Save & close')}</span>
             )}
-          />
-        </ResponsiveWrapper>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button className={styles.button} disabled={!isValid || !isDirty || isSubmitting} kind="primary" type="submit">
-          {isSubmitting ? (
-            <InlineLoading className={styles.spinner} description={t('updatingBill', 'Updating bill...')} />
-          ) : (
-            <span>{t('saveAndClose', 'Save & close')}</span>
-          )}
-        </Button>
-      </ButtonSet>
-    </Form>
+          </Button>
+        </ButtonSet>
+      </Form>
+    </Workspace2>
   );
 };

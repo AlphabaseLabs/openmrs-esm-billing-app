@@ -1,9 +1,9 @@
 import React from 'react';
-import { launchWorkspace } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { OverflowMenuItem } from '@carbon/react';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import Payments from '../../../invoice/payments/payments.component';
+import { launchBillingWorkspace } from '../../../workspaces';
 
 type CancelLineItemProps = {
   lineItem: LineItem;
@@ -17,8 +17,7 @@ const CancelLineItem: React.FC<CancelLineItemProps> = ({ lineItem, bill }) => {
     return null;
   }
   const handleCancelLineItemWorkspace = () => {
-    launchWorkspace('cancel-bill-workspace', {
-      workspaceTitle: t('cancelBillForm', 'Cancel Bill Form'),
+    launchBillingWorkspace('cancel-bill-workspace', {
       bill,
       lineItem,
     });

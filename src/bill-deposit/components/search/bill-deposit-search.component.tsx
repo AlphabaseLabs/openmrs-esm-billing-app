@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDate, launchWorkspace, parseDate } from '@openmrs/esm-framework';
+import { formatDate, parseDate } from '@openmrs/esm-framework';
 import { useBillDeposit } from '../../hooks/useBillDeposit';
 import { Button, InlineLoading } from '@carbon/react';
 import styles from './bill-deposit-search.scss';
@@ -9,6 +9,7 @@ import EmptyPatientBill from '../../../past-patient-bills/patient-bills-dashboar
 import PatientSearch from './components/patient-search';
 import PatientInfo from './components/patient-info';
 import DepositTable from './components/deposit-table';
+import { launchBillingWorkspace } from '../../../workspaces';
 
 const BillDepositSearch: React.FC = () => {
   const { t } = useTranslation();
@@ -42,7 +43,7 @@ const BillDepositSearch: React.FC = () => {
   }));
 
   const handleLaunchDepositForm = () => {
-    launchWorkspace('add-deposit-workspace', {
+    launchBillingWorkspace('add-deposit-workspace', {
       patientUuid: selectedPatientUuid,
     });
   };

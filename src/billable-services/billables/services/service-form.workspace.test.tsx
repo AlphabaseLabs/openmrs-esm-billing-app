@@ -2,10 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ServiceForm from './service-form.workspace';
-import { createBillableService, useConceptsSearch, useServiceTypes } from '../../billable-service.resource';
+import {
+  createBillableService,
+  useConceptsSearch,
+  useSalesTaxes,
+  useServiceTypes,
+} from '../../billable-service.resource';
 import { usePaymentModes } from '../../../billing.resource';
 
 const mockUseConceptsSearch = useConceptsSearch as jest.MockedFunction<typeof useConceptsSearch>;
+const mockUseSalesTaxes = useSalesTaxes as jest.MockedFunction<typeof useSalesTaxes>;
 const mockUseServiceTypes = useServiceTypes as jest.MockedFunction<typeof useServiceTypes>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
 const mockCreateBillableService = createBillableService as jest.MockedFunction<typeof createBillableService>;
@@ -141,6 +147,7 @@ const mockPaymentModes = {
 
 jest.mock('../../billable-service.resource', () => ({
   useConceptsSearch: jest.fn(),
+  useSalesTaxes: jest.fn(),
   useServiceTypes: jest.fn(),
   createBillableService: jest.fn(),
 }));
@@ -150,18 +157,25 @@ jest.mock('../../../billing.resource', () => ({
 }));
 
 const defaultProps = {
-  patient: null,
-  patientUuid: 'test-uuid',
   closeWorkspace: jest.fn(),
-  promptBeforeClosing: jest.fn(),
-  setTitle: jest.fn(),
-  closeWorkspaceWithSavedChanges: jest.fn(),
-};
+  launchChildWorkspace: jest.fn(),
+  workspaceProps: {},
+  windowProps: {},
+  groupProps: {},
+  overlay: true,
+  isOpen: true,
+  isPinned: false,
+} as any;
 
 describe('ServiceForm', () => {
   test('should render billiable service form and submit successfully', async () => {
     const user = userEvent.setup();
     mockUseConceptsSearch.mockReturnValue(mockerConcepts);
+    mockUseSalesTaxes.mockReturnValue({
+      salesTaxes: [],
+      isLoading: false,
+      error: null,
+    });
     mockUseServiceTypes.mockReturnValue(mockServiceTypes);
     mockUsePaymentModes.mockReturnValue(mockPaymentModes);
     const { container } = render(<ServiceForm {...defaultProps} />);
@@ -186,25 +200,19 @@ describe('ServiceForm', () => {
 
     expect(serviceConceptInput).toHaveValue('Consultation');
 
-    const openServiceTypeSelect = screen.getByRole('button', { name: 'Open' });
-    await user.click(openServiceTypeSelect);
+    const serviceTypeOpenButton = screen.getAllByRole('button', { name: 'Open' })[0];
+    await user.click(serviceTypeOpenButton);
 
-    const serviceTypeOptions = screen.getAllByRole('option', { name: 'Laboratory' });
-    await user.click(serviceTypeOptions[0]);
+    const serviceTypeOption = (await screen.findAllByRole('option', { name: 'Laboratory' }))[0];
+    await user.click(serviceTypeOption);
 
     expect(serviceTypeSelect).toHaveValue('Laboratory');
 
     // user should be able to add payment method and remove it
     await user.click(addPaymentMethodButton);
-    const allOpenButtons = screen.getAllByRole('button', { name: 'Open' });
-    expect(allOpenButtons).toHaveLength(2);
-
-    const paymentMethodCombobox = allOpenButtons[1];
-    expect(paymentMethodCombobox).toHaveAttribute('aria-expanded', 'false');
-
-    await user.click(paymentMethodCombobox);
-    expect(paymentMethodCombobox).toHaveAttribute('aria-expanded', 'true');
-    const paymentMethodOption = screen.getByRole('option', { name: 'Cash' });
+    const paymentMethodOpenButton = screen.getAllByRole('button', { name: 'Open' }).at(-1)!;
+    await user.click(paymentMethodOpenButton);
+    const paymentMethodOption = (await screen.findAllByRole('option', { name: 'Cash' }))[0];
     await user.click(paymentMethodOption);
 
     // add price

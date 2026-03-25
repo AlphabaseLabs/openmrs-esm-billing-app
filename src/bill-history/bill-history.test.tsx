@@ -3,15 +3,16 @@ import { render, screen } from '@testing-library/react';
 import BillHistory from './bill-history.component';
 import { useBills } from '../billing.resource';
 import userEvent from '@testing-library/user-event';
-import { useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
+import { useConfig } from '@openmrs/esm-framework';
+import { useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 const testProps = {
   patientUuid: 'some-uuid',
 };
 
 const mockbills = useBills as jest.MockedFunction<typeof useBills>;
-const mockUseLaunchWorkspaceRequiringVisit = useLaunchWorkspaceRequiringVisit as jest.MockedFunction<
-  typeof useLaunchWorkspaceRequiringVisit
+const mockUseLaunchWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit as jest.MockedFunction<
+  typeof useLaunchBillingWorkspaceRequiringVisit
 >;
 
 const mockBillsData = [
@@ -42,8 +43,40 @@ jest.mock('../billing.resource', () => ({
 }));
 
 jest.mock('@openmrs/esm-patient-common-lib', () => ({
-  ...jest.requireActual('@openmrs/esm-patient-common-lib'),
-  useLaunchWorkspaceRequiringVisit: jest.fn(),
+  usePaginationInfo: jest.fn(() => ({ pageSizes: [10, 20, 50] })),
+  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  EmptyState: ({ launchForm }: { launchForm?: () => void }) => (
+    <button type="button" onClick={launchForm}>
+      Empty State Launch
+    </button>
+  ),
+  ErrorState: ({ error }: { error: Error }) => (
+    <div>
+      <div>Sorry, there was a problem displaying this information.</div>
+      <div>{error.message}</div>
+    </div>
+  ),
+}));
+
+jest.mock('../workspaces', () => ({
+  useLaunchBillingWorkspaceRequiringVisit: jest.fn(),
+  launchBillingWorkspace: jest.fn(),
+}));
+
+jest.mock('@openmrs/esm-framework', () => ({
+  useConfig: jest.fn(),
+  useLayoutType: jest.fn(() => 'desktop'),
+  isDesktop: jest.fn(() => true),
+  usePagination: (items: any[], pageSize: number) => {
+    const [currentPage, setCurrentPage] = React.useState(1);
+    const results = React.useMemo(() => {
+      const start = (currentPage - 1) * pageSize;
+      return items.slice(start, start + pageSize);
+    }, [items, pageSize, currentPage]);
+    const paginated = items.length > pageSize;
+    const goTo = (page: number) => setCurrentPage(page);
+    return { paginated, goTo, results, currentPage };
+  },
 }));
 
 describe('BillHistory', () => {
@@ -51,7 +84,12 @@ describe('BillHistory', () => {
     jest.clearAllMocks();
   });
 
+  beforeEach(() => {
+    mockUseLaunchWorkspaceRequiringVisit.mockReturnValue(jest.fn());
+  });
+
   test('should render loading datatable skeleton', () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: true, isValidating: false, error: null, bills: [], mutate: jest.fn() });
     render(<BillHistory {...testProps} />);
     const loadingSkeleton = screen.getByRole('table');
@@ -60,6 +98,7 @@ describe('BillHistory', () => {
   });
 
   test('should render error state when API call fails', () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({
       isLoading: false,
       isValidating: false,
@@ -73,6 +112,7 @@ describe('BillHistory', () => {
   });
 
   test('should render bills table', async () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -112,6 +152,7 @@ describe('BillHistory', () => {
   });
 
   test('should render empty state view when there are no bills', async () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: false, isValidating: false, error: null, bills: [], mutate: jest.fn() });
     render(<BillHistory {...testProps} />);
   });

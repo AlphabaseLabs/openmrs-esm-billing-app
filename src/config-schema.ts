@@ -2,6 +2,11 @@ import { type ConfigSchema, Type } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
   enforceBillPayment: boolean;
+  /**
+   * Whether billing UI flows should require an active visit before allowing users to add/edit bills.
+   * When disabled, billing workspaces should be launchable even if there is no active visit.
+   */
+  visitRequired: boolean;
   localeCurrencyMapping: Record<string, string>;
   promptDuration: {
     enable: boolean;
@@ -50,6 +55,12 @@ export const configSchema: ConfigSchema = {
     _type: Type.Boolean,
     _default: false,
     _description: 'Whether to enforce bill payment or not for patient to receive service',
+  },
+  visitRequired: {
+    _type: Type.Boolean,
+    _default: true,
+    _description:
+      'Whether an active visit is required before launching billing workspaces to add/edit bills. If false, bills can be created/updated without a visit.',
   },
   localeCurrencyMapping: {
     _type: Type.Object,

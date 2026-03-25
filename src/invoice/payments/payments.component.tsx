@@ -33,7 +33,7 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
   const { globalActiveSheet } = useClockInStatus();
 
   const methods = useForm<PaymentFormValue>({
-    mode: 'onSubmit',
+    mode: 'onChange',
     defaultValues: { payment: [] },
     resolver: zodResolver(z.object({ payment: z.array(paymentSchema) })),
   });

@@ -17,19 +17,14 @@ import {
   Button,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
-import { isDesktop, launchWorkspace, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
-import {
-  ErrorState,
-  usePaginationInfo,
-  CardHeader,
-  useLaunchWorkspaceRequiringVisit,
-  EmptyState,
-} from '@openmrs/esm-patient-common-lib';
+import { isDesktop, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
+import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useBills } from '../billing.resource';
 import InvoiceTable from '../invoice/invoice-table.component';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
+import { launchBillingWorkspace, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 interface BillHistoryProps {
   patientUuid: string;
@@ -38,13 +33,16 @@ interface BillHistoryProps {
 const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
   const config = useConfig<BillingConfig>();
+  const shouldRequireVisit = config.visitRequired ?? true;
   const { bills, isLoading, error } = useBills(
     patientUuid,
     '',
     dayjs().subtract(config.billHistoryDays, 'day').startOf('day').toDate(),
     dayjs().endOf('day').toDate(),
   );
-  const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
+  const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit<{
+    patientUuid: string;
+  }>(patientUuid, 'billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
@@ -52,7 +50,12 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { pageSizes } = usePaginationInfo(pageSize, bills?.length, currentPage, results?.length);
 
   const handleLaunchBillForm = () => {
-    launchPatientWorkspace({ workspaceTitle: t('billingForm', 'Billing Form') });
+    if (shouldRequireVisit) {
+      launchPatientWorkspaceRequiringVisit({ patientUuid });
+      return;
+    }
+
+    launchBillingWorkspace('billing-form', { patientUuid });
   };
 
   const headerData = [

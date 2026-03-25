@@ -42,7 +42,7 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({ title }) => {
             value={dayjs(selectedDate).format('DD MMM YYYY')}
             dateFormat="d-M-Y"
             datePickerType="single"
-            maxDate={new Date()}>
+            maxDate={Date.now()}>
             <DatePickerInput
               style={{ cursor: 'pointer', backgroundColor: 'transparent', border: 'none', maxWidth: '10rem' }}
               id="appointment-date-picker"

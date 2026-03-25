@@ -148,11 +148,6 @@
       "slot": "billing-dashboard-group-nav-slot"
     },
     {
-      "component": "billableExemptionsLink",
-      "name": "billable-exemptions-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
       "component": "waiveBillActionButton",
       "name": "waive-bill-action-button",
       "slot": "bill-actions-slot"
@@ -176,11 +171,6 @@
       "name": "cancel-line-item",
       "component": "cancelLineItem",
       "slot": "bill-actions-overflow-menu-slot"
-    },
-    {
-      "name": "patient-info-sha-status",
-      "component": "patientBannerShaStatus",
-      "slot": "patient-banner-tags-slot"
     }
   ],
   "modals": [
@@ -205,14 +195,6 @@
       "component": "deletePaymentModeModal"
     },
     {
-      "name": "manage-claim-request-modal",
-      "component": "manageClaimRequestModal"
-    },
-    {
-      "name": "create-bill-item-modal",
-      "component": "createBillItemModal"
-    },
-    {
       "name": "delete-deposit-modal",
       "component": "deleteDepositModal"
     },
@@ -229,79 +211,83 @@
       "component": "billActionModal"
     }
   ],
-  "workspaces": [
+  "workspaces2": [
     {
       "name": "create-bill-workspace",
       "component": "createBillWorkspace",
-      "title": "Create Bill Workspace",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "waive-bill-form",
       "component": "waiveBillForm",
-      "title": "Waive Bill Form",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "edit-bill-form",
       "component": "editBillForm",
-      "title": "Edit Bill Form",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "billable-service-form",
       "component": "addServiceForm",
-      "title": "Create Charge Item Form",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "commodity-form",
       "component": "addCommodityForm",
-      "title": "Charge Commodity Form",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "billing-form",
       "component": "billingForm",
-      "title": "Billing Form",
-      "type": "other-form",
-      "width": "extra-wide"
+      "window": "billing-form-workspace-window"
     },
     {
       "name": "payment-mode-workspace",
       "component": "paymentModeWorkspace",
-      "title": "Payment Mode Workspace",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "cancel-bill-workspace",
       "component": "cancelBillWorkspace",
-      "title": "Cancel Bill Workspace",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "add-deposit-workspace",
       "component": "addDepositWorkspace",
-      "title": "Add Deposit",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "deposit-transaction-workspace",
       "component": "depositTransactionWorkspace",
-      "title": "Deposit Transaction",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "payment-workspace",
       "component": "paymentWorkspace",
-      "title": "Payment Workspace",
-      "type": "other-form"
+      "window": "billing-workspace-window"
     },
     {
       "name": "delete-payment-workspace",
       "component": "deletePaymentWorkspace",
-      "title": "Delete Payment",
-      "type": "other-form"
+      "window": "billing-workspace-window"
+    }
+  ],
+  "workspaceWindows2": [
+    {
+      "name": "billing-workspace-window",
+      "group": "billing-workspace-group"
+    },
+    {
+      "name": "billing-form-workspace-window",
+      "group": "billing-workspace-group",
+      "width": "extra-wide"
+    }
+  ],
+  "workspaceGroups2": [
+    {
+      "name": "billing-workspace-group",
+      "overlay": true
     }
   ],
   "featureFlags": []

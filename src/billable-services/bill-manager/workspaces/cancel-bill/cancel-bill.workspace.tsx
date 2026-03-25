@@ -4,10 +4,11 @@ import { type LineItem, type MappedBill } from '../../../../types';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   restBaseUrl,
   showSnackbar,
   useLayoutType,
-  type DefaultWorkspaceProps,
 } from '@openmrs/esm-framework';
 import classNames from 'classnames';
 import { Form, Button, ButtonSet, InlineLoading, TextArea, InlineNotification } from '@carbon/react';
@@ -19,20 +20,18 @@ import { purgeBillLineItem } from './cance-bill.resource';
 import { mutate } from 'swr';
 import { extractErrorMessagesFromResponse } from '../../../../utils';
 
-type CancelBillWorkspaceProps = DefaultWorkspaceProps & {
+type CancelBillWorkspaceProps = {
   patientUuid: string;
   bill: MappedBill;
   lineItem: LineItem;
 };
 
-const CancelBillWorkspace: React.FC<CancelBillWorkspaceProps> = ({
-  patientUuid,
-  bill,
-  lineItem,
+const CancelBillWorkspace: React.FC<Workspace2DefinitionProps<CancelBillWorkspaceProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  closeWorkspaceWithSavedChanges,
 }) => {
   const { t } = useTranslation();
+  const { bill, lineItem } = workspaceProps ?? ({} as CancelBillWorkspaceProps);
   const isTablet = useLayoutType() === 'tablet';
 
   const cancelSchema = z.object({
@@ -64,7 +63,7 @@ const CancelBillWorkspace: React.FC<CancelBillWorkspaceProps> = ({
       mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
         revalidate: true,
       });
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (error) {
       showSnackbar({
         title: t('billUpdate', 'Bill update'),
@@ -83,42 +82,48 @@ const CancelBillWorkspace: React.FC<CancelBillWorkspaceProps> = ({
   )}: ${convertToCurrency(lineItem?.price)} ${t('quantity', 'Quantity')}: ${lineItem?.quantity}`;
 
   return (
-    <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-      <div className={styles.formContainer}>
-        <InlineNotification
-          title={lineItem?.billableService?.split(':')[1]}
-          subtitle={subtitleText}
-          kind="info"
-          lowContrast
-          hideCloseButton
-        />
-        <ResponsiveWrapper>
-          <Controller
-            control={control}
-            name="reason"
-            render={({ field }) => (
-              <TextArea
-                {...field}
-                placeholder={t('pleaseEnterReason', 'Please enter reason for cancellation')}
-                labelText={t('reasonForCancellation', 'Reason for cancellation')}
-              />
-            )}
+    <Workspace2 title={t('cancelBillForm', 'Cancel Bill Form')}>
+      <Form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
+        <div className={styles.formContainer}>
+          <InlineNotification
+            title={lineItem?.billableService?.split(':')[1]}
+            subtitle={subtitleText}
+            kind="info"
+            lowContrast
+            hideCloseButton
           />
-        </ResponsiveWrapper>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button className={styles.button} disabled={!isValid || !isDirty || isSubmitting} kind="primary" type="submit">
-          {isSubmitting ? (
-            <InlineLoading className={styles.spinner} description={t('cancellingBill', 'Cancelling bill...')} />
-          ) : (
-            <span>{t('saveAndClose', 'Save & close')}</span>
-          )}
-        </Button>
-      </ButtonSet>
-    </Form>
+          <ResponsiveWrapper>
+            <Controller
+              control={control}
+              name="reason"
+              render={({ field }) => (
+                <TextArea
+                  {...field}
+                  placeholder={t('pleaseEnterReason', 'Please enter reason for cancellation')}
+                  labelText={t('reasonForCancellation', 'Reason for cancellation')}
+                />
+              )}
+            />
+          </ResponsiveWrapper>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button
+            className={styles.button}
+            disabled={!isValid || !isDirty || isSubmitting}
+            kind="primary"
+            type="submit">
+            {isSubmitting ? (
+              <InlineLoading className={styles.spinner} description={t('cancellingBill', 'Cancelling bill...')} />
+            ) : (
+              <span>{t('saveAndClose', 'Save & close')}</span>
+            )}
+          </Button>
+        </ButtonSet>
+      </Form>
+    </Workspace2>
   );
 };
 

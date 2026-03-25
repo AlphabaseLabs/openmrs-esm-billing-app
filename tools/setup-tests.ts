@@ -11,6 +11,13 @@ window.openmrsBase = '/openmrs';
 window.spaBase = '/spa';
 window.getOpenmrsSpaBase = () => '/openmrs/spa/';
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
+window.ResizeObserver =
+  window.ResizeObserver ||
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
 
 // Suppress single-spa warnings in tests (these are expected when using framework mocks)
 const originalWarn = console.warn;
