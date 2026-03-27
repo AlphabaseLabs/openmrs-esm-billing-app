@@ -116,7 +116,7 @@ export const useBills = (
 };
 
 export const useBill = (billUuid: string) => {
-  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false`;
+  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false&v=full`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: PatientInvoice }>(
     billUuid ? url : null,
     openmrsFetch,

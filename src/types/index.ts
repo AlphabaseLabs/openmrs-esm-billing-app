@@ -99,6 +99,12 @@ export interface BillLineItemTax {
 export interface LineItem {
   uuid: string;
   display: string;
+  /** When present (from REST), creation time of this line item */
+  dateCreated?: string;
+  /** Some REST representations expose line item time under auditInfo */
+  auditInfo?: {
+    dateCreated?: string;
+  };
   voided: boolean;
   voidReason: string | null;
   item: string;

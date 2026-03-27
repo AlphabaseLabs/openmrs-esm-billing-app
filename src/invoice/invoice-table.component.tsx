@@ -21,7 +21,9 @@ import {
   Button,
 } from '@carbon/react';
 import {
+  formatDate,
   isDesktop,
+  parseDate,
   useDebounce,
   useLayoutType,
   useConfig,
@@ -70,7 +72,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
     return fuzzy
       .filter(debouncedSearchTerm, lineItems, {
-        extract: (lineItem: LineItem) => `${lineItem.billableService || ''} ${lineItem.item || ''}`,
+        extract: (lineItem: LineItem) =>
+          `${lineItem.billableService || ''} ${lineItem.item || ''} ${lineItem.dateCreated || lineItem.auditInfo?.dateCreated || ''}`,
       })
       .sort((r1, r2) => r1.score - r2.score)
       .map((result) => result.original);
@@ -80,6 +83,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     const headers = [
       { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
       { header: t('billItem', 'Bill item'), key: 'billItem' },
+      { header: t('billItemDate', 'Item date'), key: 'itemDate' },
       { header: t('status', 'Status'), key: 'status' },
       { header: t('quantity', 'Quantity'), key: 'quantity' },
       { header: t('price', 'Price'), key: 'price' },
@@ -156,13 +160,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     const getLineItemDiscount = (item: LineItem) =>
       (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0);
     const getLineItemTax = (item: LineItem) => (item?.taxes ?? []).reduce((sum, tax) => sum + (tax?.amount ?? 0), 0);
+    const getLineItemDateRaw = (item: LineItem) => item.dateCreated ?? item.auditInfo?.dateCreated;
 
     return (
       filteredLineItems?.map((item, index) => {
+        const lineItemDateRaw = getLineItemDateRaw(item);
         return {
           no: `${index + 1}`,
           id: `${item.uuid}`,
           billItem: processBillItem(item),
+          itemDate: lineItemDateRaw ? formatDate(parseDate(lineItemDateRaw), { mode: 'wide' }) : '--',
           status: item.paymentStatus,
           quantity: item.quantity,
           price: item.price,
