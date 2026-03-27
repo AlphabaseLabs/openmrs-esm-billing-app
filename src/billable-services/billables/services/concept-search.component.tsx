@@ -7,7 +7,6 @@ import { ResponsiveWrapper } from '@openmrs/esm-framework';
 type ConceptSearchProps = {
   setConceptToLookup: (value: string) => void;
   conceptToLookup: string;
-  selectedConcept: any;
   handleSelectConcept: (concept: any) => void;
   errors: any;
   isSearching: boolean;
@@ -16,7 +15,6 @@ type ConceptSearchProps = {
 };
 
 const ConceptSearch: React.FC<ConceptSearchProps> = ({
-  selectedConcept,
   setConceptToLookup,
   conceptToLookup,
   defaultValues,
@@ -34,11 +32,7 @@ const ConceptSearch: React.FC<ConceptSearchProps> = ({
           labelText={t('search', 'Search')}
           closeButtonLabelText={t('clear', 'Clear')}
           onChange={(e) => setConceptToLookup(e.target.value)}
-          value={
-            selectedConcept
-              ? selectedConcept?.concept?.display
-              : conceptToLookup ?? defaultValues?.concept?.concept?.display
-          }
+          value={conceptToLookup ?? defaultValues?.concept?.concept?.display ?? ''}
         />
       </ResponsiveWrapper>
       {isSearching && (

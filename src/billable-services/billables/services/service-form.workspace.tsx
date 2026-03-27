@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ButtonSet,
@@ -50,7 +50,7 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
   const { t } = useTranslation();
   const { initialValues } = workspaceProps ?? {};
   const isTablet = useLayoutType() === 'tablet';
-  const [conceptToLookup, setConceptToLookup] = useState('');
+  const [conceptToLookup, setConceptLookupValue] = useState('');
   const debouncedConceptToLookup = useDebounce(conceptToLookup, 500);
   const [selectedConcept, setSelectedConcept] = useState<any>(null);
   const inEditMode = !!initialValues;
@@ -84,7 +84,7 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
 
   useEffect(() => {
     if (initialValues) {
-      setConceptToLookup(initialValues.concept?.concept?.display);
+      setConceptLookupValue(initialValues.concept?.concept?.display ?? '');
       trigger();
     }
   }, [initialValues, trigger]);
@@ -111,8 +111,26 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
   const handleSelectConcept = (concept) => {
     setSelectedConcept(concept);
     setValue('concept', concept);
-    setConceptToLookup('');
+    setConceptLookupValue(concept?.concept?.display ?? '');
   };
+
+  /**
+   * Same API as pre-migration `setConceptToLookup`, but clears the picked concept when the user
+   * edits or clears the field (Carbon v9+ controlled Search no longer “unlocks” otherwise).
+   */
+  const setConceptToLookup = useCallback(
+    (value: string) => {
+      setConceptLookupValue(value);
+      if (selectedConcept) {
+        const display = selectedConcept?.concept?.display ?? '';
+        if (value !== display) {
+          setSelectedConcept(null);
+          setValue('concept', null, { shouldDirty: true, shouldValidate: true });
+        }
+      }
+    },
+    [selectedConcept, setValue],
+  );
 
   const onSubmit = async (data: BillableFormSchema) => {
     const formPayload = formatBillableServicePayloadForSubmission(data, initialValues?.['uuid']);
@@ -234,7 +252,6 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
               </ResponsiveWrapper>
 
               <ConceptSearch
-                selectedConcept={selectedConcept}
                 setConceptToLookup={setConceptToLookup}
                 conceptToLookup={conceptToLookup}
                 defaultValues={defaultValues}
