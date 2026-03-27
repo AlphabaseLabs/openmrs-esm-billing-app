@@ -26,6 +26,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const { cashPoints, isLoading: isLoadingCashPoints, error: cashError } = useCashPoint();
   const { lineItems, isLoading: isLoadingLineItems, error: lineError } = useBillableItems();
   const [attributes, setAttributes] = useState([]);
+  const [selectedBillableServices, setSelectedBillableServices] = useState<Array<{ name?: string }>>([]);
   const formMethods = useForm<VisitAttributesFormValue>({
     mode: 'all',
     defaultValues: {
@@ -60,6 +61,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   }, []);
 
   const handleBillingService = (selectedItems) => {
+    setSelectedBillableServices(selectedItems);
     const cashPointUuid = cashPoints?.[0]?.uuid ?? '';
     const billStatus = hasPatientBeenExempted(attributes, isPatientExempted)
       ? EXEMPTED_PAYMENT_STATUS
@@ -135,8 +137,17 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
               items={lineItems ?? []}
               itemToString={(item) => (item ? item?.name : '')}
               onChange={({ selectedItems }) => handleBillingService(selectedItems)}
+              selectionFeedback="top-after-reopen"
               disabled={isPatientExemptedValue === ''}
             />
+            {selectedBillableServices.length > 0 && (
+              <p className={styles.selectedItemsSummary}>
+                {selectedBillableServices
+                  .map((item) => item?.name)
+                  .filter(Boolean)
+                  .join(', ')}
+              </p>
+            )}
           </div>
         </section>
       )}

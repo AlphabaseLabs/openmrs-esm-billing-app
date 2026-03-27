@@ -15,22 +15,30 @@ type VisitAttributesFormProps = {
 const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes }) => {
   const { t } = useTranslation();
   const { insuranceSchemes } = useConfig<BillingConfig>();
-  const { visitAttributeTypes, patientExemptionCategories, insurancePaymentMethod } = useConfig<BillingConfig>();
+  const { visitAttributeTypes, patientExemptionCategories, insurancePaymentMethod, defaultPaymentMethodName } =
+    useConfig<BillingConfig>();
   const { setValue, watch, control, getValues, resetField } = useFormContext<VisitAttributesFormValue>();
   const { paymentModes, isLoading: isLoadingPaymentModes } = usePaymentModes();
   const [isPatientExempted, paymentMethods] = watch(['isPatientExempted', 'paymentMethods']);
+  const defaultPaymentMethodUuid = paymentModes?.find((mode) => mode.name === defaultPaymentMethodName)?.uuid ?? '';
   const resetFormFieldsForNonExemptedPatients = useCallback(() => {
     setValue('insuranceScheme', '');
     setValue('policyNumber', '');
     setValue('exemptionCategory', '');
-    setValue('paymentMethods', '');
+    setValue('paymentMethods', defaultPaymentMethodUuid);
     resetField('packages');
     resetField('interventions');
-  }, [setValue, resetField]);
+  }, [defaultPaymentMethodUuid, setValue, resetField]);
 
   useEffect(() => {
     resetFormFieldsForNonExemptedPatients();
   }, [isPatientExempted, resetFormFieldsForNonExemptedPatients]);
+
+  useEffect(() => {
+    if (isPatientExempted === 'false' && !paymentMethods && defaultPaymentMethodUuid) {
+      setValue('paymentMethods', defaultPaymentMethodUuid);
+    }
+  }, [defaultPaymentMethodUuid, isPatientExempted, paymentMethods, setValue]);
 
   const createVisitAttributesPayload = useCallback(() => {
     const values = getValues();
@@ -139,11 +147,11 @@ const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes
               render={({ field }) => (
                 <ComboBox
                   className={styles.sectionField}
-                  onChange={({ selectedItem }) => field.onChange(selectedItem)}
-                  initialSelectedItem={field.value}
+                  onChange={({ selectedItem }) => field.onChange(selectedItem?.uuid ?? '')}
+                  selectedItem={paymentModes?.find((mode) => mode.uuid === field.value) ?? null}
                   id="paymentMethods"
-                  items={paymentModes?.map((method) => method.uuid)}
-                  itemToString={(item) => paymentModes.find((mode) => mode.uuid === item)?.name ?? ''}
+                  items={paymentModes ?? []}
+                  itemToString={(item) => item?.name ?? ''}
                   titleText={t('paymentMethodsTitle', 'Payment method')}
                   placeholder={t('selectPaymentMethod', 'Select payment method')}
                 />

@@ -12,3 +12,10 @@
 .sectionField {
   flex-basis: 70%;
 }
+
+.selectedItemsSummary {
+  @include type.type-style('label-01');
+  color: colors.$gray-70;
+  margin-top: layout.$spacing-02;
+  overflow-wrap: anywhere;
+}

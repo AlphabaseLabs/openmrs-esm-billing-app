@@ -19,6 +19,7 @@ export interface BillingConfig {
   paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
   cashPointUuid: string;
   cashierUuid: string;
+  defaultPaymentMethodName: string;
   insuranceSchemes: Array<string>;
   billHistoryDays: number;
   visitAttributeTypes: {
@@ -132,6 +133,11 @@ export const configSchema: ConfigSchema = {
     _type: Type.String,
     _description: 'Who Generated the bill',
     _default: 'e9d5e99a-a527-4258-9a93-afbea4fef174',
+  },
+  defaultPaymentMethodName: {
+    _type: Type.String,
+    _default: 'Cash',
+    _description: 'The payment method name to preselect in the start visit billing form',
   },
   insuranceSchemes: {
     _type: Type.Array,
