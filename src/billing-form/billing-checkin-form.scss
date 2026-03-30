@@ -13,9 +13,28 @@
   flex-basis: 70%;
 }
 
-.selectedItemsSummary {
-  @include type.type-style('label-01');
+/*
+ * Carbon sets max-block-size on .cds--list-box--expanded .cds--list-box__menu (often ~220px),
+ * which can win over a plain max-height and spill over workspace footers. Match that selector,
+ * cap height (~5 rows + viewport), and keep overflow scroll.
+ */
+.billableServiceMultiselect :global(.cds--list-box--expanded .cds--list-box__menu) {
+  max-block-size: min(12.5rem, 32vh) !important;
+  max-height: min(12.5rem, 32vh);
+  overflow-y: auto;
+}
+
+.selectionTags {
+  @include type.type-style('body-compact-01');
   color: colors.$gray-70;
-  margin-top: layout.$spacing-02;
-  overflow-wrap: anywhere;
+  margin-top: layout.$spacing-03;
+  display: flex;
+  flex-wrap: wrap;
+  gap: layout.$spacing-03;
+  align-items: center;
+}
+
+.tag {
+  margin: 0;
+  max-inline-size: 100%;
 }

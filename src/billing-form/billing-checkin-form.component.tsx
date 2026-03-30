@@ -1,7 +1,7 @@
-import { FilterableMultiSelect, InlineLoading, InlineNotification } from '@carbon/react';
+import { FilterableMultiSelect, InlineLoading, InlineNotification, Tag } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { showSnackbar, useConfig, useVisit } from '@openmrs/esm-framework';
-import React, { useCallback, useEffect, useState } from 'react';
+import { showSnackbar, useConfig, useVisit, type OpenmrsResource } from '@openmrs/esm-framework';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { createPatientBill, useBillableItems, useCashPoint } from '../billing.resource';
@@ -17,6 +17,36 @@ type BillingCheckInFormProps = {
   setExtraVisitInfo: (state) => void;
 };
 
+type ServicePriceRow = { paymentMode?: { uuid?: string }; price?: string; uuid?: string };
+
+function lineItemsFromSelection(
+  selectedItems: Array<OpenmrsResource>,
+  paymentMethod: string,
+  billStatus: string,
+): Array<{
+  billableService: string;
+  quantity: number;
+  price: string;
+  priceName: string;
+  priceUuid: string;
+  lineItemOrder: number;
+  paymentStatus: string;
+}> {
+  return selectedItems.map((item, index) => {
+    const servicePrices = item.servicePrices as Array<ServicePriceRow> | undefined;
+    const priceForPaymentMode = servicePrices?.find((p) => p.paymentMode?.uuid === paymentMethod) || servicePrices?.[0];
+    return {
+      billableService: item.uuid,
+      quantity: 1,
+      price: priceForPaymentMode ? priceForPaymentMode.price : '0.000',
+      priceName: 'Default',
+      priceUuid: priceForPaymentMode ? priceForPaymentMode.uuid : '',
+      lineItemOrder: index,
+      paymentStatus: billStatus,
+    };
+  });
+}
+
 const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, setExtraVisitInfo }) => {
   const { t } = useTranslation();
   const {
@@ -26,7 +56,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const { cashPoints, isLoading: isLoadingCashPoints, error: cashError } = useCashPoint();
   const { lineItems, isLoading: isLoadingLineItems, error: lineError } = useBillableItems();
   const [attributes, setAttributes] = useState([]);
-  const [selectedBillableServices, setSelectedBillableServices] = useState<Array<{ name?: string }>>([]);
+  const [selectedBillableServices, setSelectedBillableServices] = useState<Array<OpenmrsResource>>([]);
   const formMethods = useForm<VisitAttributesFormValue>({
     mode: 'all',
     defaultValues: {
@@ -42,6 +72,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   });
   const isPatientExemptedValue = formMethods.watch('isPatientExempted');
   const paymentMethod = formMethods.watch('paymentMethods');
+  const previousExemptionRef = useRef(isPatientExemptedValue);
 
   const handleCreateBill = useCallback(async (createBillPayload) => {
     createPatientBill(createBillPayload).then(
@@ -60,29 +91,29 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
     );
   }, []);
 
-  const handleBillingService = (selectedItems) => {
-    setSelectedBillableServices(selectedItems);
+  useEffect(() => {
+    if (previousExemptionRef.current !== isPatientExemptedValue) {
+      previousExemptionRef.current = isPatientExemptedValue;
+      setSelectedBillableServices([]);
+    }
+  }, [isPatientExemptedValue]);
+
+  useEffect(() => {
     const cashPointUuid = cashPoints?.[0]?.uuid ?? '';
     const billStatus = hasPatientBeenExempted(attributes, isPatientExempted)
       ? EXEMPTED_PAYMENT_STATUS
       : PENDING_PAYMENT_STATUS;
 
-    const lineItems = selectedItems.map((item, index) => {
-      const priceForPaymentMode =
-        item.servicePrices.find((p) => p.paymentMode?.uuid === paymentMethod) || item?.servicePrices[0];
-      return {
-        billableService: item?.uuid ?? '',
-        quantity: 1,
-        price: priceForPaymentMode ? priceForPaymentMode.price : '0.000',
-        priceName: 'Default',
-        priceUuid: priceForPaymentMode ? priceForPaymentMode.uuid : '',
-        lineItemOrder: index,
-        paymentStatus: billStatus,
-      };
-    });
+    if (!paymentMethod || selectedBillableServices.length === 0) {
+      setExtraVisitInfo({
+        handleCreateExtraVisitInfo: () => {},
+        attributes,
+      });
+      return;
+    }
 
     const billPayload = {
-      lineItems: lineItems,
+      lineItems: lineItemsFromSelection(selectedBillableServices, paymentMethod, billStatus),
       cashPoint: cashPointUuid,
       patient: patientUuid,
       status: billStatus,
@@ -93,14 +124,16 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
       handleCreateExtraVisitInfo: () => handleCreateBill(billPayload),
       attributes,
     });
-  };
-
-  useEffect(() => {
-    setExtraVisitInfo({
-      handleCreateExtraVisitInfo: () => {},
-      attributes,
-    });
-  }, [attributes, setExtraVisitInfo]);
+  }, [
+    attributes,
+    cashPoints,
+    handleCreateBill,
+    isPatientExempted,
+    patientUuid,
+    paymentMethod,
+    selectedBillableServices,
+    setExtraVisitInfo,
+  ]);
 
   if (isLoadingLineItems || isLoadingCashPoints) {
     return (
@@ -131,23 +164,31 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
           <div className={styles.sectionTitle}>{t('ChargeableService', 'Chargeable service')}</div>
           <div className={styles.sectionField}>
             <FilterableMultiSelect
-              key={isPatientExemptedValue}
+              className={styles.billableServiceMultiselect}
+              direction="top"
               id="billing-service"
               titleText={t('searchServices', 'Search services')}
               items={lineItems ?? []}
               itemToString={(item) => (item ? item?.name : '')}
-              onChange={({ selectedItems }) => handleBillingService(selectedItems)}
+              onChange={({ selectedItems }) => setSelectedBillableServices(selectedItems ?? [])}
+              selectedItems={selectedBillableServices}
               selectionFeedback="top-after-reopen"
               disabled={isPatientExemptedValue === ''}
             />
-            {selectedBillableServices.length > 0 && (
-              <p className={styles.selectedItemsSummary}>
-                {selectedBillableServices
-                  .map((item) => item?.name)
-                  .filter(Boolean)
-                  .join(', ')}
-              </p>
-            )}
+            {selectedBillableServices.length > 0 ? (
+              <div className={styles.selectionTags}>
+                {selectedBillableServices.map((item) => (
+                  <Tag
+                    key={item.uuid}
+                    className={styles.tag}
+                    filter
+                    type="blue"
+                    onClose={() => setSelectedBillableServices((prev) => prev.filter((s) => s.uuid !== item.uuid))}>
+                    {item.name}
+                  </Tag>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
       )}
