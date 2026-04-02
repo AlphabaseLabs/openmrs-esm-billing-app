@@ -11,17 +11,14 @@ import {
   Button,
   InlineLoading,
 } from '@carbon/react';
-import { Add, Close } from '@carbon/react/icons';
+import { Close } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { ConfigurableLink, getPatientName, useConfig, usePatient, setCurrentVisit } from '@openmrs/esm-framework';
+import { ConfigurableLink, getPatientName, usePatient } from '@openmrs/esm-framework';
 import capitalize from 'lodash/capitalize';
 
 import { convertToCurrency } from '../helpers';
 import { type MappedBill } from '../types';
 import EmptyPatientBill from './patient-bills-dashboard/empty-patient-bill.component';
-import { type BillingConfig } from '../config-schema';
-import { navigateAndLaunchWorkspace } from '../billable-services/billiable-item/order-actions/hooks/useModalHandler';
-import { billingWorkspaceGroupName, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 import styles from './patient-bills.scss';
 
@@ -125,12 +122,6 @@ type PatientHeaderProps = {
 export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCancel }) => {
   const { t } = useTranslation();
   const { patient, isLoading } = usePatient(patientUuid);
-  const { visitRequired } = useConfig<BillingConfig>();
-  const shouldRequireVisit = visitRequired ?? true;
-  const launchPatientWorkspace = useLaunchBillingWorkspaceRequiringVisit<{
-    patientUuid: string;
-    patient: fhir.Patient;
-  }>(patientUuid, 'billing-form');
 
   if (isLoading || !patient) {
     return <InlineLoading status="active" description={t('loading', 'Loading...')} />;
@@ -138,23 +129,6 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCan
 
   const patientName = getPatientName(patient);
   const identifier = patient?.identifier[0]?.value ?? '--';
-
-  const handleAddNewBill = () => {
-    setCurrentVisit(patient.id, null);
-    if (shouldRequireVisit) {
-      launchPatientWorkspace({ patientUuid: patient.id, patient });
-      return;
-    }
-
-    navigateAndLaunchWorkspace(
-      `\${openmrsSpaBase}/patient/${patient.id}/chart`,
-      `patient/${patient.id}`,
-      'billing-form',
-      { patientUuid: patient.id, patient },
-      patient.id,
-      billingWorkspaceGroupName,
-    );
-  };
 
   return (
     <div className={styles.patientHeaderContainer}>
@@ -166,9 +140,6 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCan
       <div className={styles.headerActions}>
         <Button kind="ghost" onClick={() => onCancel('')} renderIcon={Close}>
           {t('close', 'Close')}
-        </Button>
-        <Button kind="ghost" onClick={handleAddNewBill} renderIcon={Add}>
-          {t('addNewBillItem', 'Add New Bill Item')}
         </Button>
       </div>
     </div>
