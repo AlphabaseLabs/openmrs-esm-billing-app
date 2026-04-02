@@ -27,14 +27,15 @@ export function useLaunchBillingWorkspaceRequiringVisit<WorkspaceProps extends o
   workspaceName: string,
 ) {
   const { systemVisitEnabled } = useSystemVisitSetting();
-  const { currentVisit } = useVisit(patientUuid);
+  const { currentVisit, activeVisit } = useVisit(patientUuid);
   const isRdeEnabled = useFeatureFlag('rde');
+  const visitContext = currentVisit ?? activeVisit;
 
   return useCallback(
     (workspaceProps?: WorkspaceProps) => {
       const launchWorkspace = () => launchBillingWorkspace(workspaceName, workspaceProps ?? null);
 
-      if (!systemVisitEnabled || currentVisit) {
+      if (!systemVisitEnabled || visitContext) {
         return launchWorkspace();
       }
 
@@ -51,6 +52,6 @@ export function useLaunchBillingWorkspaceRequiringVisit<WorkspaceProps extends o
 
       launchStartVisitPrompt();
     },
-    [currentVisit, isRdeEnabled, patientUuid, systemVisitEnabled, workspaceName],
+    [visitContext, isRdeEnabled, patientUuid, systemVisitEnabled, workspaceName],
   );
 }
