@@ -1,10 +1,8 @@
 import { createContext } from 'react';
-import dayjs from 'dayjs';
-import { omrsDateFormat } from '../constants';
 
 const SelectedDateContext = createContext({
-  selectedDate: dayjs().startOf('day').format(omrsDateFormat),
-  setSelectedDate: (date: string) => {},
+  selectedDate: null as string | null,
+  setSelectedDate: (date: string | null) => {},
 });
 
 export default SelectedDateContext;

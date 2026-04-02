@@ -8,6 +8,22 @@
   gap: layout.$spacing-05;
   align-items: center;
 }
+
+.menuItemButton {
+  @include type.type-style('body-compact-01');
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: layout.$spacing-04 layout.$spacing-05;
+  text-align: left;
+  color: colors.$gray-100;
+  cursor: pointer;
+
+  &:hover {
+    background-color: colors.$gray-10;
+  }
+}
+
 .item {
   border: none;
 }

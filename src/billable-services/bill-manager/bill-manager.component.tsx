@@ -2,7 +2,6 @@ import React from 'react';
 import { ExtensionSlot, UserHasAccess, WorkspaceContainer } from '@openmrs/esm-framework';
 import PatientBills from './patient-bills.component';
 import styles from './bill-manager.scss';
-import billTableStyles from '../../bills-table/bills-table.scss';
 import { DataTableSkeleton } from '@carbon/react';
 import { EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +14,11 @@ const headers = [
   { header: 'Total Amount', key: 'totalAmount' },
 ];
 
-const BillManager: React.FC = () => {
+interface BillManagerProps {
+  showHeader?: boolean;
+}
+
+const BillManager: React.FC<BillManagerProps> = ({ showHeader = true }) => {
   const [patientUuid, setPatientUuid] = React.useState<string>(undefined);
   const { t } = useTranslation();
   const { patientBills: bills, isLoading } = usePatientBills(patientUuid);
@@ -23,7 +26,7 @@ const BillManager: React.FC = () => {
 
   return (
     <>
-      <BillingHeader title={t('billManager', 'Bill Manager')} />
+      {showHeader ? <BillingHeader title={t('billManager', 'Bill Manager')} /> : null}
       <div className={styles.billManagerContainer}>
         <ExtensionSlot
           name="patient-search-bar-slot"
@@ -35,7 +38,7 @@ const BillManager: React.FC = () => {
           }}
         />
         {!patientUuid ? (
-          <div className={billTableStyles.emptyStateContainer}>
+          <div className={styles.emptyStateContainer}>
             <EmptyState
               displayText={t('notSearchedState', 'Please search for a patient in the input above')}
               headerTitle="Not Searched"

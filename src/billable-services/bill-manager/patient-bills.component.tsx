@@ -17,7 +17,7 @@ import { convertToCurrency } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@openmrs/esm-patient-common-lib';
 import { type MappedBill, PaymentStatus } from '../../types';
-import styles from '../../bills-table/bills-table.scss';
+import styles from './bill-manager.scss';
 import BillLineItems from './bill-line-items.component';
 import { ExtensionSlot, ConfigurableLink } from '@openmrs/esm-framework';
 

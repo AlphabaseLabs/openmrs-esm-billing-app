@@ -3,11 +3,15 @@
 @use '@carbon/type';
 
 .container {
-  height: calc(100vh - 3rem);
+  min-height: calc(100vh - 3rem);
 }
 
 .billsTableContainer {
   margin: 2rem 1rem;
+}
+
+.summaryPanel {
+  border-bottom: 1px solid colors.$gray-20;
 }
 
 .illo {
@@ -29,6 +33,9 @@
 .clockOutStrip {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: layout.$spacing-03;
+  flex-wrap: wrap;
   padding: layout.$spacing-03 layout.$spacing-05;
   border-bottom: 1px solid colors.$gray-20;
 }
@@ -69,4 +76,73 @@
   justify-content: flex-end;
   padding: layout.$spacing-03;
   border-bottom: 1px solid colors.$gray-20;
+}
+
+.clockOutStrip > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.optionsMenuWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.optionsMenu {
+  position: absolute;
+  top: calc(100% + #{layout.$spacing-02});
+  left: 0;
+  width: 100%;
+  min-width: 100%;
+  background-color: colors.$white-0;
+  border: 1px solid colors.$gray-20;
+  box-shadow: 0 0.125rem 0.375rem rgb(0 0 0 / 12%);
+  z-index: 2;
+}
+
+.optionsMenu :global(a),
+.optionsMenu :global(button) {
+  @include type.type-style('body-compact-01');
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  color: colors.$gray-100;
+  text-decoration: none;
+  padding: layout.$spacing-04 layout.$spacing-05;
+
+  &:hover {
+    background-color: colors.$gray-10;
+  }
+}
+
+.embeddedPageContainer {
+  margin: layout.$spacing-05;
+}
+
+.backButton {
+  margin-bottom: layout.$spacing-05;
+}
+
+.embeddedPageContent {
+  background-color: colors.$white-0;
+}
+
+:global(.omrs-breakpoint-lt-tablet) {
+  .clockOutStrip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .clockOutInfo {
+    flex-wrap: wrap;
+  }
+
+  .clockOutStrip > div:last-child {
+    justify-content: flex-start;
+  }
+
+  .optionsMenu {
+    width: 100%;
+  }
 }

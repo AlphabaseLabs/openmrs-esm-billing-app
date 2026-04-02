@@ -84,13 +84,15 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
 export const useBills = (
   patientUuid: string = '',
   billStatus: PaymentStatus.PENDING | '' | string = '',
-  startingDate: Date = dayjs().startOf('day').toDate(),
-  endDate: Date = dayjs().endOf('day').toDate(),
+  startingDate?: Date,
+  endDate?: Date,
 ) => {
-  const startingDateISO = startingDate.toISOString();
-  const endDateISO = endDate.toISOString();
+  const startingDateISO = startingDate?.toISOString();
+  const endDateISO = endDate?.toISOString();
 
-  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))&createdOnOrAfter=${startingDateISO}&createdOnOrBefore=${endDateISO}`;
+  const dateParams =
+    startingDateISO && endDateISO ? `&createdOnOrAfter=${startingDateISO}&createdOnOrBefore=${endDateISO}` : '';
+  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))${dateParams}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<PatientInvoice> } }>(
     patientUuid ? `${url}&patientUuid=${patientUuid}` : url,

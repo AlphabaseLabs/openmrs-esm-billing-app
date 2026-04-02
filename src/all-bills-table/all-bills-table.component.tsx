@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
 import {
@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useLayoutType, isDesktop, useConfig, ErrorState, ConfigurableLink } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBillsPaginated } from '../billing.resource';
+import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './all-bills-table.scss';
 
 const filterItems = [
@@ -41,10 +42,12 @@ const AllBillsTable: React.FC = () => {
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 50, 100, 500, 1000];
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const [currentPage, setCurrentPage] = useState(1);
+  const { selectedDate } = useContext(SelectedDateContext);
 
-  // Use a very wide date range to get all bills (10 years ago to now)
-  const startDate = dayjs().subtract(10, 'year').startOf('day').toDate();
-  const endDate = dayjs().endOf('day').toDate();
+  const startDate = selectedDate
+    ? dayjs(selectedDate).startOf('day').toDate()
+    : dayjs().subtract(10, 'year').startOf('day').toDate();
+  const endDate = selectedDate ? dayjs(selectedDate).endOf('day').toDate() : dayjs().endOf('day').toDate();
 
   const { bills, totalCount, isLoading, isValidating, error } = useBillsPaginated({
     patientUuid: '',
@@ -142,6 +145,10 @@ const AllBillsTable: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate]);
 
   if (isLoading && !bills?.length) {
     return (

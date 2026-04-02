@@ -10,10 +10,20 @@ type LinkConfig = {
   icon?: CarbonIconType;
 };
 
+type LinkExtensionProps = {
+  onSelect?: () => void;
+};
+
 const createLeftPanelLink = (config: LinkConfig) => {
-  return () => (
+  return ({ onSelect }: LinkExtensionProps) => (
     <BrowserRouter>
-      <LinkExtension route={config.route} title={config.title} otherRoutes={config.otherRoutes} icon={config.icon} />
+      <LinkExtension
+        route={config.route}
+        title={config.title}
+        otherRoutes={config.otherRoutes}
+        icon={config.icon}
+        onSelect={onSelect}
+      />
     </BrowserRouter>
   );
 };

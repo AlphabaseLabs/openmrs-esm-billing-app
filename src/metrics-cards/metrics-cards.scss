@@ -4,25 +4,29 @@
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
 .container {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: stretch;
   margin: layout.$spacing-05;
   gap: layout.$spacing-05;
 }
 
 .cardContainer {
-  flex-grow: 1;
+  min-width: 0;
 }
-/* Tablet viewport */
-:global(.omrs-breakpoint-lt-desktop) {
-  // The card containing the dropdown element should be the first to overflow on tablet
-  .cardWithChildren {
-    order: 3;
+
+:global(.omrs-breakpoint-lt-tablet) {
+  .container {
+    margin: layout.$spacing-04;
+    gap: layout.$spacing-03;
   }
 }
 
 .tileContainer {
   border: 0.0625rem solid $ui-03;
-  height: 7.875rem;
+  height: 100%;
+  min-height: 7.875rem;
+  min-width: 0;
 }
 
 .tileHeader {
@@ -45,6 +49,8 @@
 .totalsValue {
   @include type.type-style('heading-04');
   color: $ui-05;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .headerLabelContainer {

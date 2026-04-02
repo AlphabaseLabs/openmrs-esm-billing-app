@@ -12,16 +12,14 @@ import { useBillMetrics } from './metrics.resource';
 export default function MetricsCards() {
   const { t } = useTranslation();
   const { selectedDate } = useContext(SelectedDateContext);
-
-  // Convert selectedDate string to Date objects for start and end of day
-  const startDate = dayjs(selectedDate).startOf('day').toDate();
-  const endDate = dayjs(selectedDate).endOf('day').toDate();
+  const startDate = selectedDate ? dayjs(selectedDate).startOf('day').toDate() : undefined;
+  const endDate = selectedDate ? dayjs(selectedDate).endOf('day').toDate() : undefined;
 
   const { bills, isLoading, error } = useBills('', '', startDate, endDate);
   const { totalBills, pendingBills, paidBills, exemptedBills, waivedBills, exemptedAmount, taxCollection, taxCollectionAmount } =
     useBillMetrics(bills);
 
-  const isToday = dayjs(selectedDate).isSame(dayjs(), 'day');
+  const isToday = selectedDate ? dayjs(selectedDate).isSame(dayjs(), 'day') : false;
   const prefix = isToday ? "Today's " : '';
 
   const cards = useMemo(() => {

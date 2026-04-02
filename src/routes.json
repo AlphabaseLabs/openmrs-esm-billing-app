@@ -12,8 +12,8 @@
   ],
   "extensions": [
     {
-      "component": "billingDashboardNavGroup",
-      "name": "billing-dashboard-nav-group",
+      "component": "billingDashboardLink",
+      "name": "billing-dashboard-link",
       "slot": "homepage-dashboard-slot",
       "order": 10000,
       "meta": {
@@ -112,40 +112,19 @@
       "order": 0
     },
     {
-      "component": "billingOverviewLink",
-      "name": "billing-overview-link",
-      "order": 0,
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "component": "billDepositDashboardLink",
-      "name": "bill-deposit-dashboard-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
       "component": "paymentHistoryLink",
       "name": "payment-history-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "component": "paymentPointsLink",
-      "name": "payment-points-link",
-      "slot": "billing-dashboard-group-nav-slot"
-    },
-    {
-      "component": "paymentModesLink",
-      "name": "payment-modes-link",
-      "slot": "billing-dashboard-group-nav-slot"
+      "slot": "billing-dashboard-actions-slot"
     },
     {
       "component": "billManagerLink",
       "name": "bill-manager-link",
-      "slot": "billing-dashboard-group-nav-slot"
+      "slot": "billing-dashboard-actions-slot"
     },
     {
       "component": "chargeableItemsLink",
       "name": "chargeable-items-link",
-      "slot": "billing-dashboard-group-nav-slot"
+      "slot": "billing-dashboard-actions-slot"
     },
     {
       "component": "waiveBillActionButton",
