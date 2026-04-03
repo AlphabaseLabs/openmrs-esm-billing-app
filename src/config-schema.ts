@@ -137,7 +137,7 @@ export const configSchema: ConfigSchema = {
   defaultPaymentMethodName: {
     _type: Type.String,
     _default: 'Cash',
-    _description: 'The payment method name to preselect in the start visit billing form',
+    _description: 'The payment method name to preselect across billing payment forms',
   },
   insuranceSchemes: {
     _type: Type.Array,

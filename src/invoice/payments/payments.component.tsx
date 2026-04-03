@@ -3,7 +3,7 @@ import { Button, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
-import { FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { mutate } from 'swr';
 import { z } from 'zod';
@@ -34,34 +34,32 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
 
   const methods = useForm<PaymentFormValue>({
     mode: 'onChange',
-    defaultValues: { payment: [] },
+    defaultValues: { payment: [{ method: null, amount: undefined, referenceCode: '' }] },
     resolver: zodResolver(z.object({ payment: z.array(paymentSchema) })),
   });
-
-  const formArrayMethods = useFieldArray({ name: 'payment', control: methods.control });
 
   const formValues = useWatch({
     name: 'payment',
     control: methods.control,
   });
 
-  // const totalAmountTendered = bill.tenderedAmount;
-  const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount) + curr, 0) ?? 0;
+  const selectedUnpaidLineItems = selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID);
+  const hasSelectedUnpaidLineItems = selectedUnpaidLineItems.length > 0;
+  const hasEnteredPaymentAmount = formValues?.some((item) => Number(item.amount ?? 0) > 0) ?? false;
+  const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount ?? 0) + curr, 0) ?? 0;
   const amountDue = bill.balance;
 
   // selected line items amount due
-  const selectedLineItemsAmountDue = selectedLineItems
-    .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
-    .reduce(
-      (curr: number, prev) =>
-        curr +
-        Number(prev.price * prev.quantity) +
-        Number(
-          prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
-            Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
-        ),
-      0,
-    );
+  const selectedLineItemsAmountDue = selectedUnpaidLineItems.reduce(
+    (curr: number, prev) =>
+      curr +
+      Number(prev.price * prev.quantity) +
+      Number(
+        prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+          Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
+      ),
+    0,
+  );
 
   const handleNavigateToBillingDashboard = () =>
     navigate({
@@ -69,7 +67,6 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
     });
 
   const handleProcessPayment = () => {
-    const { remove } = formArrayMethods;
     const paymentPayload = createPaymentPayload(
       bill,
       bill.patientUuid,
@@ -78,7 +75,6 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
       selectedLineItems,
       globalActiveSheet,
     );
-    remove();
 
     processBillPayment(paymentPayload, bill.uuid).then(
       (resp) => {
@@ -113,6 +109,7 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
 
         const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
         mutate((key) => typeof key === 'string' && key.startsWith(url), undefined, { revalidate: true });
+        methods.reset({ payment: [{ method: null, amount: undefined, referenceCode: '' }] });
       },
       (error) => {
         showSnackbar({
@@ -130,10 +127,10 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
 
   const amountDueDisplay = (amount: number) => (amount < 0 ? 'Client balance' : 'Amount Due');
 
-  const isFullyPaid = totalNewPayments >= selectedLineItemsAmountDue;
+  const isFullyPaid = !hasSelectedUnpaidLineItems || totalNewPayments >= selectedLineItemsAmountDue;
   const hasAmountPaidExceeded = bill.balance > 0 && formValues.some((item) => Number(item.amount) > bill.balance);
-
-  const isPaymentInvalid = !isFullyPaid && formValues.some((item) => item.amount !== 0) && bill.lineItems.length > 1;
+  const isPaymentInvalid =
+    hasSelectedUnpaidLineItems && hasEnteredPaymentAmount && !isFullyPaid && bill.lineItems.length > 1;
 
   return (
     <FormProvider {...methods}>
@@ -175,7 +172,7 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
                 className={styles.paymentError}
               />
             )}
-            <PaymentForm {...formArrayMethods} disablePayment={amountDue <= 0} amountDue={amountDue} />
+            <PaymentForm disablePayment={amountDue <= 0} />
           </div>
         </div>
         <div className={styles.divider} />
@@ -210,12 +207,12 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
               {t('discard', 'Discard')}
             </Button>
             {/* Process Payment is disabled when ANY of these are true:
-                1. No payment rows (formValues empty)
+                1. No payment rows (not applicable with the default row)
                 2. Form invalid: usePaymentSchema validates each row (method required, amount > 0 and amount <= bill.balance per row, referenceCode when method requires it)
                 3. Overpayment: any single row has amount > bill.balance (hasAmountPaidExceeded) */}
             <Button
               onClick={() => handleProcessPayment()}
-              disabled={!formValues?.length || !methods.formState.isValid || hasAmountPaidExceeded}>
+              disabled={!methods.formState.isValid || hasAmountPaidExceeded}>
               {t('processPayment', 'Process Payment')}
             </Button>
           </div>

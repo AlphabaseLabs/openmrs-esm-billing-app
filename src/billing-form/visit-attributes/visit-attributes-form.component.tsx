@@ -20,7 +20,9 @@ const VisitAttributesForm: React.FC<VisitAttributesFormProps> = ({ setAttributes
   const { setValue, watch, control, getValues, resetField } = useFormContext<VisitAttributesFormValue>();
   const { paymentModes, isLoading: isLoadingPaymentModes } = usePaymentModes();
   const [isPatientExempted, paymentMethods] = watch(['isPatientExempted', 'paymentMethods']);
-  const defaultPaymentMethodUuid = paymentModes?.find((mode) => mode.name === defaultPaymentMethodName)?.uuid ?? '';
+  const normalizedDefaultPaymentMethodName = defaultPaymentMethodName?.trim().toLowerCase();
+  const defaultPaymentMethodUuid =
+    paymentModes?.find((mode) => mode.name?.trim().toLowerCase() === normalizedDefaultPaymentMethodName)?.uuid ?? '';
   const resetFormFieldsForNonExemptedPatients = useCallback(() => {
     setValue('insuranceScheme', '');
     setValue('policyNumber', '');

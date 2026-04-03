@@ -14,13 +14,9 @@
 }
 
 .paymentContainer {
-  margin: layout.$layout-01 0;
-  padding: layout.$layout-01;
+  margin: 0;
+  padding: 0 0 5%;
   width: 70%;
-}
-
-.paymentButtons {
-  margin: layout.$layout-01 0;
 }
 
 .paymentMethodContainer {
@@ -32,8 +28,8 @@
 }
 
 .paymentTotals {
-  margin: layout.$spacing-05 0;
-  padding: layout.$spacing-07 layout.$spacing-05;
+  margin: 0;
+  padding: layout.$spacing-07 layout.$spacing-05 0;
 }
 
 .processPayments {
@@ -47,25 +43,4 @@
 
 .paymentError {
   margin: layout.$spacing-05 0;
-}
-
-.heading {
-  @include type.type-style('heading-02');
-}
-
-.button {
-  height: layout.$spacing-10;
-  display: flex;
-  align-content: flex-start;
-  align-items: baseline;
-  min-width: 20%;
-}
-
-.buttonSet {
-  padding: 0rem;
-  margin-top: layout.$spacing-05;
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: layout.$spacing-05;
 }

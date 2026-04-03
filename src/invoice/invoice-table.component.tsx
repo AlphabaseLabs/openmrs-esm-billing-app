@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
@@ -20,19 +20,12 @@ import {
   Tile,
   Button,
 } from '@carbon/react';
-import {
-  formatDate,
-  isDesktop,
-  parseDate,
-  useDebounce,
-  useLayoutType,
-  EditIcon,
-  getCoreTranslation,
-} from '@openmrs/esm-framework';
+import { isDesktop, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Document, TrashCan } from '@carbon/react/icons';
 import { launchBillingWorkspace } from '../workspaces';
+import { convertToCurrency } from '../helpers';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -68,14 +61,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     const headers = [
       { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
       { header: t('billItem', 'Bill item'), key: 'billItem' },
-      { header: t('billItemDate', 'Item date'), key: 'itemDate' },
       { header: t('status', 'Status'), key: 'status' },
       { header: t('quantity', 'Quantity'), key: 'quantity' },
       { header: t('price', 'Price'), key: 'price' },
       { header: t('discount', 'Discount'), key: 'discount' },
-      { header: t('salesTax', 'S.Tax'), key: 'tax' },
+      { header: t('tax', 'Tax'), key: 'tax' },
       { header: t('total', 'Total'), key: 'total' },
-      { header: getCoreTranslation('actions'), key: 'actionButton' },
+      { header: t('action', 'Action'), key: 'actionButton' },
     ];
 
     return headers;
@@ -120,22 +112,22 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     const getLineItemDiscount = (item: LineItem) =>
       (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0);
     const getLineItemTax = (item: LineItem) => (item?.taxes ?? []).reduce((sum, tax) => sum + (tax?.amount ?? 0), 0);
-    const getLineItemDateRaw = (item: LineItem) => item.dateCreated ?? item.auditInfo?.dateCreated;
 
     return (
       filteredLineItems?.map((item, index) => {
-        const lineItemDateRaw = getLineItemDateRaw(item);
+        const lineItemDiscount = getLineItemDiscount(item);
+        const lineItemTax = getLineItemTax(item);
+        const lineItemTotal = item.price * item.quantity + lineItemTax - lineItemDiscount;
         return {
           no: `${index + 1}`,
           id: `${item.uuid}`,
           billItem: processBillItem(item),
-          itemDate: lineItemDateRaw ? formatDate(parseDate(lineItemDateRaw), { mode: 'wide' }) : '--',
           status: item.paymentStatus,
           quantity: item.quantity,
-          price: item.price,
-          discount: getLineItemDiscount(item),
-          tax: getLineItemTax(item),
-          total: item.price * item.quantity + getLineItemTax(item) - getLineItemDiscount(item),
+          price: convertToCurrency(item.price),
+          discount: convertToCurrency(lineItemDiscount),
+          tax: convertToCurrency(lineItemTax),
+          total: convertToCurrency(lineItemTotal),
           actionButton: (
             <div className={styles.actionButtons}>
               {bill.status !== PaymentStatus.PAID && (
@@ -194,7 +186,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
       newSelectedLineItems = selectedLineItems.filter((item) => item.uuid !== row.id);
     }
     setSelectedLineItems(newSelectedLineItems);
-    onSelectItem(newSelectedLineItems);
+    onSelectItem?.(newSelectedLineItems);
   };
 
   return (

@@ -13,10 +13,6 @@
   border-right: 1px solid colors.$cool-gray-40;
 }
 
-.paymentButtons {
-  margin: layout.$layout-01 0;
-}
-
 .paymentMethodContainer {
   display: grid;
   grid-template-columns: repeat(4, minmax(auto, 1fr));
@@ -40,15 +36,4 @@
 .errorPaymentContainer {
   margin: layout.$spacing-04;
   min-height: layout.$spacing-09;
-}
-
-.removeButtonContainer {
-  display: flex;
-  align-self: center;
-  cursor: pointer;
-  margin-left: layout.$spacing-07;
-}
-
-.removeButton {
-  color: colors.$red-60;
 }
