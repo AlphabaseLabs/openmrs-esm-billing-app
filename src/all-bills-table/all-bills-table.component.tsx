@@ -42,7 +42,6 @@ const AllBillsTable: React.FC = () => {
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Use a very wide date range to get all bills (10 years ago to now)
   const startDate = dayjs().subtract(10, 'year').startOf('day').toDate();
   const endDate = dayjs().endOf('day').toDate();
 
@@ -54,58 +53,41 @@ const AllBillsTable: React.FC = () => {
     page: currentPage,
     pageSize: pageSize,
   });
+
   const [searchString, setSearchString] = useState('');
 
   const headerData = [
-    {
-      header: t('visitTime', 'Visit time'),
-      key: 'visitTime',
-    },
-    {
-      header: t('identifier', 'Identifier'),
-      key: 'identifier',
-    },
-    {
-      header: t('name', 'Name'),
-      key: 'patientName',
-    },
-    {
-      header: t('billedItems', 'Billed Items'),
-      key: 'billedItems',
-    },
-    {
-      header: t('status', 'Status'),
-      key: 'status',
-    },
+    { header: t('visitTime', 'Visit time'), key: 'visitTime' },
+    { header: t('identifier', 'Identifier'), key: 'identifier' },
+    { header: t('name', 'Name'), key: 'patientName' },
+    { header: t('billedItems', 'Billed Items'), key: 'billedItems' },
+    { header: t('status', 'Status'), key: 'status' },
   ];
 
-  // Client-side search filtering on current page results
   const searchResults = useMemo(() => {
-    if (bills !== undefined && bills.length > 0) {
-      if (searchString && searchString.trim() !== '') {
-        const search = searchString.toLowerCase();
-        return bills?.filter((activeBillRow) =>
-          Object.entries(activeBillRow).some(([header, value]) => {
-            if (header === 'patientUuid') {
-              return false;
-            }
-            return `${value}`.toLowerCase().includes(search);
-          }),
-        );
-      }
+    if (bills && searchString.trim() !== '') {
+      const search = searchString.toLowerCase();
+      return bills.filter((bill) =>
+        Object.entries(bill).some(([key, value]) =>
+          key !== 'patientUuid' && `${value}`.toLowerCase().includes(search),
+        ),
+      );
     }
-
     return bills;
   }, [searchString, bills]);
 
   const setBilledItems = (bill) =>
     bill?.lineItems?.reduce(
-      (acc, item) => acc + (acc ? ' & ' : '') + (item?.billableService.split(':')[1] || item?.item.split(':')[1] || ''),
+      (acc, item) =>
+        acc +
+        (acc ? ' & ' : '') +
+        (item?.billableService?.split(':')[1] || item?.item?.split(':')[1] || ''),
       '',
     );
 
   const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
 
+  // ✅ FIXED + SAFE LOGIC HERE
   const rowData = searchResults?.map((bill, index) => ({
     id: `${index}`,
     uuid: bill.uuid,
@@ -122,181 +104,83 @@ const AllBillsTable: React.FC = () => {
     department: '--',
     billedItems: setBilledItems(bill),
     billingPrice: '--',
-    status: bill.status,
+
+    // ✅ SAFE CHECK (won’t break if field missing)
+    status:
+      bill?.balance === 0 || bill?.totalBalance === 0
+        ? 'Auto Closed (No pending balance)'
+        : bill.status,
   }));
 
-  const handleSearch = useCallback(
-    (e) => {
-      setCurrentPage(1);
-      setSearchString(e.target.value);
-    },
-    [setSearchString],
-  );
+  const handleSearch = useCallback((e) => {
+    setCurrentPage(1);
+    setSearchString(e.target.value);
+  }, []);
 
   const handleFilterChange = ({ selectedItem }) => {
     setBillPaymentStatus(selectedItem.id);
     setCurrentPage(1);
   };
 
-  // Reset to page 1 when page size changes
   useEffect(() => {
     setCurrentPage(1);
   }, [pageSize]);
 
   if (isLoading && !bills?.length) {
     return (
-      <div className={styles.loaderContainer} role="progressbar" aria-label={t('loading', 'Loading')}>
-        <DataTableSkeleton
-          rowCount={pageSize}
-          showHeader={false}
-          showToolbar={false}
-          zebra
-          columnCount={headerData?.length}
-        />
+      <div className={styles.loaderContainer}>
+        <DataTableSkeleton rowCount={pageSize} columnCount={headerData.length} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={styles.errorContainer}>
-        <Layer>
-          <ErrorState error={error} headerTitle={t('billsList', 'Bill list')} />
-        </Layer>
-      </div>
+      <Layer>
+        <ErrorState error={error} headerTitle={t('billsList', 'Bill list')} />
+      </Layer>
     );
   }
 
   return (
     <>
-      <div className={styles.filterContainer}>
-        <Dropdown
-          className={styles.filterDropdown}
-          direction="bottom"
-          id={`filter-${id}`}
-          initialSelectedItem={filterItems.find((item) => item.id === billPaymentStatus)}
-          items={filterItems}
-          itemToString={(item) => (item ? item.text : '')}
-          label=""
-          onChange={handleFilterChange}
-          size={responsiveSize}
-          titleText={t('filterBy', 'Filter by') + ':'}
-          type="inline"
-        />
-      </div>
+      <Dropdown
+        id={`filter-${id}`}
+        items={filterItems}
+        itemToString={(item) => item?.text || ''}
+        onChange={handleFilterChange}
+        size={responsiveSize}
+        titleText="Filter by:"
+        type="inline"
+      />
 
-      {bills?.length > 0 ? (
-        <div className={styles.billListContainer}>
-          <FilterableTableHeader
-            handleSearch={handleSearch}
-            isValidating={isValidating}
-            layout={layout}
-            responsiveSize={responsiveSize}
-            t={t}
-          />
-          <DataTable
-            isSortable
-            rows={rowData}
-            headers={headerData}
-            size={responsiveSize}
-            useZebraStyles={rowData?.length > 1 ? true : false}>
-            {({ rows, headers, getRowProps, getTableProps }) => (
-              <TableContainer>
-                <Table {...getTableProps()} aria-label="bill list">
-                  <TableHead>
-                    <TableRow>
-                      {headers.map((header) => (
-                        <TableHeader key={header.key}>{header.header}</TableHeader>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        {...getRowProps({
-                          row,
-                        })}>
-                        {row.cells.map((cell) => (
-                          <TableCell key={cell.id}>{cell.value}</TableCell>
-                        ))}
-                      </TableRow>
+      <DataTable rows={rowData || []} headers={headerData}>
+        {({ rows, headers, getRowProps, getTableProps }) => (
+          <TableContainer>
+            <Table {...getTableProps()}>
+              <TableHead>
+                <TableRow>
+                  {headers.map((h) => (
+                    <TableHeader key={h.key}>{h.header}</TableHeader>
+                  ))}
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id} {...getRowProps({ row })}>
+                    {row.cells.map((cell) => (
+                      <TableCell key={cell.id}>{cell.value}</TableCell>
                     ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </DataTable>
-          {searchResults?.length === 0 && (
-            <div className={styles.filterEmptyState}>
-              <Layer level={0}>
-                <Tile className={styles.filterEmptyStateTile}>
-                  <p className={styles.filterEmptyStateContent}>
-                    {t('noMatchingBillsToDisplay', 'No matching bills to display')}
-                  </p>
-                  <p className={styles.filterEmptyStateHelper}>{t('checkFilters', 'Check the filters above')}</p>
-                </Tile>
-              </Layer>
-            </div>
-          )}
-          {totalCount !== null && totalCount > 0 && (
-            <Pagination
-              forwardText="Next page"
-              backwardText="Previous page"
-              page={currentPage}
-              pageSize={pageSize}
-              pageSizes={pageSizes}
-              totalItems={totalCount}
-              className={styles.pagination}
-              size={responsiveSize}
-              onChange={({ pageSize: newPageSize, page: newPage }) => {
-                if (newPageSize !== pageSize) {
-                  setPageSize(newPageSize);
-                }
-                if (newPage !== currentPage) {
-                  setCurrentPage(newPage);
-                }
-              }}
-            />
-          )}
-        </div>
-      ) : (
-        <Layer className={styles.emptyStateContainer}>
-          <Tile className={styles.tile}>
-            <div className={styles.illo}>
-              <EmptyDataIllustration />
-            </div>
-            <p className={styles.content}>There are no bills to display.</p>
-          </Tile>
-        </Layer>
-      )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </DataTable>
     </>
   );
 };
-
-function FilterableTableHeader({ layout, handleSearch, isValidating, responsiveSize, t }) {
-  return (
-    <>
-      <div className={styles.headerContainer}>
-        <div
-          className={classNames({
-            [styles.tabletHeading]: !isDesktop(layout),
-            [styles.desktopHeading]: isDesktop(layout),
-          })}>
-          <h4>{t('allBills', 'All Bills')}</h4>
-        </div>
-        <div className={styles.backgroundDataFetchingIndicator}>
-          <span>{isValidating ? <InlineLoading /> : null}</span>
-        </div>
-      </div>
-      <Search
-        labelText=""
-        placeholder={t('filterTable', 'Filter table')}
-        onChange={handleSearch}
-        size={responsiveSize}
-      />
-    </>
-  );
-}
 
 export default AllBillsTable;
