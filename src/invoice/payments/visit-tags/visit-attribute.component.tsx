@@ -2,7 +2,7 @@ import React from 'react';
 import { Tag } from '@carbon/react';
 import { usePatientPaymentInfo } from '../../../billing.resource';
 
-type VisitAttributeTagsProps = { patientUuid: string };
+type VisitAttributeTagsProps = { patientUuid?: string };
 
 const VisitAttributeTags: React.FC<VisitAttributeTagsProps> = ({ patientUuid }) => {
   const patientBillingInfo = usePatientPaymentInfo(patientUuid);

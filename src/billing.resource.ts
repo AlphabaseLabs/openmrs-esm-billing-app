@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs';
 import isEmpty from 'lodash-es/isEmpty';
 import sortBy from 'lodash-es/sortBy';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
@@ -172,17 +172,32 @@ export function useFetchSearchResults(searchVal, category) {
   return { data: data?.data, error, isLoading: isLoading, isValidating };
 }
 
-export const usePatientPaymentInfo = (patientUuid: string) => {
-  const { currentVisit } = useVisit(patientUuid);
-  const attributes = currentVisit?.attributes ?? [];
-  const paymentInformation = attributes
-    .map((attribute) => ({
-      name: attribute.attributeType.name,
-      value: attribute.value,
-    }))
-    .filter(({ name }) => name === 'Insurance scheme' || name === 'Policy Number');
+type PatientPaymentVisitAttribute = {
+  attributeType?: {
+    name?: string;
+  };
+  value?: string;
+};
 
-  return paymentInformation;
+export const usePatientPaymentInfo = (patientUuid?: string) => {
+  const visitUrl = patientUuid
+    ? `${restBaseUrl}/visit?patient=${patientUuid}&v=custom:(stopDatetime,attributes:(attributeType:(name),value))&includeInactive=false`
+    : null;
+  const { data } = useSWR<{
+    data: { results: Array<{ stopDatetime: string | null; attributes?: Array<PatientPaymentVisitAttribute> }> };
+  }>(visitUrl, openmrsFetch);
+
+  return useMemo(() => {
+    const activeVisit = data?.data?.results?.find((visit) => visit?.stopDatetime === null);
+    const attributes = activeVisit?.attributes ?? [];
+
+    return attributes
+      .map((attribute) => ({
+        name: attribute?.attributeType?.name,
+        value: attribute?.value,
+      }))
+      .filter(({ name, value }) => (name === 'Insurance scheme' || name === 'Policy Number') && value);
+  }, [data?.data?.results]);
 };
 
 export const processBillItems = (payload) => {

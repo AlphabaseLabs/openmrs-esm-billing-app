@@ -66,9 +66,27 @@ function BillingDashboard() {
     setSelectedAction(getBillingActionFromPath(location.pathname));
   }, [location.pathname]);
 
-  const handleActionSelection = useCallback((action: string) => {
-    setSelectedAction(action as BillingActionKey);
-  }, []);
+  const handleActionSelection = useCallback(
+    (action: string) => {
+      const nextAction = action as BillingActionKey;
+      setSelectedAction(nextAction);
+
+      switch (nextAction) {
+        case 'payment-history':
+          navigate('/payment-history');
+          break;
+        case 'bill-manager':
+          navigate('/bill-manager');
+          break;
+        case 'charge-items':
+          navigate('/charge-items');
+          break;
+        default:
+          navigate('/');
+      }
+    },
+    [navigate],
+  );
 
   const handleBack = () => {
     if (getBillingActionFromPath(location.pathname) !== 'overview') {
