@@ -5,6 +5,29 @@
 .container {
   margin: 2rem 0;
 }
+
+.expandedPanel {
+  background-color: $ui-01;
+}
+
+.expandedContent {
+  padding: layout.$spacing-05 0;
+}
+
+.expandedTableOnly {
+  padding: 0;
+
+  > div {
+    margin-bottom: 0;
+  }
+}
+
+.expandedLoader {
+  display: flex;
+  justify-content: center;
+  padding: layout.$spacing-05;
+}
+
 .widgetCard {
   // height: layout.$spacing-10;
   background-color: $ui-02;
@@ -29,6 +52,12 @@
 
 .billDateCell {
   white-space: nowrap;
+}
+
+.printMenuTrigger {
+  :global(.cds--overflow-menu) {
+    background: transparent;
+  }
 }
 
 .backgroundDataFetchingIndicator {

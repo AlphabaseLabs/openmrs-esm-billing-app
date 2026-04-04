@@ -15,15 +15,28 @@ import {
   TableExpandRow,
   TableExpandedRow,
   Button,
+  InlineLoading,
+  OverflowMenu,
+  OverflowMenuItem,
 } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
-import { isDesktop, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
+import {
+  ConfigurableLink,
+  isDesktop,
+  restBaseUrl,
+  showModal,
+  useLayoutType,
+  usePagination,
+  useConfig,
+} from '@openmrs/esm-framework';
 import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
-import { useBills } from '../billing.resource';
+import { useBill, useBills } from '../billing.resource';
+import BillDetails from '../invoice/bill-details.component';
 import InvoiceTable from '../invoice/invoice-table.component';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
+import { type MappedBill, PaymentStatus } from '../types';
 import { launchBillingWorkspace, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 interface BillHistoryProps {
@@ -64,8 +77,8 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       key: 'billDate',
     },
     {
-      header: t('patientIdentifier', 'Patient identifier'),
-      key: 'identifier',
+      header: t('invoiceNumber', 'Invoice number'),
+      key: 'invoiceNumber',
     },
     {
       header: t('billedItems', 'Billed Items'),
@@ -79,6 +92,10 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       header: t('status', 'Status'),
       key: 'status',
     },
+    {
+      header: t('print', 'Print'),
+      key: 'print',
+    },
   ];
 
   const setBilledItems = (bill) =>
@@ -86,15 +103,24 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       (acc, item) => acc + (acc ? ' & ' : '') + (item.billableService?.split(':')[1] || item.item?.split(':')[1] || ''),
       '',
     );
+  const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
 
   const rowData = results?.map((bill) => ({
     id: bill.uuid,
     uuid: bill.uuid,
     billTotal: bill.totalAmount,
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
-    identifier: bill.identifier,
+    invoiceNumber: (
+      <ConfigurableLink
+        style={{ textDecoration: 'none' }}
+        to={billingUrl}
+        templateParams={{ patientUuid, uuid: bill.uuid }}>
+        {bill.receiptNumber ?? '--'}
+      </ConfigurableLink>
+    ),
     billedItems: setBilledItems(bill),
     status: bill.status,
+    print: <BillHistoryPrintActions bill={bill} />,
   }));
 
   if (isLoading) {
@@ -168,8 +194,8 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
                         </TableExpandRow>
                         {row.isExpanded ? (
                           <TableExpandedRow className={styles.expandedRow} colSpan={headers.length + 1}>
-                            <div className={styles.container} key={i}>
-                              <InvoiceTable bill={currentBill} isSelectable={false} />
+                            <div className={styles.expandedPanel} key={i}>
+                              <BillHistoryExpandedContent billUuid={currentBill?.uuid ?? row.id} />
                             </div>
                           </TableExpandedRow>
                         ) : (
@@ -202,6 +228,92 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
           />
         )}
       </div>
+    </div>
+  );
+};
+
+const BillHistoryPrintActions: React.FC<{ bill: MappedBill }> = ({ bill }) => {
+  const { t } = useTranslation();
+  const canPrintReceipt = bill?.status === PaymentStatus.PAID || Number(bill?.tenderedAmount ?? 0) > 0;
+
+  const openPrintPreview = (documentUrl: string, title: string) => {
+    const dispose = showModal('print-preview-modal', {
+      onClose: () => dispose(),
+      title,
+      documentUrl,
+    });
+  };
+
+  return (
+    <OverflowMenu
+      aria-label={t('print', 'Print')}
+      iconDescription={t('print', 'Print')}
+      className={styles.printMenuTrigger}
+      flipped
+      size="sm">
+      <OverflowMenuItem
+        itemText={t('printBill', 'Print bill')}
+        onClick={() =>
+          openPrintPreview(
+            `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${bill?.id}`,
+            `${t('invoice', 'Invoice')} ${bill?.receiptNumber ?? ''}`.trim(),
+          )
+        }
+      />
+      <OverflowMenuItem
+        itemText={t('printReceipt', 'Print receipt')}
+        disabled={!canPrintReceipt}
+        onClick={() =>
+          openPrintPreview(
+            `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
+            `${t('receipt', 'Receipt')} ${bill?.receiptNumber ?? ''}`.trim(),
+          )
+        }
+      />
+      <OverflowMenuItem
+        itemText={t('printStatement', 'Print Statement')}
+        onClick={() =>
+          openPrintPreview(
+            `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${bill?.id}`,
+            `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber ?? ''}`.trim(),
+          )
+        }
+      />
+    </OverflowMenu>
+  );
+};
+
+const BillHistoryExpandedContent: React.FC<{ billUuid: string }> = ({ billUuid }) => {
+  const { t } = useTranslation();
+  const { bill, isLoading, error } = useBill(billUuid);
+
+  if (isLoading) {
+    return (
+      <div className={styles.expandedLoader}>
+        <InlineLoading
+          status="active"
+          iconDescription={t('loading', 'Loading')}
+          description={t('loadingBill', 'Loading bill details...')}
+        />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorState error={error} headerTitle={t('invoiceError', 'Invoice error')} />;
+  }
+
+  if (bill.closed) {
+    return (
+      <div className={styles.expandedTableOnly}>
+        <InvoiceTable bill={bill} isSelectable={false} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.expandedContent}>
+      <BillDetails bill={bill} showDiscardButton={false} />
     </div>
   );
 };
