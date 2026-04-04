@@ -31,17 +31,37 @@ import styles from './billing-form.scss';
 
 type BillingFormProps = {
   patientUuid: string;
+  onSuccess?: () => void;
 };
 
 type FormType = z.infer<typeof billingFormSchema>;
+type BillingServicePrice = BillingService['servicePrices'][number];
+
+const resolveDefaultServicePrice = (
+  service: BillingService | undefined,
+  defaultPaymentMethodName?: string,
+): BillingServicePrice | undefined => {
+  if (service?.servicePrices?.length !== 1) {
+    return undefined;
+  }
+
+  const normalizedConfiguredDefaultPaymentMethod = defaultPaymentMethodName?.trim().toLowerCase();
+
+  return (
+    service.servicePrices.find(
+      (price) => price.paymentMode?.name?.trim().toLowerCase() === normalizedConfiguredDefaultPaymentMethod,
+    ) ?? service.servicePrices[0]
+  );
+};
 
 const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ closeWorkspace, workspaceProps }) => {
   const { t } = useTranslation();
   const patientUuidProp = workspaceProps?.patientUuid;
+  const onSuccess = workspaceProps?.onSuccess;
   const patientUuid = patientUuidProp;
   const { billableServices, error, isLoading } = useBillableServices();
   const [searchTermValue, setSearchTermValue] = useState('');
-  const { cashPointUuid, cashierUuid } = useConfig<BillingConfig>();
+  const { cashPointUuid, cashierUuid, defaultPaymentMethodName } = useConfig<BillingConfig>();
 
   const form = useForm<FormType>({
     resolver: zodResolver(billingFormSchema),
@@ -68,6 +88,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
         kind: 'success',
         timeoutInMs: 3000,
       });
+      onSuccess?.();
       closeWorkspace({ discardUnsavedChanges: true });
     } catch (e) {
       showSnackbar({ title: 'Bill processing error', kind: 'error', subtitle: e });
@@ -87,15 +108,19 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
 
   const handleSuggestionSelected = (field: string, value: string) => {
     if (value) {
+      const selectedService = billableServices.find((service) => service.uuid === value);
+      const defaultServicePrice = resolveDefaultServicePrice(selectedService, defaultPaymentMethodName);
+
       form.setValue('lineItems', [
         ...lineItemsToWatch,
         {
           billableService: value,
           lineItemOrder: 0,
           quantity: 1,
-          price: 0,
+          price: defaultServicePrice?.price ?? 0,
           paymentStatus: 'PENDING',
-          priceName: 'Default',
+          priceName: defaultServicePrice?.name ?? 'Default',
+          priceUuid: defaultServicePrice?.uuid ?? '',
         },
       ]);
     }
@@ -166,6 +191,8 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
                           name={`lineItems.${index}.priceUuid`}
                           render={({ field }) => (
                             <Dropdown
+                              autoAlign
+                              className={styles.paymentMethodDropdown}
                               hideLabel
                               ref={field.ref}
                               invalid={form.formState.errors[field.name]?.message}

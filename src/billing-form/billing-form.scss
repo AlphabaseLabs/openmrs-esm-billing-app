@@ -31,6 +31,12 @@
   overflow-x: auto;
 }
 
+.paymentMethodDropdown {
+  :global(.cds--list-box__menu) {
+    z-index: 3;
+  }
+}
+
 .formTitle {
   @include type.type-style('heading-02');
   display: flex;
