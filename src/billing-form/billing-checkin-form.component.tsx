@@ -1,11 +1,12 @@
 import { FilterableMultiSelect, InlineLoading, InlineNotification, Tag } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { showSnackbar, useConfig, useVisit, type OpenmrsResource } from '@openmrs/esm-framework';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { createPatientBill, useBillableItems, useCashPoint } from '../billing.resource';
 import { type BillingConfig } from '../config-schema';
+import { formatCurrencySimple } from '../helpers/currency';
 import { EXEMPTED_PAYMENT_STATUS, PENDING_PAYMENT_STATUS } from '../constants';
 import styles from './billing-checkin-form.scss';
 import { visitAttributesFormSchema, type VisitAttributesFormValue } from './check-in-form.utils';
@@ -18,6 +19,11 @@ type BillingCheckInFormProps = {
 };
 
 type ServicePriceRow = { paymentMode?: { uuid?: string }; price?: string; uuid?: string };
+
+function getPriceRowForPaymentMode(item: OpenmrsResource, paymentMethodUuid: string): ServicePriceRow | undefined {
+  const servicePrices = item.servicePrices as Array<ServicePriceRow> | undefined;
+  return servicePrices?.find((p) => p.paymentMode?.uuid === paymentMethodUuid) || servicePrices?.[0];
+}
 
 function lineItemsFromSelection(
   selectedItems: Array<OpenmrsResource>,
@@ -33,8 +39,7 @@ function lineItemsFromSelection(
   paymentStatus: string;
 }> {
   return selectedItems.map((item, index) => {
-    const servicePrices = item.servicePrices as Array<ServicePriceRow> | undefined;
-    const priceForPaymentMode = servicePrices?.find((p) => p.paymentMode?.uuid === paymentMethod) || servicePrices?.[0];
+    const priceForPaymentMode = getPriceRowForPaymentMode(item, paymentMethod);
     return {
       billableService: item.uuid,
       quantity: 1,
@@ -49,9 +54,10 @@ function lineItemsFromSelection(
 
 const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, setExtraVisitInfo }) => {
   const { t } = useTranslation();
+  const config = useConfig<BillingConfig>();
   const {
     visitAttributeTypes: { isPatientExempted },
-  } = useConfig<BillingConfig>();
+  } = config;
   const { currentVisit } = useVisit(patientUuid);
   const { cashPoints, isLoading: isLoadingCashPoints, error: cashError } = useCashPoint();
   const { lineItems, isLoading: isLoadingLineItems, error: lineError } = useBillableItems();
@@ -73,6 +79,24 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   const isPatientExemptedValue = formMethods.watch('isPatientExempted');
   const paymentMethod = formMethods.watch('paymentMethods');
   const previousExemptionRef = useRef(isPatientExemptedValue);
+
+  // itemToElement is rendered inside a <span> (checkbox label); <div> there is invalid HTML and breaks the menu.
+  const billableServiceItemToElement = useMemo(() => {
+    const Row: React.FC<OpenmrsResource> = (item) => {
+      const row = getPriceRowForPaymentMode(item, paymentMethod);
+      const price = formatCurrencySimple(parseFloat(row?.price ?? '0.00'), {
+        minimumFractionDigits: 0,
+      });
+
+      return (
+        <span className={styles.dropdownOptionRow}>
+          <span className={styles.dropdownOptionName}>{item.name}</span>
+          <span className={styles.dropdownOptionPrice}>{price}</span>
+        </span>
+      );
+    };
+    return Row;
+  }, [paymentMethod]);
 
   const handleCreateBill = useCallback(async (createBillPayload) => {
     createPatientBill(createBillPayload).then(
@@ -170,6 +194,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
               titleText={t('searchServices', 'Search services')}
               items={lineItems ?? []}
               itemToString={(item) => (item ? item?.name : '')}
+              itemToElement={billableServiceItemToElement}
               onChange={({ selectedItems }) => setSelectedBillableServices(selectedItems ?? [])}
               selectedItems={selectedBillableServices}
               selectionFeedback="top-after-reopen"
