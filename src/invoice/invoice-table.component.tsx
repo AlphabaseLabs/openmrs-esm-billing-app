@@ -25,7 +25,7 @@ import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Document, TrashCan } from '@carbon/react/icons';
 import { launchBillingWorkspace } from '../workspaces';
-import { convertToCurrency } from '../helpers';
+import { formatBillAmount } from '../helpers';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -124,10 +124,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
           billItem: processBillItem(item),
           status: item.paymentStatus,
           quantity: item.quantity,
-          price: convertToCurrency(item.price),
-          discount: convertToCurrency(lineItemDiscount),
-          tax: convertToCurrency(lineItemTax),
-          total: convertToCurrency(lineItemTotal),
+          price: formatBillAmount(item.price),
+          discount: formatBillAmount(lineItemDiscount),
+          tax: formatBillAmount(lineItemTax),
+          total: formatBillAmount(lineItemTotal),
           actionButton: (
             <div className={styles.actionButtons}>
               {bill.status !== PaymentStatus.PAID && (

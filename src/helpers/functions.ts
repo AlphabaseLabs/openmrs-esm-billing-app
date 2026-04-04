@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { type Payment, type LineItem } from '../types';
-import { formatCurrency } from './currency';
+import { formatCurrency, getCurrentLocale } from './currency';
 
 // amount already paid
 export function calculateTotalAmountTendered(payments: Array<Payment>) {
@@ -35,6 +35,37 @@ export function calculateTotalAmount(lineItems: Array<LineItem>) {
 
 export const convertToCurrency = (amountToConvert: number, currencyType?: string) => {
   return formatCurrency(amountToConvert);
+};
+
+export const formatBillAmount = (amountToFormat?: number | null) => {
+  if (typeof amountToFormat !== 'number' || Number.isNaN(amountToFormat)) {
+    return '--';
+  }
+
+  const roundedAmount = Number(amountToFormat.toFixed(2));
+  const hasDecimalPlaces = !Number.isInteger(roundedAmount);
+
+  return new Intl.NumberFormat(getCurrentLocale(), {
+    minimumFractionDigits: hasDecimalPlaces ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(roundedAmount);
+};
+
+export const formatBillDateTime = (date?: string | Date | null) => {
+  if (!date) {
+    return '--';
+  }
+
+  return dayjs(date).format('DD-MMM-YYYY, hh:mm A');
+};
+
+export const formatInvoiceDate = (date?: string | Date | null) => {
+  if (!date) {
+    return '--';
+  }
+
+  const dateValue = dayjs(date);
+  return dateValue.isSame(dayjs(), 'day') ? `Today, ${dateValue.format('hh:mm A')}` : dateValue.format('DD-MMM-YYYY');
 };
 
 export const getGender = (gender: string, t) => {

@@ -122,9 +122,10 @@ describe('BillHistory', () => {
       mutate: jest.fn(),
     });
     render(<BillHistory {...testProps} />);
-    expect(screen.getByText('Visit time')).toBeInTheDocument();
-    expect(screen.getByText('Identifier')).toBeInTheDocument();
-    const expectedColumnHeaders = [/Visit time/, /Identifier/, /Billed Items/, /Bill total/];
+    expect(screen.getByText('Bill date')).toBeInTheDocument();
+    expect(screen.getByText('Patient identifier')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    const expectedColumnHeaders = [/Bill date/, /Patient identifier/, /Billed Items/, /Bill total/, /Status/];
     expectedColumnHeaders.forEach((header) => {
       expect(screen.getByRole('button', { name: header })).toBeInTheDocument();
     });

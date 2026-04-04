@@ -1,8 +1,6 @@
 import {
-  formatDate,
   openmrsFetch,
   type OpenmrsResource,
-  parseDate,
   restBaseUrl,
   useConfig,
   useSession,
@@ -16,7 +14,7 @@ import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
-import { extractString } from './helpers';
+import { extractString, formatBillDateTime } from './helpers';
 import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, type PaymentStatus } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
@@ -33,7 +31,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     cashPointUuid: bill?.cashPoint?.uuid,
     cashPointName: bill?.cashPoint?.name,
     cashPointLocation: bill?.cashPoint?.location?.display,
-    dateCreated: bill?.dateCreated ? formatDate(parseDate(bill?.dateCreated), { mode: 'wide' }) : '--',
+    dateCreated: formatBillDateTime(bill?.dateCreated),
     dateCreatedUnformatted: bill?.dateCreated,
     lineItems: bill?.lineItems.filter((li) => !li?.voided),
     billingService: extractString(
@@ -68,16 +66,16 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalPayments: bill?.totalPayments ?? 0,
     totalDeposits: bill?.totalDeposits ?? 0,
     totalExempted: bill?.totalExempted ?? 0,
-    totalWaived: bill?.totalWaivers,
+    totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
     totalActualPayments: bill?.totalActualPayments ?? 0,
-    totalTax: bill?.totalTax,
-    billLineItemDiscounts: bill?.totalDiscount,
+    totalTax: bill?.totalTax ?? 0,
+    billLineItemDiscounts: bill?.totalDiscount ?? 0,
     totalAmountWithoutTaxAndDiscount: bill?.lineItems
       ?.map((item) => item?.price * item?.quantity)
       .reduce((prev, curr) => prev + curr, 0),
   };
-  mappedBill.totalDiscounts = mappedBill.billLineItemDiscounts + mappedBill.totalWaived;
+  mappedBill.totalDiscounts = (mappedBill.billLineItemDiscounts ?? 0) + (mappedBill.totalWaived ?? 0);
   return mappedBill;
 };
 
@@ -317,6 +315,7 @@ export interface UseBillsPaginatedParams {
   endDate?: Date;
   page?: number;
   pageSize?: number;
+  enabled?: boolean;
 }
 
 /**
@@ -333,6 +332,7 @@ export const useBillsPaginated = ({
   endDate = dayjs().endOf('day').toDate(),
   page = 1,
   pageSize = 10,
+  enabled = true,
 }: UseBillsPaginatedParams = {}): BillsPaginatedResponse => {
   const startingDateISO = startingDate.toISOString();
   const endDateISO = endDate.toISOString();
@@ -362,7 +362,7 @@ export const useBillsPaginated = ({
       totalCount?: number;
       links?: Array<{ rel: string; uri: string }>;
     };
-  }>(url, openmrsFetch, {
+  }>(enabled ? url : null, openmrsFetch, {
     errorRetryCount: 2,
   });
 

@@ -27,6 +27,10 @@
   background-color: $ui-02;
 }
 
+.billDateCell {
+  white-space: nowrap;
+}
+
 .backgroundDataFetchingIndicator {
   align-items: center;
   display: flex;

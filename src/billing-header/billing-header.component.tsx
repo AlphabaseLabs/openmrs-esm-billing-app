@@ -2,8 +2,6 @@ import React, { useContext } from 'react';
 import dayjs from 'dayjs';
 import { DatePickerInput, DatePicker } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
-import { UserFollow } from '@carbon/react/icons';
-import { useSession } from '@openmrs/esm-framework';
 import BillingIllustration from './billing-illustration.component';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-header.scss';
@@ -15,7 +13,6 @@ interface BillingHeaderProps {
 
 const BillingHeader: React.FC<BillingHeaderProps> = ({ title, actions }) => {
   const { t } = useTranslation();
-  const session = useSession();
   const { selectedDate, setSelectedDate } = useContext(SelectedDateContext);
   const dateValue = selectedDate ? dayjs(selectedDate).format('DD MMM YYYY') : '';
 
@@ -30,11 +27,6 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({ title, actions }) => {
       </div>
       <div className={styles['right-justified-items']}>
         <div className={styles.metadataContainer}>
-          <div className={styles.userContainer}>
-            <p>{session?.user?.person?.display}</p>
-            <UserFollow size={16} className={styles.userIcon} />
-          </div>
-          <span className={styles.middot}>&middot;</span>
           <DatePicker
             onChange={([date]) => setSelectedDate(date ? dayjs(date).startOf('day').toISOString() : null)}
             value={dateValue}

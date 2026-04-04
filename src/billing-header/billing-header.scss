@@ -27,8 +27,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-end;
-  gap: layout.$spacing-03;
   min-width: max-content;
+  margin-top: - layout.$spacing-05;
 }
 
 .page-name {
@@ -57,30 +57,12 @@
   flex-wrap: wrap;
 }
 
-.userContainer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: layout.$spacing-03;
-  white-space: nowrap;
-}
-
-.middot {
-  margin: 0 layout.$spacing-03;
-}
-
 // Overriding styles for RTL support
 html[dir='rtl'] {
   .actionsContainer,
-  .metadataContainer,
-  .userContainer {
+  .metadataContainer {
     justify-content: flex-start;
   }
-}
-
-.userIcon {
-  fill: $ui-05;
-  margin: layout.$spacing-01;
 }
 
 :global(.omrs-breakpoint-lt-tablet) {

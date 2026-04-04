@@ -60,11 +60,11 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
 
   const headerData = [
     {
-      header: t('visitTime', 'Visit time'),
-      key: 'visitTime',
+      header: t('billDate', 'Bill date'),
+      key: 'billDate',
     },
     {
-      header: t('identifier', 'Identifier'),
+      header: t('patientIdentifier', 'Patient identifier'),
       key: 'identifier',
     },
     {
@@ -74,6 +74,10 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     {
       header: t('billTotal', 'Bill total'),
       key: 'billTotal',
+    },
+    {
+      header: t('status', 'Status'),
+      key: 'status',
     },
   ];
 
@@ -87,9 +91,10 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     id: bill.uuid,
     uuid: bill.uuid,
     billTotal: bill.totalAmount,
-    visitTime: bill.dateCreated,
+    billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
     identifier: bill.identifier,
     billedItems: setBilledItems(bill),
+    status: bill.status,
   }));
 
   if (isLoading) {

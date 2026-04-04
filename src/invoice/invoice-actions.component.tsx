@@ -46,7 +46,7 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
         label={t('actions', 'Actions')}
         aria-label={t('actions', 'Actions')}
         onClick={() => setIsOpen((currentValue) => !currentValue)}
-        size="md"
+        size="xs"
         className={styles.actionMenuTrigger}>
         <OverflowMenuVertical size={20} />
       </IconButton>

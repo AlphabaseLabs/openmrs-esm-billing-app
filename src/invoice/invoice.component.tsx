@@ -1,12 +1,12 @@
-import { Button, InlineLoading } from '@carbon/react';
+import { Button, InlineLoading, Tooltip } from '@carbon/react';
 import { Printer } from '@carbon/react/icons';
-import { ExtensionSlot, formatDatetime, parseDate, restBaseUrl, showModal, usePatient } from '@openmrs/esm-framework';
+import { ExtensionSlot, restBaseUrl, showModal, usePatient } from '@openmrs/esm-framework';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useBill } from '../billing.resource';
-import { convertToCurrency } from '../helpers';
+import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem } from '../types';
 import InvoiceTable from './invoice-table.component';
 import styles from './invoice.scss';
@@ -63,14 +63,14 @@ const Invoice: React.FC = () => {
   }
 
   const invoiceDetails = {
-    [t('totalAmount', 'Total amount')]: convertToCurrency(bill?.totalAmount),
-    [t('amountTendered', 'Amount tendered')]: convertToCurrency(bill?.tenderedAmount),
+    [t('totalAmount', 'Total amount')]: convertToCurrency(bill?.totalAmount ?? 0),
+    [t('amountTendered', 'Amount tendered')]: convertToCurrency(bill?.tenderedAmount ?? 0),
     [t('invoiceNumber', 'Invoice #')]: bill?.receiptNumber,
-    [t('dateAndTime', 'Date and time')]: bill?.dateCreatedUnformatted
-      ? formatDatetime(parseDate(bill.dateCreatedUnformatted), { mode: 'standard' })
-      : '--',
+    [t('dateAndTime', 'Date and time')]: formatInvoiceDate(bill?.dateCreatedUnformatted),
     [t('invoiceStatus', 'Invoice status')]: bill?.status,
   };
+  const dateTimeLabel = t('dateAndTime', 'Date and time');
+  const dateTimeTooltip = formatBillDateTime(bill?.dateCreatedUnformatted);
 
   return (
     <div className={styles.invoiceContainer}>
@@ -78,7 +78,12 @@ const Invoice: React.FC = () => {
       <div className={styles.detailsContainer}>
         <section className={styles.details}>
           {Object.entries(invoiceDetails).map(([key, value]) => (
-            <InvoiceDetails key={key} label={key} value={value} />
+            <InvoiceDetails
+              key={key}
+              label={key}
+              value={value}
+              tooltip={key === dateTimeLabel ? dateTimeTooltip : undefined}
+            />
           ))}
         </section>
         <div className={styles.actionsContainer}>
@@ -117,11 +122,29 @@ const Invoice: React.FC = () => {
   );
 };
 
-function InvoiceDetails({ label, value }: { readonly label: string; readonly value: string | number }) {
+function InvoiceDetails({
+  label,
+  value,
+  tooltip,
+}: {
+  readonly label: string;
+  readonly value: string | number;
+  readonly tooltip?: string;
+}) {
+  const valueContent = (
+    <span className={styles.value}>{value}</span>
+  );
+
   return (
     <div>
       <h1 className={styles.label}>{label}</h1>
-      <span className={styles.value}>{value}</span>
+      {tooltip ? (
+        <Tooltip label={tooltip} enterDelayMs={0}>
+          {valueContent}
+        </Tooltip>
+      ) : (
+        valueContent
+      )}
     </div>
   );
 }
