@@ -34,7 +34,7 @@ const PaymentMethodDistribution = () => {
   const headers = [
     {
       key: 'paymentMode',
-      header: t('paymentMode', 'Payment Mode'),
+      header: t('paymentMode', 'Payment mode'),
     },
     {
       key: 'total',

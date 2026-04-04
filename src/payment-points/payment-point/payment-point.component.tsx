@@ -6,8 +6,8 @@ import { PaymentHistoryViewer } from '../../billable-services/payment-history/pa
 
 export const headers = [
   { header: 'Date', key: 'dateCreated' },
-  { header: 'Patient Name', key: 'patientName' },
-  { header: 'Total Amount', key: 'totalAmount' },
+  { header: 'Patient name', key: 'patientName' },
+  { header: 'Total amount', key: 'totalAmount' },
   { header: 'Service', key: 'billingService' },
 ];
 

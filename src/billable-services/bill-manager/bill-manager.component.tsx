@@ -10,8 +10,8 @@ import { usePatientBills } from '../../prompt-payment/prompt-payment.resource';
 
 const headers = [
   { header: 'Date', key: 'date' },
-  { header: 'Billable Service', key: 'billableService' },
-  { header: 'Total Amount', key: 'totalAmount' },
+  { header: 'Billable service', key: 'billableService' },
+  { header: 'Total amount', key: 'totalAmount' },
 ];
 
 interface BillManagerProps {

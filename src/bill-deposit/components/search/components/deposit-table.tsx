@@ -33,11 +33,11 @@ const DepositTable: React.FC<DepositTableProps> = ({ deposits }) => {
   const { pageSizes } = usePaginationInfo(pageSize, totalPages, currentPage, results.length);
 
   const headers = [
-    { header: t('dateCreated', 'Date Created'), key: 'dateCreated' },
-    { header: t('referenceNumber', 'Reference Number'), key: 'referenceNumber' },
-    { header: t('depositType', 'Deposit Type'), key: 'depositType' },
+    { header: t('dateCreated', 'Date created'), key: 'dateCreated' },
+    { header: t('referenceNumber', 'Reference number'), key: 'referenceNumber' },
+    { header: t('depositType', 'Deposit type'), key: 'depositType' },
     { header: t('amount', 'Amount'), key: 'amount' },
-    { header: t('availableBalance', 'Available Balance'), key: 'availableBalance' },
+    { header: t('availableBalance', 'Available balance'), key: 'availableBalance' },
     { header: t('status', 'Status'), key: 'status' },
   ];
 
