@@ -137,7 +137,7 @@ const AllBillsTable: React.FC = () => {
       key: 'patientName',
     },
     {
-      header: t('billedItems', 'Billed Items'),
+      header: t('billedItems', 'Billed items'),
       key: 'billedItems',
     },
     {

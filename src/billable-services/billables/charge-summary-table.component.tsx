@@ -54,7 +54,7 @@ const ChargeSummaryTable: React.FC = () => {
     },
     {
       key: 'shortName',
-      header: t('shortName', 'Short Name'),
+      header: t('shortName', 'Short name'),
     },
     {
       key: 'serviceStatus',

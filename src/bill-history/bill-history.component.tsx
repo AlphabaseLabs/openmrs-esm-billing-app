@@ -81,7 +81,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       key: 'invoiceNumber',
     },
     {
-      header: t('billedItems', 'Billed Items'),
+      header: t('billedItems', 'Billed items'),
       key: 'billedItems',
     },
     {

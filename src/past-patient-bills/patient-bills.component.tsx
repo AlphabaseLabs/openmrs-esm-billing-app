@@ -30,8 +30,8 @@ type PatientBillsProps = {
 
 export const patientBillsHeaders = [
   { header: 'Date', key: 'date' },
-  { header: 'Charge Item', key: 'chargeItem' },
-  { header: 'Total Amount', key: 'totalAmount' },
+  { header: 'Charge item', key: 'chargeItem' },
+  { header: 'Total amount', key: 'totalAmount' },
   { header: 'Status', key: 'status' },
 ];
 

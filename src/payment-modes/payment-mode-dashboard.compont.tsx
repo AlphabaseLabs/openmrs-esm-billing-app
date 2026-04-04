@@ -71,7 +71,7 @@ const PaymentModeDashboard: React.FC = () => {
   const headers = [
     {
       key: 'dateCreated',
-      header: t('dateCreated', 'Date Created'),
+      header: t('dateCreated', 'Date created'),
     },
     {
       key: 'name',

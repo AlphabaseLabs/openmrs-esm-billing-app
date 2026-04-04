@@ -154,7 +154,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
                 <TableRow>
                   <TableHeader>{t('item', 'Item')}</TableHeader>
                   <TableHeader>{t('quantity', 'Quantity')}</TableHeader>
-                  <TableHeader>{t('paymentMethod', 'Payment Method')}</TableHeader>
+                  <TableHeader>{t('paymentMethod', 'Payment method')}</TableHeader>
                   <TableHeader>{t('price', 'Price')}</TableHeader>
                   <TableHeader>{t('total', 'Total')}</TableHeader>
                   <TableHeader></TableHeader>

@@ -133,7 +133,7 @@ describe('ChargeSummaryTable', () => {
 
     // Check if table headers are present
     expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Short Name')).toBeInTheDocument();
+    expect(screen.getByText('Short name')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getByText('Prices')).toBeInTheDocument();

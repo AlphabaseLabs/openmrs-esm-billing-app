@@ -14,13 +14,13 @@ export const PaymentHistoryViewer = () => {
   const headers = useMemo(
     () => [
       { header: t('billDate', 'Date'), key: 'dateCreated' },
-      { header: t('patientName', 'Patient Name'), key: 'patientName' },
+      { header: t('patientName', 'Patient name'), key: 'patientName' },
       { header: t('identifier', 'Identifier'), key: 'identifier' },
-      { header: t('totalAmount', 'Total Amount'), key: 'totalAmount' },
-      { header: t('totalWaived', 'Total Waived'), key: 'totalWaived' },
-      { header: t('totalPaid', 'Total Paid'), key: 'totalPaid' },
+      { header: t('totalAmount', 'Total amount'), key: 'totalAmount' },
+      { header: t('totalWaived', 'Total waived'), key: 'totalWaived' },
+      { header: t('totalPaid', 'Total paid'), key: 'totalPaid' },
       { header: t('billingService', 'Service'), key: 'billingService' },
-      { header: t('referenceCodes', ' Reference Codes'), key: 'referenceCodes' },
+      { header: t('referenceCodes', 'Reference codes'), key: 'referenceCodes' },
       { header: t('status', 'Status'), key: 'status' },
     ],
     [t],
