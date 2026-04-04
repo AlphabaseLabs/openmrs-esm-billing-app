@@ -1,7 +1,8 @@
 import { configSchema } from './config-schema';
-import { createDashboardLink } from '@openmrs/esm-patient-common-lib';
+import { createDashboardLink as createPatientDashboardLink } from '@openmrs/esm-patient-common-lib';
 import { defineConfigSchema, getAsyncLifecycle, getSyncLifecycle } from '@openmrs/esm-framework';
 import { dashboardMeta } from './dashboard.meta';
+import { createDashboardLink as createHomeDashboardLink } from './create-dashboard-link';
 
 // Dashboard and Navigation Components
 import { createBillingActionItem, createLeftPanelLink } from './app-navigation/nav-utils';
@@ -75,17 +76,17 @@ const options = {
 };
 
 export const billingDashboardLink = getSyncLifecycle(
-  createLeftPanelLink({
-    route: 'home/billing',
+  createHomeDashboardLink({
+    path: 'billing',
     title: 'Billing',
-    otherRoutes: ['home/billing/payment-history', 'home/billing/bill-manager', 'home/billing/charge-items'],
+    basePath: `${window.spaBase}/home`,
   }),
   options,
 );
 
 // Dashboard Links
 export const billingSummaryDashboardLink = getSyncLifecycle(
-  createDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
+  createPatientDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
   options,
 );
 
