@@ -6,7 +6,7 @@ import BillingDashboard from './billing-dashboard.component';
 
 jest.mock('../billing-header/billing-header.component', () => ({ title, actions }) => (
   <div title="billing module illustration">
-    <span>{title}</span>
+    <span data-testid="billing-header-title">{title}</span>
     <div>{actions}</div>
   </div>
 ));
@@ -22,6 +22,7 @@ jest.mock('../billable-services/bill-manager/bill-manager.component', () => () =
 jest.mock('../billable-services/dashboard/dashboard.component', () => ({
   ChargeItemsDashboard: () => <div>Charge Items</div>,
 }));
+jest.mock('../invoice/invoice.component', () => () => <div>Invoice Overview</div>);
 jest.mock('@openmrs/esm-framework', () => {
   const originalModule = jest.requireActual('@openmrs/esm-framework');
   return {
@@ -30,7 +31,7 @@ jest.mock('@openmrs/esm-framework', () => {
       <button
         type="button"
         onClick={() => {
-          state?.onSelectAction?.('payment-history');
+          state?.onSelectAction?.('payment-history', 'Payment History');
           state?.onSelect?.();
         }}>
         Billing Actions Slot
@@ -44,6 +45,7 @@ test('renders billing home controls and the bills table by default', () => {
   renderBillingDashboard();
 
   expect(screen.getByTitle(/billing module illustration/i)).toBeInTheDocument();
+  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Home');
   expect(screen.getByRole('button', { name: /show more/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /billing options/i })).toBeInTheDocument();
   expect(screen.getByText('All Bills Table')).toBeInTheDocument();
@@ -61,8 +63,10 @@ test('shows the summary section when show more is clicked', async () => {
 
 test('renders the selected billing action inline and shows a back button', async () => {
   renderBillingDashboard('/payment-history');
+
+  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
   expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
-  expect(screen.getByText('Payment History')).toBeInTheDocument();
+  expect(screen.getAllByText('Payment History')).toHaveLength(2);
 });
 
 test('renders the selected billing action inline without route navigation', async () => {
@@ -74,8 +78,17 @@ test('renders the selected billing action inline without route navigation', asyn
 
   await user.click(screen.getByRole('button', { name: /billing actions slot/i }));
   expect(screen.queryByRole('menu', { name: /billing options/i })).not.toBeInTheDocument();
+  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
   expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
-  expect(screen.getByText('Payment History')).toBeInTheDocument();
+  expect(screen.getAllByText('Payment History')).toHaveLength(2);
+});
+
+test('renders the invoice overview inside the billing home shell for patient bill routes', () => {
+  renderBillingDashboard('/patient/patient-uuid/bill-uuid');
+
+  expect(screen.getByText('Invoice Overview')).toBeInTheDocument();
+  expect(screen.queryByText('All Bills Table')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
 });
 
 function renderBillingDashboard(route = '/') {

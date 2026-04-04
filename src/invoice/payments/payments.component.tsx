@@ -24,9 +24,18 @@ import { type BillingConfig } from '../../config-schema';
 type PaymentProps = {
   bill: MappedBill;
   selectedLineItems: Array<LineItem>;
+  showDiscardButton?: boolean;
+  discardDestination?: string;
+  onDiscard?: () => void | Promise<void>;
 };
 
-const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
+const Payments: React.FC<PaymentProps> = ({
+  bill,
+  selectedLineItems,
+  showDiscardButton = true,
+  discardDestination,
+  onDiscard,
+}) => {
   const { t } = useTranslation();
   const { paymentMethodTaxes } = useConfig<BillingConfig>();
   const paymentSchema = usePaymentSchema(bill);
@@ -63,9 +72,11 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
   );
 
   const handleNavigateToBillingDashboard = () =>
-    navigate({
-      to: window.getOpenmrsSpaBase() + 'home/billing',
-    });
+    onDiscard
+      ? onDiscard()
+      : navigate({
+          to: discardDestination ?? window.getOpenmrsSpaBase() + 'home/billing',
+        });
 
   const handleProcessPayment = async () => {
     const paymentPayload = createPaymentPayload(
@@ -192,9 +203,11 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
             value={convertToCurrency(amountDue ?? 0)}
           />
           <div className={styles.processPayments}>
-            <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
-              {t('discard', 'Discard')}
-            </Button>
+            {showDiscardButton ? (
+              <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
+                {t('discard', 'Discard')}
+              </Button>
+            ) : null}
             {/* Process Payment is disabled when ANY of these are true:
                 1. No payment rows (not applicable with the default row)
                 2. Form invalid: usePaymentSchema validates each row (method required, amount > 0 and amount <= bill.balance per row, referenceCode when method requires it)
