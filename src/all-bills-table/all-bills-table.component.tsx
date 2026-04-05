@@ -3,6 +3,7 @@ import classNames from 'classnames';
 import dayjs from 'dayjs';
 import sortBy from 'lodash-es/sortBy';
 import {
+  Button,
   DataTable,
   DataTableSkeleton,
   Dropdown,
@@ -19,6 +20,7 @@ import {
   TableRow,
   Tile,
 } from '@carbon/react';
+import { Renew } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { useLayoutType, isDesktop, useConfig, ErrorState, ConfigurableLink } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
@@ -57,6 +59,7 @@ const AllBillsTable: React.FC = () => {
     isLoading: isLoadingFilteredBills,
     isValidating: isValidatingFilteredBills,
     error: filteredBillsError,
+    mutate: mutateFilteredBills,
   } = useBillsPaginated({
     patientUuid: '',
     billStatus: isPendingFilter ? '' : billPaymentStatus,
@@ -72,6 +75,7 @@ const AllBillsTable: React.FC = () => {
     isLoading: isLoadingPendingBills,
     isValidating: isValidatingPendingBills,
     error: pendingBillsError,
+    mutate: mutatePendingBills,
   } = useBillsPaginated({
     patientUuid: '',
     billStatus: 'PENDING',
@@ -87,6 +91,7 @@ const AllBillsTable: React.FC = () => {
     isLoading: isLoadingPostedBills,
     isValidating: isValidatingPostedBills,
     error: postedBillsError,
+    mutate: mutatePostedBills,
   } = useBillsPaginated({
     patientUuid: '',
     billStatus: 'POSTED',
@@ -202,6 +207,15 @@ const AllBillsTable: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleRefresh = useCallback(() => {
+    if (isPendingFilter) {
+      void Promise.all([mutatePendingBills(), mutatePostedBills()]);
+      return;
+    }
+
+    void mutateFilteredBills();
+  }, [isPendingFilter, mutateFilteredBills, mutatePendingBills, mutatePostedBills]);
+
   // Reset to page 1 when page size changes
   useEffect(() => {
     setCurrentPage(1);
@@ -256,8 +270,10 @@ const AllBillsTable: React.FC = () => {
       {bills?.length > 0 ? (
         <div className={styles.billListContainer}>
           <FilterableTableHeader
+            handleRefresh={handleRefresh}
             handleSearch={handleSearch}
             isValidating={isValidating}
+            isRefreshing={isLoading || isValidating}
             layout={layout}
             responsiveSize={responsiveSize}
             t={t}
@@ -342,7 +358,7 @@ const AllBillsTable: React.FC = () => {
   );
 };
 
-function FilterableTableHeader({ layout, handleSearch, isValidating, responsiveSize, t }) {
+function FilterableTableHeader({ layout, handleRefresh, handleSearch, isRefreshing, isValidating, responsiveSize, t }) {
   return (
     <>
       <div className={styles.headerContainer}>
@@ -357,12 +373,26 @@ function FilterableTableHeader({ layout, handleSearch, isValidating, responsiveS
           <span>{isValidating ? <InlineLoading /> : null}</span>
         </div>
       </div>
-      <Search
-        labelText=""
-        placeholder={t('filterBillsByPatientNameOrIdentifier', 'Filter bills by patient name or identifer')}
-        onChange={handleSearch}
-        size={responsiveSize}
-      />
+      <div className={styles.searchContainer}>
+        <Search
+          className={styles.searchbar}
+          labelText=""
+          placeholder={t('filterBillsByPatientNameOrIdentifier', 'Filter bills by patient name or identifer')}
+          onChange={handleSearch}
+          size={responsiveSize}
+        />
+        <Button
+          kind="ghost"
+          size={responsiveSize}
+          hasIconOnly
+          renderIcon={(props) => <Renew size={16} {...props} />}
+          iconDescription={t('refreshBills', 'Refresh bills')}
+          tooltipAlignment="end"
+          tooltipPosition="top"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        />
+      </div>
     </>
   );
 }
