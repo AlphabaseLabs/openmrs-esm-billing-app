@@ -139,6 +139,7 @@
   "quantityRequired": "Quantity is required",
   "referenceCodes": "Reference codes",
   "referenceNumber": "Reference number",
+  "refreshBills": "Refresh bills",
   "save": "Save",
   "saveAndClose": "Save and close",
   "saving": "Saving",

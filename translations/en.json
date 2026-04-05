@@ -348,6 +348,7 @@
   "receipt": "Receipt",
   "referenceCodes": "Reference codes",
   "referenceNumber": "Reference number",
+  "refreshBills": "Refresh bills",
   "refund": "Refund",
   "refundBill": "Refund Bill",
   "refundBillDescription": "Refund is only allowed for paid bills",

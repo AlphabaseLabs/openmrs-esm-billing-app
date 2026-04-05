@@ -67,6 +67,16 @@
   }
 }
 
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+}
+
+.searchbar {
+  flex: 1;
+}
+
 .tableContainer section {
   position: relative;
 }
