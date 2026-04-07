@@ -16,24 +16,129 @@ const mockUseBill = useBill as jest.MockedFunction<typeof useBill>;
 const mockUseLaunchWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit as jest.MockedFunction<
   typeof useLaunchBillingWorkspaceRequiringVisit
 >;
+const mockBillsMutate = jest.fn().mockResolvedValue(undefined);
 
 const mockBillsData = [
-  { uuid: '1', patientName: 'John Doe', receiptNumber: 'INV-001', billingService: 'Checkup', totalAmount: 500 },
-  { uuid: '2', patientName: 'John Doe', receiptNumber: 'INV-002', billingService: 'Consulatation', totalAmount: 600 },
-  { uuid: '3', patientName: 'John Doe', receiptNumber: 'INV-003', billingService: 'Child services', totalAmount: 700 },
-  { uuid: '4', patientName: 'John Doe', receiptNumber: 'INV-004', billingService: 'Medication', totalAmount: 800 },
-  { uuid: '5', patientName: 'John Doe', receiptNumber: 'INV-005', billingService: 'Lab', totalAmount: 900 },
-  { uuid: '6', patientName: 'John Doe', receiptNumber: 'INV-006', billingService: 'Pharmacy', totalAmount: 400 },
-  { uuid: '7', patientName: 'John Doe', receiptNumber: 'INV-007', billingService: 'Nutrition', totalAmount: 300 },
-  { uuid: '8', patientName: 'John Doe', receiptNumber: 'INV-008', billingService: 'Physiotherapy', totalAmount: 200 },
-  { uuid: '9', patientName: 'John Doe', receiptNumber: 'INV-009', billingService: 'Dentist', totalAmount: 1100 },
-  { uuid: '10', patientName: 'John Doe', receiptNumber: 'INV-010', billingService: 'Neuro', totalAmount: 1200 },
-  { uuid: '11', patientName: 'John Doe', receiptNumber: 'INV-011', billingService: 'Outpatient', totalAmount: 1050 },
-  { uuid: '12', patientName: 'John Doe', receiptNumber: 'INV-012', billingService: 'MCH', totalAmount: 1300 },
+  {
+    uuid: '1',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-001',
+    totalAmount: 500,
+    dateCreated: '05-Apr-2026, 11:21 PM',
+    status: PaymentStatus.PENDING,
+    lineItems: [{ billableService: 'service-1:Registration' }],
+  },
+  {
+    uuid: '2',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-002',
+    totalAmount: 600,
+    dateCreated: '05-Apr-2026, 03:00 AM',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-2:Consultation' }],
+  },
+  {
+    uuid: '3',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-003',
+    totalAmount: 700,
+    dateCreated: '04-Apr-2026, 01:00 PM',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-3:Child services' }],
+  },
+  {
+    uuid: '4',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-004',
+    totalAmount: 800,
+    dateCreated: '04-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-4:Medication' }],
+  },
+  {
+    uuid: '5',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-005',
+    totalAmount: 900,
+    dateCreated: '03-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-5:Lab' }],
+  },
+  {
+    uuid: '6',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-006',
+    totalAmount: 400,
+    dateCreated: '03-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-6:Pharmacy' }],
+  },
+  {
+    uuid: '7',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-007',
+    totalAmount: 300,
+    dateCreated: '02-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-7:Nutrition' }],
+  },
+  {
+    uuid: '8',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-008',
+    totalAmount: 200,
+    dateCreated: '02-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-8:Physiotherapy' }],
+  },
+  {
+    uuid: '9',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-009',
+    totalAmount: 1100,
+    dateCreated: '01-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-9:Dentist' }],
+  },
+  {
+    uuid: '10',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-010',
+    totalAmount: 1200,
+    dateCreated: '01-Apr-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-10:Neuro' }],
+  },
+  {
+    uuid: '11',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-011',
+    totalAmount: 1050,
+    dateCreated: '31-Mar-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-11:Outpatient' }],
+  },
+  {
+    uuid: '12',
+    patientName: 'John Doe',
+    receiptNumber: 'INV-012',
+    totalAmount: 1300,
+    dateCreated: '31-Mar-2026',
+    status: PaymentStatus.PAID,
+    lineItems: [{ billableService: 'service-12:MCH' }],
+  },
 ];
 
-jest.mock('../invoice/bill-details.component', () => jest.fn(() => <div>Bill details</div>));
-jest.mock('../invoice/invoice-table.component', () => jest.fn(() => <div>Invoice table</div>));
+jest.mock('../invoice/bill-details.component', () =>
+  jest.fn(({ onDiscard }: { onDiscard?: () => void }) => (
+    <div>
+      <div>Bill details</div>
+      <button type="button" onClick={onDiscard}>
+        Discard
+      </button>
+    </div>
+  )),
+);
 
 jest.mock('../billing.resource', () => ({
   ...jest.requireActual('../billing.resource'),
@@ -48,6 +153,7 @@ jest.mock('../billing.resource', () => ({
     isLoading: false,
     isValidating: false,
     error: null,
+    mutate: mockBillsMutate,
   })),
 }));
 
@@ -77,7 +183,7 @@ jest.mock('@openmrs/esm-framework', () => ({
     const href = to
       .replace('${openmrsSpaBase}', '')
       .replace('${patientUuid}', templateParams?.patientUuid ?? '')
-      .replace('${uuid}', templateParams?.uuid ?? '');
+      .replace('${billUuid}', templateParams?.billUuid ?? '');
     return <a href={href}>{children}</a>;
   },
   useConfig: jest.fn(),
@@ -101,6 +207,7 @@ describe('BillHistory', () => {
   });
 
   beforeEach(() => {
+    mockBillsMutate.mockClear();
     mockUseLaunchWorkspaceRequiringVisit.mockReturnValue(jest.fn());
     mockUseBill.mockReturnValue({
       bill: { uuid: '1', lineItems: [], payments: [], status: PaymentStatus.PENDING, closed: false } as any,
@@ -142,7 +249,7 @@ describe('BillHistory', () => {
       isValidating: false,
       error: null,
       bills: mockBillsData as any,
-      mutate: jest.fn(),
+      mutate: mockBillsMutate,
     });
     render(<BillHistory {...testProps} />);
     expect(screen.getByText('Bill date')).toBeInTheDocument();
@@ -170,15 +277,31 @@ describe('BillHistory', () => {
     expect(screen.getByText(/11–12 of 12 items/)).toBeInTheDocument();
     await user.click(prevPageButton);
     expect(screen.getByText(/1–10 of 12 items/)).toBeInTheDocument();
-
-    // clicking the row should expand the row
-    const expandAllRowButton = screen.getByRole('button', { name: /Expand all rows/ });
-    expect(expandAllRowButton).toBeInTheDocument();
-    await user.click(expandAllRowButton);
-    expect(screen.getAllByText('Bill details').length).toBeGreaterThan(0);
   });
 
-  test('should only render invoice table for closed bills', async () => {
+  test('should only make pending and posted statuses clickable', () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
+    mockbills.mockReturnValueOnce({
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      bills: [
+        mockBillsData[0],
+        { ...mockBillsData[1], uuid: 'posted-bill', receiptNumber: 'INV-POSTED', status: PaymentStatus.POSTED },
+        mockBillsData[1],
+      ] as any,
+      mutate: mockBillsMutate,
+    });
+
+    render(<BillHistory {...testProps} />);
+
+    expect(screen.getByRole('button', { name: /view bill details for invoice inv-001/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view bill details for invoice inv-posted/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /view bill details for invoice inv-002/i })).not.toBeInTheDocument();
+    expect(screen.getByText('PAID')).toBeInTheDocument();
+  });
+
+  test('should show bill details below the table when status is clicked and hide it on discard', async () => {
     (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
@@ -186,10 +309,10 @@ describe('BillHistory', () => {
       isValidating: false,
       error: null,
       bills: mockBillsData as any,
-      mutate: jest.fn(),
+      mutate: mockBillsMutate,
     });
     mockUseBill.mockReturnValueOnce({
-      bill: { uuid: '1', lineItems: [], payments: [], status: PaymentStatus.PAID, closed: true } as any,
+      bill: { uuid: '1', lineItems: [], payments: [], status: PaymentStatus.PENDING, closed: false } as any,
       isLoading: false,
       isValidating: false,
       error: null,
@@ -197,11 +320,19 @@ describe('BillHistory', () => {
     });
 
     render(<BillHistory {...testProps} />);
-    const expandRowButton = screen.getAllByRole('button', { name: /Expand current row/i })[0];
-    await user.click(expandRowButton);
+    await user.click(screen.getByRole('button', { name: /view bill details for invoice inv-001/i }));
 
-    expect(screen.getByText('Invoice table')).toBeInTheDocument();
+    expect(screen.getByText('Bill details')).toBeInTheDocument();
+    expect(screen.queryByText('Patient billing history')).not.toBeInTheDocument();
+    expect(screen.queryByText('Invoice number')).not.toBeInTheDocument();
+    expect(screen.queryByText(/1–10 of 12 items/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockBillsMutate).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Bill details')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add bill item(s)' })).toBeInTheDocument();
+    expect(screen.getByText('Invoice number')).toBeInTheDocument();
   });
 
   test('should render empty state view when there are no bills', async () => {

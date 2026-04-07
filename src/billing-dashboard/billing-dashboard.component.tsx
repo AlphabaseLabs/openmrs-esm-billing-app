@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@carbon/react';
 import { ArrowLeft, ChevronDown, ChevronUp, OverflowMenuVertical } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import BillingHeader from '../billing-header/billing-header.component';
 import AllBillsTable from '../all-bills-table/all-bills-table.component';
 import MetricsCards from '../metrics-cards/metrics-cards.component';
@@ -13,6 +13,7 @@ import { ExtensionSlot, UserHasAccess } from '@openmrs/esm-framework';
 import { PaymentHistory } from '../billable-services/payment-history/payment-history.component';
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
 import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.component';
+import Invoice from '../invoice/invoice.component';
 
 type BillingActionKey = 'overview' | 'payment-history' | 'bill-manager' | 'charge-items';
 
@@ -32,17 +33,34 @@ function getBillingActionFromPath(pathname: string): BillingActionKey {
   return 'overview';
 }
 
+function isInvoiceRoute(pathname: string) {
+  return Boolean(matchPath('/patient/:patientUuid/:billUuid', pathname));
+}
+
 function BillingDashboard() {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<BillingActionKey>(() =>
-    getBillingActionFromPath(window.location.pathname),
-  );
+  const [selectedActionTitle, setSelectedActionTitle] = useState<string | null>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const [selectedAction, setSelectedAction] = useState<BillingActionKey>(() => getBillingActionFromPath(location.pathname));
+  const showInvoiceOverview = isInvoiceRoute(location.pathname);
+
+  const getPageTitle = (action: BillingActionKey) => {
+    switch (action) {
+      case 'payment-history':
+        return t('paymentHistory', 'Payment History');
+      case 'bill-manager':
+        return t('billManager', 'Bill Manager');
+      case 'charge-items':
+        return t('chargeItems', 'Charge Items');
+      default:
+        return t('home', 'Home');
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -64,12 +82,14 @@ function BillingDashboard() {
 
   useEffect(() => {
     setSelectedAction(getBillingActionFromPath(location.pathname));
+    setSelectedActionTitle(null);
   }, [location.pathname]);
 
   const handleActionSelection = useCallback(
-    (action: string) => {
+    (action: string, title?: string) => {
       const nextAction = action as BillingActionKey;
       setSelectedAction(nextAction);
+      setSelectedActionTitle(title ?? null);
 
       switch (nextAction) {
         case 'payment-history':
@@ -95,6 +115,7 @@ function BillingDashboard() {
     }
 
     setSelectedAction('overview');
+    setSelectedActionTitle(null);
   };
 
   const renderInlinePage = () => {
@@ -147,7 +168,7 @@ function BillingDashboard() {
   return (
     <SelectedDateContext.Provider value={{ selectedDate, setSelectedDate }}>
       <main className={styles.container}>
-        <BillingHeader title={t('home', 'Home')} actions={headerActions} />
+        <BillingHeader title={selectedActionTitle ?? getPageTitle(selectedAction)} actions={headerActions} />
         {isSummaryExpanded ? (
           <section className={styles.summaryPanel}>
             <ClockOutStrip />
@@ -156,7 +177,13 @@ function BillingDashboard() {
             </UserHasAccess>
           </section>
         ) : null}
-        {selectedAction !== 'overview' ? (
+        {showInvoiceOverview ? (
+          <section className={styles.embeddedPageContainer}>
+            <div className={styles.embeddedPageContent}>
+              <Invoice showPatientHeader={false} />
+            </div>
+          </section>
+        ) : selectedAction !== 'overview' ? (
           <section className={styles.embeddedPageContainer}>
             <Button kind="ghost" size="sm" renderIcon={ArrowLeft} className={styles.backButton} onClick={handleBack}>
               {t('back', 'Back')}

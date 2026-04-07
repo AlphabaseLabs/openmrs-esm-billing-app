@@ -11,15 +11,12 @@ import {
   TableBody,
   TableCell,
   Pagination,
-  TableExpandHeader,
-  TableExpandRow,
-  TableExpandedRow,
   Button,
   InlineLoading,
   OverflowMenu,
   OverflowMenuItem,
 } from '@carbon/react';
-import { Add } from '@carbon/react/icons';
+import { Add, TaskComplete } from '@carbon/react/icons';
 import {
   ConfigurableLink,
   isDesktop,
@@ -32,7 +29,6 @@ import {
 import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useBill, useBills } from '../billing.resource';
 import BillDetails from '../invoice/bill-details.component';
-import InvoiceTable from '../invoice/invoice-table.component';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
@@ -47,7 +43,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
   const config = useConfig<BillingConfig>();
   const shouldRequireVisit = config.visitRequired ?? true;
-  const { bills, isLoading, error } = useBills(
+  const { bills, isLoading, error, mutate } = useBills(
     patientUuid,
     '',
     dayjs().subtract(config.billHistoryDays, 'day').startOf('day').toDate(),
@@ -58,6 +54,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   }>(patientUuid, 'billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
+  const [selectedBillUuid, setSelectedBillUuid] = React.useState<string | null>(null);
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const { paginated, goTo, results, currentPage } = usePagination(bills, pageSize);
   const { pageSizes } = usePaginationInfo(pageSize, bills?.length, currentPage, results?.length);
@@ -70,6 +67,11 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
 
     launchBillingWorkspace('billing-form', { patientUuid });
   };
+
+  const handleDiscardSelectedBill = React.useCallback(async () => {
+    await mutate();
+    setSelectedBillUuid(null);
+  }, [mutate]);
 
   const headerData = [
     {
@@ -103,23 +105,39 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       (acc, item) => acc + (acc ? ' & ' : '') + (item.billableService?.split(':')[1] || item.item?.split(':')[1] || ''),
       '',
     );
-  const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
+  const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${billUuid}';
 
   const rowData = results?.map((bill) => ({
     id: bill.uuid,
-    uuid: bill.uuid,
     billTotal: bill.totalAmount,
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
     invoiceNumber: (
       <ConfigurableLink
         style={{ textDecoration: 'none' }}
         to={billingUrl}
-        templateParams={{ patientUuid, uuid: bill.uuid }}>
+        templateParams={{ patientUuid, billUuid: bill.uuid }}>
         {bill.receiptNumber ?? '--'}
       </ConfigurableLink>
     ),
     billedItems: setBilledItems(bill),
-    status: bill.status,
+    status:
+      bill.status === PaymentStatus.PENDING || bill.status === PaymentStatus.POSTED ? (
+        <div className={styles.billingActionContainer}>
+          <Button
+            className={styles.billingActionButton}
+            kind="tertiary"
+            size="sm"
+            renderIcon={TaskComplete}
+            onClick={() => setSelectedBillUuid(bill.uuid)}
+            aria-label={t('viewBillStatusForInvoice', 'View bill details for invoice {{invoiceNumber}}', {
+              invoiceNumber: bill.receiptNumber ?? bill.uuid,
+            })}>
+            {bill.status}
+          </Button>
+        </div>
+      ) : (
+        bill.status
+      ),
     print: <BillHistoryPrintActions bill={bill} />,
   }));
 
@@ -147,85 +165,71 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
 
   return (
     <div>
-      <CardHeader title={t('patientBillingHistory', 'Patient billing history')}>
-        <div>
-          <Button renderIcon={Add} onClick={handleLaunchBillForm} kind="ghost">
-            {t('addBill', 'Add bill item(s)')}
-          </Button>
-        </div>
-      </CardHeader>
-      <div className={styles.billHistoryContainer}>
-        <DataTable isSortable rows={rowData} headers={headerData} size={responsiveSize} useZebraStyles>
-          {({
-            rows,
-            headers,
-            getExpandHeaderProps,
-            getTableProps,
-            getTableContainerProps,
-            getHeaderProps,
-            getRowProps,
-          }) => (
-            <TableContainer {...getTableContainerProps}>
-              <Table className={styles.table} {...getTableProps()} aria-label="Bill list">
-                <TableHead>
-                  <TableRow>
-                    <TableExpandHeader enableToggle {...getExpandHeaderProps()} />
-                    {headers.map((header, i) => (
-                      <TableHeader
-                        key={i}
-                        {...getHeaderProps({
-                          header,
-                        })}>
-                        {header.header}
-                      </TableHeader>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((row, i) => {
-                    const currentBill = bills?.find((bill) => bill.uuid === row.id);
-
-                    return (
-                      <React.Fragment key={row.id}>
-                        <TableExpandRow {...getRowProps({ row })}>
+      {!selectedBillUuid ? (
+        <CardHeader title={t('patientBillingHistory', 'Patient billing history')}>
+          <div>
+            <Button renderIcon={Add} onClick={handleLaunchBillForm} kind="ghost">
+              {t('addBill', 'Add bill item(s)')}
+            </Button>
+          </div>
+        </CardHeader>
+      ) : null}
+      <div className={`${styles.billHistoryContainer} ${selectedBillUuid ? styles.billHistoryContainerNoBorder : ''}`}>
+        {selectedBillUuid ? (
+          <div className={styles.selectedBillPanel}>
+            <BillHistorySelectedBill billUuid={selectedBillUuid} onDiscard={handleDiscardSelectedBill} />
+          </div>
+        ) : (
+          <>
+            <DataTable isSortable rows={rowData} headers={headerData} size={responsiveSize} useZebraStyles>
+              {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
+                <TableContainer {...getTableContainerProps}>
+                  <Table {...getTableProps()} aria-label="Bill list">
+                    <TableHead>
+                      <TableRow>
+                        {headers.map((header, i) => (
+                          <TableHeader
+                            key={i}
+                            {...getHeaderProps({
+                              header,
+                            })}>
+                            {header.header}
+                          </TableHeader>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {rows.map((row) => (
+                        <TableRow key={row.id} {...getRowProps({ row })}>
                           {row.cells.map((cell) => (
                             <TableCell key={cell.id}>{cell.value}</TableCell>
                           ))}
-                        </TableExpandRow>
-                        {row.isExpanded ? (
-                          <TableExpandedRow className={styles.expandedRow} colSpan={headers.length + 1}>
-                            <div className={styles.expandedPanel} key={i}>
-                              <BillHistoryExpandedContent billUuid={currentBill?.uuid ?? row.id} />
-                            </div>
-                          </TableExpandedRow>
-                        ) : (
-                          <TableExpandedRow className={styles.hiddenRow} colSpan={headers.length + 2} />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </DataTable>
-        {paginated && (
-          <Pagination
-            forwardText={t('nextPage', 'Next page')}
-            backwardText={t('previousPage', 'Previous page')}
-            page={currentPage}
-            pageSize={pageSize}
-            pageSizes={pageSizes}
-            totalItems={bills.length}
-            className={styles.pagination}
-            size={responsiveSize}
-            onChange={({ page: newPage, pageSize }) => {
-              if (newPage !== currentPage) {
-                goTo(newPage);
-              }
-              setPageSize(pageSize);
-            }}
-          />
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </DataTable>
+            {paginated ? (
+              <Pagination
+                forwardText={t('nextPage', 'Next page')}
+                backwardText={t('previousPage', 'Previous page')}
+                page={currentPage}
+                pageSize={pageSize}
+                pageSizes={pageSizes}
+                totalItems={bills.length}
+                className={styles.pagination}
+                size={responsiveSize}
+                onChange={({ page: newPage, pageSize }) => {
+                  if (newPage !== currentPage) {
+                    goTo(newPage);
+                  }
+                  setPageSize(pageSize);
+                }}
+              />
+            ) : null}
+          </>
         )}
       </div>
     </div>
@@ -283,7 +287,10 @@ const BillHistoryPrintActions: React.FC<{ bill: MappedBill }> = ({ bill }) => {
   );
 };
 
-const BillHistoryExpandedContent: React.FC<{ billUuid: string }> = ({ billUuid }) => {
+const BillHistorySelectedBill: React.FC<{ billUuid: string; onDiscard: () => void | Promise<void> }> = ({
+  billUuid,
+  onDiscard,
+}) => {
   const { t } = useTranslation();
   const { bill, isLoading, error } = useBill(billUuid);
 
@@ -303,17 +310,9 @@ const BillHistoryExpandedContent: React.FC<{ billUuid: string }> = ({ billUuid }
     return <ErrorState error={error} headerTitle={t('invoiceError', 'Invoice error')} />;
   }
 
-  if (bill.closed) {
-    return (
-      <div className={styles.expandedTableOnly}>
-        <InvoiceTable bill={bill} isSelectable={false} />
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.expandedContent}>
-      <BillDetails bill={bill} showDiscardButton={false} />
+    <div className={styles.selectedBillContent}>
+      <BillDetails bill={bill} onDiscard={onDiscard} />
     </div>
   );
 };

@@ -25,9 +25,17 @@ type PaymentProps = {
   bill: MappedBill;
   selectedLineItems: Array<LineItem>;
   showDiscardButton?: boolean;
+  discardDestination?: string;
+  onDiscard?: () => void | Promise<void>;
 };
 
-const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems, showDiscardButton = true }) => {
+const Payments: React.FC<PaymentProps> = ({
+  bill,
+  selectedLineItems,
+  showDiscardButton = true,
+  discardDestination,
+  onDiscard,
+}) => {
   const { t } = useTranslation();
   const { paymentMethodTaxes } = useConfig<BillingConfig>();
   const paymentSchema = usePaymentSchema(bill);
@@ -64,9 +72,11 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems, showDiscard
   );
 
   const handleNavigateToBillingDashboard = () =>
-    navigate({
-      to: window.getOpenmrsSpaBase() + 'home/billing',
-    });
+    onDiscard
+      ? onDiscard()
+      : navigate({
+          to: discardDestination ?? window.getOpenmrsSpaBase() + 'home/billing',
+        });
 
   const handleProcessPayment = async () => {
     const paymentPayload = createPaymentPayload(

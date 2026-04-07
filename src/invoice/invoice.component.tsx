@@ -3,18 +3,29 @@ import { ExtensionSlot, usePatient } from '@openmrs/esm-framework';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useBill } from '../billing.resource';
 import BillDetails from './bill-details.component';
 import styles from './invoice.scss';
 
-const Invoice: React.FC = () => {
+interface InvoiceProps {
+  readonly showPatientHeader?: boolean;
+  readonly showDiscardButton?: boolean;
+}
+
+const Invoice: React.FC<InvoiceProps> = ({ showPatientHeader = true, showDiscardButton = true }) => {
   const { t } = useTranslation();
+  const location = useLocation();
   const { billUuid, patientUuid } = useParams();
   const { patient, isLoading: isLoadingPatient, error: patientError } = usePatient(patientUuid);
   const { bill, isLoading: isLoadingBill, error: billingError } = useBill(billUuid);
+  const isLoadingInvoice = isLoadingBill || (showPatientHeader && isLoadingPatient);
+  const invoiceError = billingError ?? (showPatientHeader ? patientError : undefined);
+  const invoiceOrigin = new URLSearchParams(location.search).get('from');
+  const discardDestination =
+    invoiceOrigin === 'home' ? window.getOpenmrsSpaBase() + 'home' : window.getOpenmrsSpaBase() + 'home/billing';
 
-  if (isLoadingPatient || isLoadingBill) {
+  if (isLoadingInvoice) {
     return (
       <div className={styles.invoiceContainer}>
         <InlineLoading
@@ -27,18 +38,25 @@ const Invoice: React.FC = () => {
     );
   }
 
-  if (billingError || patientError) {
+  if (invoiceError) {
     return (
       <div className={styles.errorContainer}>
-        <ErrorState headerTitle={t('invoiceError', 'Invoice error')} error={billingError ?? patientError} />
+        <ErrorState headerTitle={t('invoiceError', 'Invoice error')} error={invoiceError} />
       </div>
     );
   }
 
   return (
     <div className={styles.invoiceContainer}>
-      {patient && patientUuid && <ExtensionSlot name="patient-header-slot" state={{ patient, patientUuid }} />}
-      <BillDetails bill={bill} isLoadingBill={isLoadingBill} />
+      {showPatientHeader && patient && patientUuid ? (
+        <ExtensionSlot name="patient-header-slot" state={{ patient, patientUuid }} />
+      ) : null}
+      <BillDetails
+        bill={bill}
+        isLoadingBill={isLoadingBill}
+        showDiscardButton={showDiscardButton}
+        discardDestination={discardDestination}
+      />
     </div>
   );
 };

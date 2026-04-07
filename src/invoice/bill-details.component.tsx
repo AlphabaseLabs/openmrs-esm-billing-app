@@ -14,9 +14,17 @@ interface BillDetailsProps {
   readonly bill: MappedBill;
   readonly isLoadingBill?: boolean;
   readonly showDiscardButton?: boolean;
+  readonly discardDestination?: string;
+  readonly onDiscard?: () => void | Promise<void>;
 }
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, isLoadingBill = false, showDiscardButton = true }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({
+  bill,
+  isLoadingBill = false,
+  showDiscardButton = true,
+  discardDestination,
+  onDiscard,
+}) => {
   const { t } = useTranslation();
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
   const paidLineItems = useMemo(
@@ -94,7 +102,13 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, isLoadingBill = false, 
       </div>
       <div className={styles.invoiceContent}>
         <InvoiceTable bill={bill} isLoadingBill={isLoadingBill} onSelectItem={handleSelectItem} />
-        <Payments bill={bill} selectedLineItems={selectedLineItems} showDiscardButton={showDiscardButton} />
+        <Payments
+          bill={bill}
+          selectedLineItems={selectedLineItems}
+          showDiscardButton={showDiscardButton}
+          discardDestination={discardDestination}
+          onDiscard={onDiscard}
+        />
       </div>
     </>
   );

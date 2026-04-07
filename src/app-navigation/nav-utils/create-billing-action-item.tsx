@@ -9,7 +9,7 @@ type BillingActionConfig = {
 
 type BillingActionProps = {
   onSelect?: () => void;
-  onSelectAction?: (actionKey: string) => void;
+  onSelectAction?: (actionKey: string, title?: string) => void;
 };
 
 const createBillingActionItem = (config: BillingActionConfig) => {
@@ -21,10 +21,10 @@ const createBillingActionItem = (config: BillingActionConfig) => {
         type="button"
         className={styles.menuItemButton}
         onClick={() => {
-          onSelectAction?.(config.actionKey);
+          onSelectAction?.(config.actionKey, t(config.title, config.title));
           onSelect?.();
         }}>
-        {t(config.title)}
+        {t(config.title, config.title)}
       </button>
     );
   };

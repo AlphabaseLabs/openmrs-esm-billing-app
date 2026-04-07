@@ -1,4 +1,4 @@
-import { showSnackbar, useConfig } from '@openmrs/esm-framework';
+import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
@@ -10,8 +10,16 @@ import { type LineItem, type PaymentMethod } from '../../types';
 
 const mockProcessBillPayment = processBillPayment as jest.MockedFunction<typeof processBillPayment>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
+const mockNavigate = navigate as jest.MockedFunction<typeof navigate>;
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
+
+jest.mock('@openmrs/esm-framework', () => ({
+  ...jest.requireActual('@openmrs/esm-framework'),
+  navigate: jest.fn(),
+  showSnackbar: jest.fn(),
+  useConfig: jest.fn(),
+}));
 
 jest.mock('../../billing.resource', () => ({
   processBillPayment: jest.fn(),
@@ -378,5 +386,63 @@ describe('Payment', () => {
     render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
     expect(screen.queryByText(/Incomplete payment/i)).not.toBeInTheDocument();
+  });
+
+  test('should navigate back to home when the invoice was opened from home', async () => {
+    const user = userEvent.setup();
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(
+      <Payments
+        bill={paymentBill as any}
+        selectedLineItems={updatedMockLineItems}
+        discardDestination={`${window.getOpenmrsSpaBase()}home`}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: `${window.getOpenmrsSpaBase()}home`,
+    });
+  });
+
+  test('should navigate back to billing home by default', async () => {
+    const user = userEvent.setup();
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: `${window.getOpenmrsSpaBase()}home/billing`,
+    });
   });
 });
