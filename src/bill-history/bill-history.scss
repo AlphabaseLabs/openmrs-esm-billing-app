@@ -1,4 +1,5 @@
 @use '@carbon/layout';
+@use '@carbon/type';
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
 .selectedBillPanel {
@@ -36,6 +37,19 @@
 
 .billDateCell {
   white-space: nowrap;
+}
+
+.cumulativeBillTotal {
+  @include type.type-style('legal-01');
+  color: $text-02;
+  font-weight: normal;
+}
+
+.cumulativeBillTotalSummary {
+  display: flex;
+  justify-content: flex-start;
+  padding: layout.$spacing-04 layout.$spacing-05;
+  border-top: 1px solid $ui-03;
 }
 
 .billingActionContainer {

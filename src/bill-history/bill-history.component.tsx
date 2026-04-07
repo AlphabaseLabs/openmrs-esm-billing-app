@@ -29,6 +29,7 @@ import {
 import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useBill, useBills } from '../billing.resource';
 import BillDetails from '../invoice/bill-details.component';
+import { convertToCurrency } from '../helpers';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
@@ -58,6 +59,10 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const { paginated, goTo, results, currentPage } = usePagination(bills, pageSize);
   const { pageSizes } = usePaginationInfo(pageSize, bills?.length, currentPage, results?.length);
+  const cumulativeBillTotal = React.useMemo(
+    () => bills.reduce((sum, bill) => sum + Number(bill.totalAmount ?? 0), 0),
+    [bills],
+  );
 
   const handleLaunchBillForm = () => {
     if (shouldRequireVisit) {
@@ -229,6 +234,13 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
                 }}
               />
             ) : null}
+            <div className={styles.cumulativeBillTotalSummary}>
+              <div className={styles.cumulativeBillTotal}>
+                {t('cumulativeBillTotal', 'Cumulative total: {{total}}', {
+                  total: convertToCurrency(cumulativeBillTotal),
+                })}
+              </div>
+            </div>
           </>
         )}
       </div>
