@@ -44,6 +44,7 @@
       "meta": {
         "columns": 1,
         "columnSpan": 1,
+        "hideVitalsAndBiometricsHeader": true,
         "slot": "patient-chart-billing-dashboard-slot",
         "path": "Billing",
         "layoutMode": "anchored"
