@@ -13,16 +13,18 @@ import {
 import { useTranslation } from 'react-i18next';
 import { convertToCurrency } from '../../helpers';
 import { usePaymentModeGroupTotals } from './usePaymentModeGroupTotals';
-import { usePaymentFilterContext } from './usePaymentFilterContext';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
 import { useLayoutType } from '@openmrs/esm-framework';
-import { usePaymentTransactionHistory } from './usePaymentTransactionHistory';
+import { type MappedBill } from '../../types';
 
-const PaymentMethodDistribution = () => {
+interface PaymentMethodDistributionProps {
+  bills: Array<MappedBill>;
+  isLoading: boolean;
+}
+
+const PaymentMethodDistribution = ({ bills: filteredBills, isLoading }: PaymentMethodDistributionProps) => {
   const { t } = useTranslation();
   const responsiveSize = useLayoutType() !== 'tablet' ? 'sm' : 'md';
-  const { filters } = usePaymentFilterContext();
-  const { bills: filteredBills, isLoading } = usePaymentTransactionHistory(filters);
   const paymentModesGroupTotals = usePaymentModeGroupTotals(filteredBills);
 
   const rows = paymentModesGroupTotals.map((total, index) => ({

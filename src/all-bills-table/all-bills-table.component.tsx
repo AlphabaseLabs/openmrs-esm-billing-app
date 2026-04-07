@@ -22,9 +22,10 @@ import {
 } from '@carbon/react';
 import { Renew } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { useLayoutType, isDesktop, useConfig, ErrorState, ConfigurableLink } from '@openmrs/esm-framework';
+import { useLayoutType, isDesktop, useConfig, ErrorState, navigate } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBillsPaginated } from '../billing.resource';
+import { convertToCurrency } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './all-bills-table.scss';
 
@@ -34,7 +35,11 @@ const filterItems = [
   { id: 'PAID', text: 'Paid bills' },
 ];
 
-const AllBillsTable: React.FC = () => {
+interface AllBillsTableProps {
+  actions?: React.ReactNode;
+}
+
+const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
   const { t } = useTranslation();
   const id = useId();
   const config = useConfig();
@@ -146,6 +151,10 @@ const AllBillsTable: React.FC = () => {
       key: 'billedItems',
     },
     {
+      header: t('billTotal', 'Bill total'),
+      key: 'billTotal',
+    },
+    {
       header: t('status', 'Status'),
       key: 'status',
     },
@@ -173,23 +182,16 @@ const AllBillsTable: React.FC = () => {
       '',
     );
 
-  const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
-
   const rowData = searchResults?.map((bill, index) => ({
     id: `${index}`,
     uuid: bill.uuid,
-    patientName: (
-      <ConfigurableLink
-        style={{ textDecoration: 'none', maxWidth: '50%' }}
-        to={billingUrl}
-        templateParams={{ patientUuid: bill.patientUuid, uuid: bill.uuid }}>
-        {bill.patientName}
-      </ConfigurableLink>
-    ),
+    patientUuid: bill.patientUuid,
+    patientName: bill.patientName,
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
     identifier: bill.identifier,
     department: '--',
     billedItems: setBilledItems(bill),
+    billTotal: convertToCurrency(Number(bill.totalAmount ?? 0)),
     billingPrice: '--',
     status: bill.status,
   }));
@@ -206,6 +208,12 @@ const AllBillsTable: React.FC = () => {
     setBillPaymentStatus(selectedItem.id);
     setCurrentPage(1);
   };
+
+  const handleRowClick = useCallback((patientUuid: string, uuid: string) => {
+    navigate({
+      to: `${window.getOpenmrsSpaBase()}home/billing/patient/${patientUuid}/${uuid}`,
+    });
+  }, []);
 
   const handleRefresh = useCallback(() => {
     if (isPendingFilter) {
@@ -251,20 +259,23 @@ const AllBillsTable: React.FC = () => {
 
   return (
     <>
-      <div className={styles.filterContainer}>
-        <Dropdown
-          className={styles.filterDropdown}
-          direction="bottom"
-          id={`filter-${id}`}
-          initialSelectedItem={filterItems.find((item) => item.id === billPaymentStatus)}
-          items={filterItems}
-          itemToString={(item) => (item ? item.text : '')}
-          label=""
-          onChange={handleFilterChange}
-          size={responsiveSize}
-          titleText={t('filterBy', 'Filter by') + ':'}
-          type="inline"
-        />
+      <div className={styles.tableToolbar}>
+        <div className={styles.filterContainer}>
+          <Dropdown
+            className={styles.filterDropdown}
+            direction="bottom"
+            id={`filter-${id}`}
+            initialSelectedItem={filterItems.find((item) => item.id === billPaymentStatus)}
+            items={filterItems}
+            itemToString={(item) => (item ? item.text : '')}
+            label=""
+            onChange={handleFilterChange}
+            size={responsiveSize}
+            titleText={t('filterBy', 'Filter by') + ':'}
+            type="inline"
+          />
+        </div>
+        {actions ? <div className={styles.actionsContainer}>{actions}</div> : null}
       </div>
 
       {bills?.length > 0 ? (
@@ -295,17 +306,23 @@ const AllBillsTable: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        {...getRowProps({
-                          row,
-                        })}>
-                        {row.cells.map((cell) => (
-                          <TableCell key={cell.id}>{cell.value}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
+                    {rows.map((row) => {
+                      const rowDetails = rowData.find((dataRow) => dataRow.id === row.id);
+
+                      return (
+                        <TableRow
+                          key={row.id}
+                          {...getRowProps({
+                            row,
+                          })}
+                          className={styles.clickableRow}
+                          onClick={() => rowDetails && handleRowClick(rowDetails.patientUuid, rowDetails.uuid)}>
+                          {row.cells.map((cell) => (
+                            <TableCell key={cell.id}>{cell.value}</TableCell>
+                          ))}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>

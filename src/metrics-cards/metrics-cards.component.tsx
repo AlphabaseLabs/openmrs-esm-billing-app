@@ -1,39 +1,35 @@
 import { InlineLoading, Layer, Tile } from '@carbon/react';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
 import classNames from 'classnames';
-import dayjs from 'dayjs';
-import React, { useContext, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBills } from '../billing.resource';
-import SelectedDateContext from '../hooks/selectedDateContext';
+import { type MappedBill } from '../types';
 import styles from './metrics-cards.scss';
 import { useBillMetrics } from './metrics.resource';
 
-export default function MetricsCards() {
-  const { t } = useTranslation();
-  const { selectedDate } = useContext(SelectedDateContext);
-  const startDate = selectedDate ? dayjs(selectedDate).startOf('day').toDate() : undefined;
-  const endDate = selectedDate ? dayjs(selectedDate).endOf('day').toDate() : undefined;
+interface MetricsCardsProps {
+  bills: Array<MappedBill>;
+  isLoading?: boolean;
+  error?: unknown;
+}
 
-  const { bills, isLoading, error } = useBills('', '', startDate, endDate);
+export default function MetricsCards({ bills, isLoading = false, error = null }: MetricsCardsProps) {
+  const { t } = useTranslation();
   const { totalBills, pendingBills, paidBills, exemptedBills, waivedBills, exemptedAmount, taxCollection, taxCollectionAmount } =
     useBillMetrics(bills);
 
-  const isToday = selectedDate ? dayjs(selectedDate).isSame(dayjs(), 'day') : false;
-  const prefix = isToday ? "Today's " : '';
-
   const cards = useMemo(() => {
     const allCards = [
-      { title: `${prefix}${t('totalBills', 'Total Bills')}`, count: totalBills },
-      { title: `${prefix}${t('pendingBills', 'Pending Bills')}`, count: pendingBills },
-      { title: `${prefix}${t('paidBills', 'Collection')}`, count: paidBills },
-      { title: `${prefix}${t('waivedBills', 'Waived/Discounts Bills')}`, count: waivedBills },
+      { title: t('totalBills', 'Total Bills'), count: totalBills },
+      { title: t('pendingBills', 'Pending Bills'), count: pendingBills },
+      { title: t('paidBills', 'Collection'), count: paidBills },
+      { title: t('waivedBills', 'Waived/Discounts Bills'), count: waivedBills },
     ];
 
     // Only show exempted bills if the amount is greater than 0
     if (exemptedAmount > 0) {
       allCards.push({
-        title: `${prefix}${t('exemptedBills', 'Exempted Bills')}`,
+        title: t('exemptedBills', 'Exempted Bills'),
         count: exemptedBills,
       });
     }
@@ -41,24 +37,13 @@ export default function MetricsCards() {
     // Only show tax collection if the amount is greater than 0
     if (taxCollectionAmount > 0) {
       allCards.push({
-        title: `${prefix}${t('taxCollection', 'Tax Collection')}`,
+        title: t('taxCollection', 'Tax Collection'),
         count: taxCollection,
       });
     }
 
     return allCards;
-  }, [
-    totalBills,
-    paidBills,
-    pendingBills,
-    waivedBills,
-    exemptedBills,
-    exemptedAmount,
-    taxCollection,
-    taxCollectionAmount,
-    prefix,
-    t,
-  ]);
+  }, [totalBills, paidBills, pendingBills, waivedBills, exemptedBills, exemptedAmount, taxCollection, taxCollectionAmount, t]);
 
   if (isLoading) {
     return (

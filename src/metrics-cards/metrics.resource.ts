@@ -46,16 +46,21 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
   let taxTotal = 0;
 
   bills.forEach((bill) => {
-    const amount = bill.totalAmount;
-    const waivedAmount = bill.totalWaived;
-    const actualPayments = bill.totalActualPayments;
-    const balanceDue = bill.balance ?? Math.max(0, amount - actualPayments);
+    const amount = Number(bill.totalAmount ?? 0);
+    const waivedAmount = Number(bill.totalWaived ?? 0);
+    const actualPayments =
+      bill.payments?.length
+        ? bill.payments
+            .filter((payment) => payment.instanceType?.name !== 'Waiver')
+            .reduce((sum, payment) => sum + (Number(payment.amountTendered) || 0), 0)
+        : Number(bill.totalActualPayments ?? 0);
+    const balanceDue = Number(bill.balance ?? Math.max(0, amount - actualPayments));
 
     // Collection: sum of all payments received (partial or full)
     paidTotal += actualPayments;
 
     if (bill.status === PaymentStatus.PAID) {
-      taxTotal += bill.totalTax;
+      taxTotal += Number(bill.totalTax ?? 0);
     } else if (bill.status === PaymentStatus.PENDING) {
       // Pending: amount still owed, not the full bill amount
       pendingTotal += balanceDue;

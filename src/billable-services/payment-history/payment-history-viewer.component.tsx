@@ -2,14 +2,18 @@ import { DataTableSkeleton } from '@carbon/react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
+import { type MappedBill } from '../../types';
 import { PaymentHistoryTable } from './payment-history-table.component';
 import { usePaymentFilterContext } from './usePaymentFilterContext';
 import { usePaymentTransactionHistory } from './usePaymentTransactionHistory';
 
-export const PaymentHistoryViewer = () => {
+interface PaymentHistoryViewerContentProps {
+  bills: Array<MappedBill>;
+  isLoading: boolean;
+}
+
+export const PaymentHistoryViewerContent = ({ bills: filteredBills, isLoading }: PaymentHistoryViewerContentProps) => {
   const { t } = useTranslation();
-  const { filters } = usePaymentFilterContext();
-  const { bills: filteredBills, isLoading } = usePaymentTransactionHistory(filters);
 
   const headers = useMemo(
     () => [
@@ -39,4 +43,11 @@ export const PaymentHistoryViewer = () => {
       )}
     </>
   );
+};
+
+export const PaymentHistoryViewer = () => {
+  const { filters } = usePaymentFilterContext();
+  const { bills, isLoading } = usePaymentTransactionHistory(filters);
+
+  return <PaymentHistoryViewerContent bills={bills} isLoading={isLoading} />;
 };

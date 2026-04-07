@@ -5,6 +5,7 @@ describe('Bill Filter', () => {
   const mockBills: Array<MappedBill> = [
     {
       uuid: '1',
+      patientUuid: 'patient-1',
       payments: [
         { instanceType: { name: 'Cash' }, amount: 100 },
         { instanceType: { name: 'MPESA' }, amount: 200 },
@@ -15,6 +16,7 @@ describe('Bill Filter', () => {
     },
     {
       uuid: '2',
+      patientUuid: 'patient-2',
       payments: [{ instanceType: { name: 'Cash' }, amount: 300 }],
       lineItems: [{ serviceTypeUuid: 'service-3' }],
       status: 'PENDING',
@@ -63,6 +65,15 @@ describe('Bill Filter', () => {
     const result = filterBills(mockBills, filters);
     expect(result).toHaveLength(1);
     expect(result[0].cashier.uuid).toBe('cashier-1');
+  });
+
+  it('should filter bills by patient uuid', () => {
+    const filters: Filter = {
+      patientUuid: 'patient-2',
+    };
+    const result = filterBills(mockBills, filters);
+    expect(result).toHaveLength(1);
+    expect(result[0].patientUuid).toBe('patient-2');
   });
 
   it('should filter bills by status', () => {

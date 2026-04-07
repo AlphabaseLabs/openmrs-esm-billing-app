@@ -3,17 +3,22 @@ import { Dashboard, CloudMonitoring } from '@carbon/react/icons';
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Layer } from '@carbon/react';
 import styles from './payment-dashboard.scss';
 import { useTranslation } from 'react-i18next';
-import { PaymentFilterProvider } from './usePaymentFilterContext';
-import { FilterDashboard } from './filters/filter-dashboard';
-import { PaymentHistoryViewer } from './payment-history-viewer.component';
+import { PaymentFilterProvider, usePaymentFilterContext } from './usePaymentFilterContext';
+import { PaymentFilters } from './filters/payment-filters.component';
+import { PaymentHistoryViewerContent } from './payment-history-viewer.component';
 import PaymentMethodDistribution from './payment-method-distribution.component';
+import MetricsCards from '../../metrics-cards/metrics-cards.component';
+import { usePaymentTransactionHistory } from './usePaymentTransactionHistory';
 
-export const PaymentDashboard = () => {
+const PaymentDashboardContent = () => {
   const { t } = useTranslation();
+  const { filters } = usePaymentFilterContext();
+  const { bills: filteredBills, isLoading, error } = usePaymentTransactionHistory(filters);
 
   return (
-    <PaymentFilterProvider>
-      <FilterDashboard />
+    <>
+      <MetricsCards bills={filteredBills} isLoading={isLoading} error={error} />
+      <PaymentFilters />
       <Layer className={styles.paymentDashboard}>
         <Tabs>
           <TabList aria-label={t('listOfTabs', 'List of tabs on transactions')} contained>
@@ -22,14 +27,22 @@ export const PaymentDashboard = () => {
           </TabList>
           <TabPanels>
             <TabPanel>
-              <PaymentHistoryViewer />
+              <PaymentHistoryViewerContent bills={filteredBills} isLoading={isLoading} />
             </TabPanel>
             <TabPanel>
-              <PaymentMethodDistribution />
+              <PaymentMethodDistribution bills={filteredBills} isLoading={isLoading} />
             </TabPanel>
           </TabPanels>
         </Tabs>
       </Layer>
+    </>
+  );
+};
+
+export const PaymentDashboard = () => {
+  return (
+    <PaymentFilterProvider>
+      <PaymentDashboardContent />
     </PaymentFilterProvider>
   );
 };

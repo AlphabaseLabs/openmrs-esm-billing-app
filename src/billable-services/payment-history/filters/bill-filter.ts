@@ -28,13 +28,14 @@ const createServiceTypesFilter =
 
 // Main filtering function
 export const filterBills = (bills: Array<MappedBill>, filters: Filter): Array<MappedBill> => {
-  const { paymentMethods = [], serviceTypes = [], cashiers = [], status } = filters;
+  const { paymentMethods = [], serviceTypes = [], cashiers = [], status, patientUuid = '' } = filters;
   const billsWithFilteredPayments = bills.map(createPaymentMethodFilter(paymentMethods));
 
   const otherFilters = [
     createServiceTypesFilter(serviceTypes),
     (bill: MappedBill) => !cashiers.length || cashiers.includes(bill.cashier.uuid),
     (bill: MappedBill) => !status || bill.status === status,
+    (bill: MappedBill) => !patientUuid || bill.patientUuid === patientUuid,
     (bill: MappedBill) => bill.payments.length > 0,
   ];
 

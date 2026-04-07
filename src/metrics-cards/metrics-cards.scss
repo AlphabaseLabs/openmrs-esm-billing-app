@@ -25,7 +25,7 @@
 .tileContainer {
   border: 0.0625rem solid $ui-03;
   height: 100%;
-  min-height: 7.875rem;
+  min-height: 7rem;
   min-width: 0;
 }
 
@@ -47,7 +47,7 @@
 }
 
 .totalsValue {
-  @include type.type-style('heading-04');
+  @include type.type-style('heading-03');
   color: $ui-05;
   line-height: 1.2;
   overflow-wrap: anywhere;

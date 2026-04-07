@@ -10,10 +10,6 @@
   margin: layout.$spacing-05;
 }
 
-.summaryPanel {
-  border-bottom: 1px solid colors.$gray-20;
-}
-
 .illo {
   margin-top: layout.$spacing-05;
 }
@@ -78,7 +74,7 @@
   border-bottom: 1px solid colors.$gray-20;
 }
 
-.clockOutStrip > div:last-child {
+.clockOutStrip>div:last-child {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -120,8 +116,34 @@
   margin: layout.$spacing-05;
 }
 
+// .backButton {
+//   margin-bottom: layout.$spacing-05;
+// }
 .backButton {
-  margin-bottom: layout.$spacing-05;
+  color: colors.$blue-60;
+  @include type.type-style('label-02');
+
+  svg {
+    order: 1;
+    margin-right: layout.$spacing-03;
+    margin-left: 0 !important;
+  }
+
+  span {
+    order: 2;
+  }
+}
+
+.backButtonContent {
+  display: inline-flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+  color: inherit;
+}
+
+.backButtonContent :global(svg) {
+  color: inherit;
+  fill: currentColor;
 }
 
 .embeddedPageContent {
@@ -138,7 +160,7 @@
     flex-wrap: wrap;
   }
 
-  .clockOutStrip > div:last-child {
+  .clockOutStrip>div:last-child {
     justify-content: flex-start;
   }
 

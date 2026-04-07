@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@carbon/react';
-import { ArrowLeft, ChevronDown, ChevronUp, OverflowMenuVertical } from '@carbon/react/icons';
+import { ArrowLeft, OverflowMenuVertical } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import BillingHeader from '../billing-header/billing-header.component';
 import AllBillsTable from '../all-bills-table/all-bills-table.component';
-import MetricsCards from '../metrics-cards/metrics-cards.component';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-dashboard.scss';
-import { ClockOutStrip } from './clock-out-strip.component';
-import { ExtensionSlot, UserHasAccess } from '@openmrs/esm-framework';
+import { ExtensionSlot } from '@openmrs/esm-framework';
 import { PaymentHistory } from '../billable-services/payment-history/payment-history.component';
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
 import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.component';
@@ -40,7 +38,6 @@ function isInvoiceRoute(pathname: string) {
 function BillingDashboard() {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [selectedActionTitle, setSelectedActionTitle] = useState<string | null>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
@@ -133,13 +130,6 @@ function BillingDashboard() {
 
   const headerActions = (
     <>
-      <Button
-        kind="ghost"
-        size="sm"
-        renderIcon={isSummaryExpanded ? ChevronUp : ChevronDown}
-        onClick={() => setIsSummaryExpanded((currentValue) => !currentValue)}>
-        {isSummaryExpanded ? t('showLess', 'Show less') : t('showMore', 'Show more')}
-      </Button>
       <div className={styles.optionsMenuWrapper} ref={optionsMenuRef}>
         <Button
           kind="tertiary"
@@ -168,15 +158,7 @@ function BillingDashboard() {
   return (
     <SelectedDateContext.Provider value={{ selectedDate, setSelectedDate }}>
       <main className={styles.container}>
-        <BillingHeader title={selectedActionTitle ?? getPageTitle(selectedAction)} actions={headerActions} />
-        {isSummaryExpanded ? (
-          <section className={styles.summaryPanel}>
-            <ClockOutStrip />
-            <UserHasAccess privilege="o3: View Billing Metrics">
-              <MetricsCards />
-            </UserHasAccess>
-          </section>
-        ) : null}
+        <BillingHeader title={selectedActionTitle ?? getPageTitle(selectedAction)} />
         {showInvoiceOverview ? (
           <section className={styles.embeddedPageContainer}>
             <div className={styles.embeddedPageContent}>
@@ -185,14 +167,20 @@ function BillingDashboard() {
           </section>
         ) : selectedAction !== 'overview' ? (
           <section className={styles.embeddedPageContainer}>
-            <Button kind="ghost" size="sm" renderIcon={ArrowLeft} className={styles.backButton} onClick={handleBack}>
-              {t('back', 'Back')}
+            <Button
+              className={styles.backButton}
+              iconDescription={t('back', 'Back')}
+              kind="ghost"
+              onClick={handleBack}
+              renderIcon={ArrowLeft}
+              size="sm">
+              <span>{t('back', 'Back')}</span>
             </Button>
             <div className={styles.embeddedPageContent}>{renderInlinePage()}</div>
           </section>
         ) : (
           <section className={styles.billsTableContainer}>
-            <AllBillsTable />
+            <AllBillsTable actions={headerActions} />
           </section>
         )}
       </main>

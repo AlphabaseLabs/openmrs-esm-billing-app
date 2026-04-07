@@ -6,6 +6,15 @@
   margin-top: layout.$spacing-05;
 }
 
+.tableToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: layout.$spacing-04;
+  // margin-bottom: layout.$spacing-01;
+  flex-wrap: wrap;
+}
+
 .emptyStateContainer,
 .loaderContainer {
   @extend .container;
@@ -26,6 +35,7 @@
 
 .filterContainer {
   flex: 1;
+  min-width: 16rem;
 
   :global(.cds--dropdown__wrapper--inline) {
     gap: 0;
@@ -44,6 +54,12 @@
   }
 }
 
+.actionsContainer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .headerContainer {
   display: flex;
   justify-content: space-between;
@@ -54,6 +70,10 @@
 
 .billDateCell {
   white-space: nowrap;
+}
+
+.clickableRow {
+  cursor: pointer;
 }
 
 .backgroundDataFetchingIndicator {
@@ -156,4 +176,19 @@
 
 .errorContainer {
   margin-top: layout.$spacing-05;
+}
+
+:global(.omrs-breakpoint-lt-tablet) {
+  .tableToolbar {
+    align-items: stretch;
+  }
+
+  .filterContainer,
+  .actionsContainer {
+    width: 100%;
+  }
+
+  .actionsContainer {
+    justify-content: flex-start;
+  }
 }
