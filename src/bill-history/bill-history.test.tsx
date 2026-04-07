@@ -255,6 +255,7 @@ describe('BillHistory', () => {
     expect(screen.getByText('Bill date')).toBeInTheDocument();
     expect(screen.getByText('Invoice number')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText(/Cumulative total:/i)).toBeInTheDocument();
     const expectedColumnHeaders = [/Bill date/, /Invoice number/, /Billed items/, /Bill total/, /Status/];
     expectedColumnHeaders.forEach((header) => {
       expect(screen.getByRole('button', { name: header })).toBeInTheDocument();
