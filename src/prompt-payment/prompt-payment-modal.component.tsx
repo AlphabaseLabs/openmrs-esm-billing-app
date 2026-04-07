@@ -17,12 +17,15 @@ import styles from './prompt-payment.scss';
 import { convertToCurrency, extractString } from '../helpers';
 import { navigate, useConfig } from '@openmrs/esm-framework';
 import { type BillingConfig } from '../config-schema';
-import { getPatientUuidFromStore } from '@openmrs/esm-patient-common-lib';
 import { useBillingPrompt } from './prompt-payment.resource';
+
+function getPatientUuidFromPath() {
+  return window.location.pathname.match(/\/patient\/([^/]+)/)?.[1] ?? '';
+}
 
 const PromptPaymentModal: React.FC = () => {
   const { t } = useTranslation();
-  const patientUuid = getPatientUuidFromStore();
+  const patientUuid = getPatientUuidFromPath();
   const { shouldShowBillingPrompt, isLoading, bills } = useBillingPrompt(patientUuid, 'patient-chart');
   const [showModal, setShowModal] = useState({ loadingModal: true, billingModal: true });
   const { enforceBillPayment } = useConfig<BillingConfig>();

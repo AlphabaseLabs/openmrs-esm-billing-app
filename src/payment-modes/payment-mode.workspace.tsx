@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  type DefaultWorkspaceProps,
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   restBaseUrl,
   showSnackbar,
   useLayoutType,
@@ -19,17 +20,16 @@ import usePaymentModeFormSchema from './usePaymentModeFormSchema';
 import PaymentModeAttributeFields from './payment-attributes/payment-mode-attributes.component';
 import { Add } from '@carbon/react/icons';
 
-type PaymentModeWorkspaceProps = DefaultWorkspaceProps & {
+type PaymentModeWorkspaceProps = {
   initialPaymentMode?: PaymentMode;
 };
 
-const PaymentModeWorkspace: React.FC<PaymentModeWorkspaceProps> = ({
+const PaymentModeWorkspace: React.FC<Workspace2DefinitionProps<PaymentModeWorkspaceProps>> = ({
   closeWorkspace,
-  promptBeforeClosing,
-  closeWorkspaceWithSavedChanges,
-  initialPaymentMode = {} as PaymentMode,
+  workspaceProps,
 }) => {
   const { t } = useTranslation();
+  const { initialPaymentMode = {} as PaymentMode } = workspaceProps ?? {};
   const isTablet = useLayoutType() === 'tablet';
   const { paymentModeFormSchema } = usePaymentModeFormSchema();
   type PaymentModeFormSchema = z.infer<typeof paymentModeFormSchema>;
@@ -89,7 +89,7 @@ const PaymentModeWorkspace: React.FC<PaymentModeWorkspaceProps> = ({
           kind: 'success',
           isLowContrast: true,
         });
-        closeWorkspaceWithSavedChanges();
+        closeWorkspace({ discardUnsavedChanges: true });
         handleMutation(`${restBaseUrl}/cashier/paymentMode?v=full`);
       }
     } catch (error) {
@@ -121,102 +121,102 @@ const PaymentModeWorkspace: React.FC<PaymentModeWorkspaceProps> = ({
     });
   };
 
-  useEffect(() => {
-    if (isDirty) {
-      promptBeforeClosing(() => isDirty);
-    }
-  }, [isDirty, promptBeforeClosing]);
-
   return (
-    <FormProvider {...formMethods}>
-      <form onSubmit={formMethods.handleSubmit(onSubmit, handleError)} className={styles.form}>
-        <div className={styles.formContainer}>
-          <Stack className={styles.formStackControl} gap={7}>
-            <ResponsiveWrapper>
-              <Controller
-                name="name"
-                control={formMethods.control}
-                render={({ field }) => (
-                  <TextInput
-                    {...field}
-                    id="name"
-                    type="text"
-                    labelText={t('paymentModeName', 'Payment mode name')}
-                    placeholder={t('paymentModeNamePlaceholder', 'Enter payment mode name')}
-                    invalid={!!errors.name}
-                    invalidText={errors.name?.message}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            <ResponsiveWrapper>
-              <Controller
-                name="description"
-                control={formMethods.control}
-                render={({ field }) => (
-                  <TextInput
-                    {...field}
-                    id="description"
-                    type="text"
-                    labelText={t('paymentModeDescription', 'Payment mode description')}
-                    placeholder={t('paymentModeDescriptionPlaceholder', 'Enter payment mode description')}
-                    invalid={!!errors.description}
-                    invalidText={errors.description?.message}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            <ResponsiveWrapper>
-              <Controller
-                name="retired"
-                control={formMethods.control}
-                render={({ field }) => (
-                  <Toggle
-                    labelText={t('enablePaymentMode', 'Enable payment mode')}
-                    labelB="On"
-                    labelA="Off"
-                    toggled={!field.value}
-                    id="retired"
-                    onToggle={(value) => (value ? field.onChange(false) : field.onChange(true))}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => appendAttributeType({})}>
-              {t('addAttributeType', 'Add attribute type')}
+    <Workspace2
+      title={
+        initialPaymentMode?.uuid ? t('editPaymentMode', 'Edit Payment Mode') : t('addPaymentMode', 'Add Payment Mode')
+      }
+      hasUnsavedChanges={isDirty}>
+      <FormProvider {...formMethods}>
+        <form onSubmit={formMethods.handleSubmit(onSubmit, handleError)} className={styles.form}>
+          <div className={styles.formContainer}>
+            <Stack className={styles.formStackControl} gap={7}>
+              <ResponsiveWrapper>
+                <Controller
+                  name="name"
+                  control={formMethods.control}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      id="name"
+                      type="text"
+                      labelText={t('paymentModeName', 'Payment mode name')}
+                      placeholder={t('paymentModeNamePlaceholder', 'Enter payment mode name')}
+                      invalid={!!errors.name}
+                      invalidText={errors.name?.message}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  name="description"
+                  control={formMethods.control}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      id="description"
+                      type="text"
+                      labelText={t('paymentModeDescription', 'Payment mode description')}
+                      placeholder={t('paymentModeDescriptionPlaceholder', 'Enter payment mode description')}
+                      invalid={!!errors.description}
+                      invalidText={errors.description?.message}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  name="retired"
+                  control={formMethods.control}
+                  render={({ field }) => (
+                    <Toggle
+                      labelText={t('enablePaymentMode', 'Enable payment mode')}
+                      labelB="On"
+                      labelA="Off"
+                      toggled={!field.value}
+                      id="retired"
+                      onToggle={(value) => (value ? field.onChange(false) : field.onChange(true))}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => appendAttributeType({})}>
+                {t('addAttributeType', 'Add attribute type')}
+              </Button>
+              {attributeTypeFields.map((field, index) => (
+                <PaymentModeAttributeFields
+                  key={field.id}
+                  field={field}
+                  index={index}
+                  control={formMethods.control}
+                  removeAttributeType={removeAttributeType}
+                  errors={errors}
+                />
+              ))}
+            </Stack>
+          </div>
+          <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+            <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+              {t('cancel', 'Cancel')}
             </Button>
-            {attributeTypeFields.map((field, index) => (
-              <PaymentModeAttributeFields
-                key={field.id}
-                field={field}
-                index={index}
-                control={formMethods.control}
-                removeAttributeType={removeAttributeType}
-                errors={errors}
-              />
-            ))}
-          </Stack>
-        </div>
-        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-            {t('cancel', 'Cancel')}
-          </Button>
-          <Button
-            disabled={isSubmitting || Object.keys(errors).length > 0}
-            style={{ maxWidth: '50%' }}
-            kind="primary"
-            type="submit">
-            {isSubmitting ? (
-              <span style={{ display: 'flex', justifyItems: 'center' }}>
-                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-              </span>
-            ) : (
-              t('saveAndClose', 'Save & close')
-            )}
-          </Button>
-        </ButtonSet>
-      </form>
-    </FormProvider>
+            <Button
+              disabled={isSubmitting || Object.keys(errors).length > 0}
+              style={{ maxWidth: '50%' }}
+              kind="primary"
+              type="submit">
+              {isSubmitting ? (
+                <span style={{ display: 'flex', justifyItems: 'center' }}>
+                  {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+                </span>
+              ) : (
+                t('saveAndClose', 'Save & close')
+              )}
+            </Button>
+          </ButtonSet>
+        </form>
+      </FormProvider>
+    </Workspace2>
   );
 };
 

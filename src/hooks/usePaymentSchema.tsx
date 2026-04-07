@@ -19,7 +19,7 @@ export function usePaymentSchema(bill: MappedBill) {
         .nullable()
         .refine((val) => val !== null, { message: 'Payment method is required' }),
       amount: z.number().refine((value) => {
-        const amountDue = Number(bill.totalAmount) - (Number(bill.tenderedAmount) + Number(value));
+        const amountDue = bill.balance - value;
         return amountDue >= 0 && value > 0;
       }, 'Amount paid should not be greater than amount due'),
       referenceCode: z.string(),

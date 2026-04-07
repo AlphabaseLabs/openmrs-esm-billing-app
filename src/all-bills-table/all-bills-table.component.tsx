@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
+import sortBy from 'lodash-es/sortBy';
 import {
+  Button,
   DataTable,
   DataTableSkeleton,
   Dropdown,
@@ -18,17 +20,18 @@ import {
   TableRow,
   Tile,
 } from '@carbon/react';
+import { Renew } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { useLayoutType, isDesktop, useConfig, ErrorState, ConfigurableLink } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBillsPaginated } from '../billing.resource';
+import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './all-bills-table.scss';
 
 const filterItems = [
   { id: '', text: 'All bills' },
   { id: 'PENDING', text: 'Pending bills' },
   { id: 'PAID', text: 'Paid bills' },
-  { id: 'POSTED', text: 'Posted bills' },
 ];
 
 const AllBillsTable: React.FC = () => {
@@ -37,32 +40,101 @@ const AllBillsTable: React.FC = () => {
   const config = useConfig();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [billPaymentStatus, setBillPaymentStatus] = useState('');
+  const [billPaymentStatus, setBillPaymentStatus] = useState('PENDING');
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 50, 100, 500, 1000];
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const [currentPage, setCurrentPage] = useState(1);
+  const { selectedDate } = useContext(SelectedDateContext);
 
-  // Use a very wide date range to get all bills (10 years ago to now)
-  const startDate = dayjs().subtract(10, 'year').startOf('day').toDate();
-  const endDate = dayjs().endOf('day').toDate();
+  const startDate = selectedDate
+    ? dayjs(selectedDate).startOf('day').toDate()
+    : dayjs().subtract(10, 'year').startOf('day').toDate();
+  const endDate = selectedDate ? dayjs(selectedDate).endOf('day').toDate() : dayjs().endOf('day').toDate();
+  const isPendingFilter = billPaymentStatus === 'PENDING';
+  const combinedPageSize = currentPage * pageSize;
 
-  const { bills, totalCount, isLoading, isValidating, error } = useBillsPaginated({
+  const {
+    bills: filteredBills,
+    totalCount: filteredTotalCount,
+    isLoading: isLoadingFilteredBills,
+    isValidating: isValidatingFilteredBills,
+    error: filteredBillsError,
+    mutate: mutateFilteredBills,
+  } = useBillsPaginated({
     patientUuid: '',
-    billStatus: billPaymentStatus,
+    billStatus: isPendingFilter ? '' : billPaymentStatus,
     startingDate: startDate,
     endDate: endDate,
     page: currentPage,
     pageSize: pageSize,
+    enabled: !isPendingFilter,
+  });
+  const {
+    bills: pendingBills,
+    totalCount: pendingTotalCount,
+    isLoading: isLoadingPendingBills,
+    isValidating: isValidatingPendingBills,
+    error: pendingBillsError,
+    mutate: mutatePendingBills,
+  } = useBillsPaginated({
+    patientUuid: '',
+    billStatus: 'PENDING',
+    startingDate: startDate,
+    endDate: endDate,
+    page: 1,
+    pageSize: combinedPageSize,
+    enabled: isPendingFilter,
+  });
+  const {
+    bills: postedBills,
+    totalCount: postedTotalCount,
+    isLoading: isLoadingPostedBills,
+    isValidating: isValidatingPostedBills,
+    error: postedBillsError,
+    mutate: mutatePostedBills,
+  } = useBillsPaginated({
+    patientUuid: '',
+    billStatus: 'POSTED',
+    startingDate: startDate,
+    endDate: endDate,
+    page: 1,
+    pageSize: combinedPageSize,
+    enabled: isPendingFilter,
   });
   const [searchString, setSearchString] = useState('');
 
+  const bills = useMemo(() => {
+    if (!isPendingFilter) {
+      return filteredBills;
+    }
+
+    const mergedBills = sortBy([...(pendingBills ?? []), ...(postedBills ?? [])], ['dateCreatedUnformatted']).reverse();
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return mergedBills.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredBills, isPendingFilter, pageSize, pendingBills, postedBills]);
+
+  const totalCount = useMemo(() => {
+    if (!isPendingFilter) {
+      return filteredTotalCount;
+    }
+
+    return pendingTotalCount !== null && postedTotalCount !== null ? pendingTotalCount + postedTotalCount : null;
+  }, [filteredTotalCount, isPendingFilter, pendingTotalCount, postedTotalCount]);
+
+  const isLoading = isPendingFilter ? isLoadingPendingBills || isLoadingPostedBills : isLoadingFilteredBills;
+  const isValidating = isPendingFilter
+    ? isValidatingPendingBills || isValidatingPostedBills
+    : isValidatingFilteredBills;
+  const error = isPendingFilter ? (pendingBillsError ?? postedBillsError) : filteredBillsError;
+
   const headerData = [
     {
-      header: t('visitTime', 'Visit time'),
-      key: 'visitTime',
+      header: t('billDate', 'Bill date'),
+      key: 'billDate',
     },
     {
-      header: t('identifier', 'Identifier'),
+      header: t('patientIdentifier', 'Patient identifier'),
       key: 'identifier',
     },
     {
@@ -70,7 +142,7 @@ const AllBillsTable: React.FC = () => {
       key: 'patientName',
     },
     {
-      header: t('billedItems', 'Billed Items'),
+      header: t('billedItems', 'Billed items'),
       key: 'billedItems',
     },
     {
@@ -84,13 +156,10 @@ const AllBillsTable: React.FC = () => {
     if (bills !== undefined && bills.length > 0) {
       if (searchString && searchString.trim() !== '') {
         const search = searchString.toLowerCase();
-        return bills?.filter((activeBillRow) =>
-          Object.entries(activeBillRow).some(([header, value]) => {
-            if (header === 'patientUuid') {
-              return false;
-            }
-            return `${value}`.toLowerCase().includes(search);
-          }),
+        return bills?.filter(
+          (activeBillRow) =>
+            activeBillRow.patientName?.toLowerCase().includes(search) ||
+            activeBillRow.identifier?.toLowerCase().includes(search),
         );
       }
     }
@@ -117,7 +186,7 @@ const AllBillsTable: React.FC = () => {
         {bill.patientName}
       </ConfigurableLink>
     ),
-    visitTime: bill.dateCreated,
+    billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
     identifier: bill.identifier,
     department: '--',
     billedItems: setBilledItems(bill),
@@ -138,10 +207,23 @@ const AllBillsTable: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleRefresh = useCallback(() => {
+    if (isPendingFilter) {
+      void Promise.all([mutatePendingBills(), mutatePostedBills()]);
+      return;
+    }
+
+    void mutateFilteredBills();
+  }, [isPendingFilter, mutateFilteredBills, mutatePendingBills, mutatePostedBills]);
+
   // Reset to page 1 when page size changes
   useEffect(() => {
     setCurrentPage(1);
   }, [pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate]);
 
   if (isLoading && !bills?.length) {
     return (
@@ -188,8 +270,10 @@ const AllBillsTable: React.FC = () => {
       {bills?.length > 0 ? (
         <div className={styles.billListContainer}>
           <FilterableTableHeader
+            handleRefresh={handleRefresh}
             handleSearch={handleSearch}
             isValidating={isValidating}
+            isRefreshing={isLoading || isValidating}
             layout={layout}
             responsiveSize={responsiveSize}
             t={t}
@@ -274,7 +358,7 @@ const AllBillsTable: React.FC = () => {
   );
 };
 
-function FilterableTableHeader({ layout, handleSearch, isValidating, responsiveSize, t }) {
+function FilterableTableHeader({ layout, handleRefresh, handleSearch, isRefreshing, isValidating, responsiveSize, t }) {
   return (
     <>
       <div className={styles.headerContainer}>
@@ -283,18 +367,32 @@ function FilterableTableHeader({ layout, handleSearch, isValidating, responsiveS
             [styles.tabletHeading]: !isDesktop(layout),
             [styles.desktopHeading]: isDesktop(layout),
           })}>
-          <h4>{t('allBills', 'All Bills')}</h4>
+          <h4>{t('billList', 'Bill List')}</h4>
         </div>
         <div className={styles.backgroundDataFetchingIndicator}>
           <span>{isValidating ? <InlineLoading /> : null}</span>
         </div>
       </div>
-      <Search
-        labelText=""
-        placeholder={t('filterTable', 'Filter table')}
-        onChange={handleSearch}
-        size={responsiveSize}
-      />
+      <div className={styles.searchContainer}>
+        <Search
+          className={styles.searchbar}
+          labelText=""
+          placeholder={t('filterBillsByPatientNameOrIdentifier', 'Filter bills by patient name or identifer')}
+          onChange={handleSearch}
+          size={responsiveSize}
+        />
+        <Button
+          kind="ghost"
+          size={responsiveSize}
+          hasIconOnly
+          renderIcon={(props) => <Renew size={16} {...props} />}
+          iconDescription={t('refreshBills', 'Refresh bills')}
+          tooltipAlignment="end"
+          tooltipPosition="top"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        />
+      </div>
     </>
   );
 }

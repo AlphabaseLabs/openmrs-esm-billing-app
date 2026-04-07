@@ -14,6 +14,7 @@ export type BillableServicePayload = {
   }>;
   serviceStatus: string;
   concept: string | number;
+  serviceTaxes?: Array<{ concept: string }>;
   stockItem: string;
   uuid?: string;
 };
@@ -33,6 +34,7 @@ export const formatBillableServicePayloadForSubmission = (
     })),
     serviceStatus: formData.serviceStatus,
     concept: formData.concept.concept.uuid,
+    serviceTaxes: formData.serviceTax?.uuid ? [{ concept: formData.serviceTax.uuid }] : undefined,
     stockItem: formData.stockItem || null,
   };
 
@@ -68,6 +70,14 @@ export function mapInputToPayloadSchema(service): BillableFormSchema {
       },
       display: service?.concept?.display,
     },
+    serviceTax: (() => {
+      const first = service?.serviceTaxes?.[0];
+      if (!first) return null;
+      const concept = first.concept;
+      if (typeof concept === 'object' && concept?.uuid) return { uuid: concept.uuid, display: concept.display ?? '' };
+      if (typeof concept === 'string') return { uuid: concept, display: (first as any).conceptDisplay?.display ?? '' };
+      return null;
+    })(),
     stockItem: service?.stockItem?.uuid ?? null,
   };
 
@@ -94,6 +104,7 @@ export const formatStockItemToPayload = (stockItem: any): BillableFormSchema => 
       },
       display: stockItem.conceptName,
     },
+    serviceTax: null,
     stockItem: stockItem.uuid,
   };
 };

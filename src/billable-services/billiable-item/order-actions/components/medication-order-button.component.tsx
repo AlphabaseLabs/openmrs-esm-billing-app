@@ -1,12 +1,13 @@
 import React, { useCallback } from 'react';
 import { Edit } from '@carbon/react/icons';
-import { launchWorkspace } from '@openmrs/esm-framework';
+import { launchWorkspace2 } from '@openmrs/esm-framework';
 import { BaseOrderButton } from './base-order-button.component';
 import { useMedicationOrderAction, useOrderByUuid } from '../hooks/useMedicationOrderAction';
 import { launchPrescriptionEditWorkspace, navigateAndLaunchWorkspace } from '../hooks/useModalHandler';
 import { useTranslation } from 'react-i18next';
-import { useVisitOrOfflineVisit } from '@openmrs/esm-patient-common-lib/src';
+import { usePatientChartStore } from '@openmrs/esm-patient-common-lib';
 import { Button } from '@carbon/react';
+import { launchBillingWorkspace } from '../../../../workspaces';
 
 export interface MedicationOrderButtonProps {
   medicationRequestBundle?: {
@@ -76,12 +77,12 @@ export const MedicationOrderButton: React.FC<MedicationOrderButtonProps> = ({
   } = useMedicationOrderAction(medicationRequestBundle);
   const { data: order, isLoading: isOrderLoading } = useOrderByUuid(medicationRequestBundle?.request?.id);
   const isLoading = isMedicationOrderLoading && isOrderLoading;
-  const { activeVisit: currentVisit } = useVisitOrOfflineVisit(patientUuid);
+  const { visitContext: currentVisit } = usePatientChartStore(patientUuid);
   const buttonText = actionText ?? defaultButtonText;
 
   const launchModal = useCallback(() => {
     if (shouldShowBillModal) {
-      launchWorkspace('create-bill-workspace', {
+      launchBillingWorkspace('create-bill-workspace', {
         order,
         patientUuid: order?.patient?.uuid,
         medicationRequestBundle,
@@ -90,7 +91,7 @@ export const MedicationOrderButton: React.FC<MedicationOrderButtonProps> = ({
     }
 
     if (dispenseFormProps) {
-      launchWorkspace('dispense-workspace', dispenseFormProps);
+      launchWorkspace2('dispense-workspace', dispenseFormProps);
     }
   }, [shouldShowBillModal, medicationRequestBundle, dispenseFormProps, order]);
 

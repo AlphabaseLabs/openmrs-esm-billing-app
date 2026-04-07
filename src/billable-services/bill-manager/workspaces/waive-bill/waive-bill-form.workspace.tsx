@@ -16,25 +16,29 @@ import { type MappedBill } from '../../../../types';
 import { createBillWaiverPayload, extractErrorMessagesFromResponse } from '../../../../utils';
 import { convertToCurrency, extractString } from '../../../../helpers';
 import { processBillPayment, usePaymentModes } from '../../../../billing.resource';
-import { restBaseUrl, showSnackbar, useLayoutType } from '@openmrs/esm-framework';
+import {
+  Workspace2,
+  type Workspace2DefinitionProps,
+  restBaseUrl,
+  showSnackbar,
+  useLayoutType,
+} from '@openmrs/esm-framework';
 import { mutate } from 'swr';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
-import { type DefaultPatientWorkspaceProps } from '@openmrs/esm-patient-common-lib';
 import first from 'lodash-es/first';
 import classNames from 'classnames';
 
-type BillWaiverFormProps = DefaultPatientWorkspaceProps & {
+type BillWaiverFormProps = {
   bill: MappedBill;
 };
 
-export const WaiveBillForm: React.FC<BillWaiverFormProps> = ({
-  bill,
+export const WaiveBillForm: React.FC<Workspace2DefinitionProps<BillWaiverFormProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  promptBeforeClosing,
-  closeWorkspaceWithSavedChanges,
 }) => {
+  const { bill } = workspaceProps ?? ({} as BillWaiverFormProps);
   const { lineItems = [], payments = [] } = bill ?? {};
   const isTablet = useLayoutType() === 'tablet';
 
@@ -87,10 +91,6 @@ export const WaiveBillForm: React.FC<BillWaiverFormProps> = ({
     resolver: zodResolver(schema),
   });
 
-  useEffect(() => {
-    promptBeforeClosing(() => isDirty);
-  }, [isDirty, promptBeforeClosing]);
-
   if (lineItems?.length === 0) {
     return null;
   }
@@ -123,7 +123,7 @@ export const WaiveBillForm: React.FC<BillWaiverFormProps> = ({
         mutate((key) => typeof key === 'string' && key.startsWith(billUrl), undefined, {
           revalidate: true,
         });
-        closeWorkspaceWithSavedChanges();
+        closeWorkspace({ discardUnsavedChanges: true });
       },
       (error) => {
         showSnackbar({
@@ -140,95 +140,104 @@ export const WaiveBillForm: React.FC<BillWaiverFormProps> = ({
   };
 
   if (isLoading) {
-    return <InlineLoading description={t('loading', 'Loading')} />;
+    return (
+      <Workspace2 title={t('waiveBillForm', 'Waive Bill Form')} hasUnsavedChanges={isDirty}>
+        <InlineLoading description={t('loading', 'Loading')} />
+      </Workspace2>
+    );
   }
 
   if (waiverPaymentMode.length === 0) {
     return (
-      <div className={styles.waiverPaymentModeNotFound}>
-        <InlineNotification
-          title={t('waiverPaymentModeNotFound', 'Waiver payment mode not found')}
-          subtitle={t(
-            'waiverPaymentModeNotFoundSubtitle',
-            'Contact your administrator to create a waiver payment attribute type to waive a bill',
-          )}
-          kind="error"
-          lowContrast
-        />
-      </div>
+      <Workspace2 title={t('waiveBillForm', 'Waive Bill Form')} hasUnsavedChanges={isDirty}>
+        <div className={styles.waiverPaymentModeNotFound}>
+          <InlineNotification
+            title={t('waiverPaymentModeNotFound', 'Waiver payment mode not found')}
+            subtitle={t(
+              'waiverPaymentModeNotFoundSubtitle',
+              'Contact your administrator to create a waiver payment attribute type to waive a bill',
+            )}
+            kind="error"
+            lowContrast
+          />
+        </div>
+      </Workspace2>
     );
   }
 
   return (
-    <form className={styles.form} aria-label={t('waiverForm', 'Waiver form')} onSubmit={handleSubmit(onSubmit)}>
-      <div className={styles.formContainer}>
-        <FormGroup legendText={t('billItemsSummary', 'Bill Items Summary')}>
-          <section className={styles.billWaiverDescription}>
-            <label className={styles.label}>{t('waiverBillItems', 'Bill Items')}</label>
-            <p className={styles.value}>
-              {t('billName', ' {{billName}} ', {
-                billName: lineItems.map((item) => extractString(item.item || item.billableService)).join(', ') ?? '--',
-              })}
-            </p>
-          </section>
-          <section className={styles.billWaiverDescription}>
-            <label className={styles.label}>{t('billTotal', 'Bill total')}</label>
-            <p className={styles.value}>{convertToCurrency(totalAmount)}</p>
-          </section>
-          {amountAlreadyWaivedOrPaid > 0 && (
+    <Workspace2 title={t('waiveBillForm', 'Waive Bill Form')} hasUnsavedChanges={isDirty}>
+      <form className={styles.form} aria-label={t('waiverForm', 'Waiver form')} onSubmit={handleSubmit(onSubmit)}>
+        <div className={styles.formContainer}>
+          <FormGroup legendText={t('billItemsSummary', 'Bill Items Summary')}>
             <section className={styles.billWaiverDescription}>
-              <label className={styles.label}>{t('amountAlreadyWaivedOrPaid', 'Total paid / waived')}</label>
-              <p className={styles.value}>{convertToCurrency(amountAlreadyWaivedOrPaid)}</p>
+              <label className={styles.label}>{t('waiverBillItems', 'Bill Items')}</label>
+              <p className={styles.value}>
+                {t('billName', ' {{billName}} ', {
+                  billName:
+                    lineItems.map((item) => extractString(item.item || item.billableService)).join(', ') ?? '--',
+                })}
+              </p>
             </section>
-          )}
-          <Controller
-            control={control}
-            name="waiveAmount"
-            render={({ field }) => (
-              <Layer className={styles.formControlLayer}>
-                <NumberInput
-                  id="waiverAmount"
-                  label={t('amountToWaiveLabel', 'Amount to Waive')}
-                  helperText={t('amountToWaiveHelper', 'Specify the amount to be deducted from the bill')}
-                  aria-label={t('amountToWaiveAriaLabel', 'Enter amount to waive')}
-                  hideSteppers
-                  disableWheel
-                  min={0}
-                  max={totalAmount}
-                  {...field}
-                  invalidText={errors.waiveAmount?.message || 'Invalid'}
-                  invalid={!!errors.waiveAmount}
-                />
-              </Layer>
+            <section className={styles.billWaiverDescription}>
+              <label className={styles.label}>{t('billTotal', 'Bill total')}</label>
+              <p className={styles.value}>{convertToCurrency(totalAmount)}</p>
+            </section>
+            {amountAlreadyWaivedOrPaid > 0 && (
+              <section className={styles.billWaiverDescription}>
+                <label className={styles.label}>{t('amountAlreadyWaivedOrPaid', 'Total paid / waived')}</label>
+                <p className={styles.value}>{convertToCurrency(amountAlreadyWaivedOrPaid)}</p>
+              </section>
             )}
-          />
-          <Controller
-            control={control}
-            name="waiverReason"
-            render={({ field }) => (
-              <TextArea labelText={t('waiverReasonLabel', 'Waiver reason')} rows={4} id="waiverReason" {...field} />
+            <Controller
+              control={control}
+              name="waiveAmount"
+              render={({ field }) => (
+                <Layer className={styles.formControlLayer}>
+                  <NumberInput
+                    id="waiverAmount"
+                    label={t('amountToWaiveLabel', 'Amount to Waive')}
+                    helperText={t('amountToWaiveHelper', 'Specify the amount to be deducted from the bill')}
+                    aria-label={t('amountToWaiveAriaLabel', 'Enter amount to waive')}
+                    hideSteppers
+                    disableWheel
+                    min={0}
+                    max={totalAmount}
+                    {...field}
+                    invalidText={errors.waiveAmount?.message || 'Invalid'}
+                    invalid={!!errors.waiveAmount}
+                  />
+                </Layer>
+              )}
+            />
+            <Controller
+              control={control}
+              name="waiverReason"
+              render={({ field }) => (
+                <TextArea labelText={t('waiverReasonLabel', 'Waiver reason')} rows={4} id="waiverReason" {...field} />
+              )}
+            />
+          </FormGroup>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button
+            disabled={isSubmitting || !isDirty || !isValid}
+            style={{ maxWidth: '50%' }}
+            kind="primary"
+            type="submit">
+            {isSubmitting ? (
+              <span style={{ display: 'flex', justifyItems: 'center' }}>
+                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+              </span>
+            ) : (
+              t('postWaiver', 'Post waiver')
             )}
-          />
-        </FormGroup>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button
-          disabled={isSubmitting || !isDirty || !isValid}
-          style={{ maxWidth: '50%' }}
-          kind="primary"
-          type="submit">
-          {isSubmitting ? (
-            <span style={{ display: 'flex', justifyItems: 'center' }}>
-              {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-            </span>
-          ) : (
-            t('postWaiver', 'Post waiver')
-          )}
-        </Button>
-      </ButtonSet>
-    </form>
+          </Button>
+        </ButtonSet>
+      </form>
+    </Workspace2>
   );
 };

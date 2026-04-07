@@ -4,12 +4,16 @@ import BillingHeader from '../../billing-header/billing-header.component';
 import ClinicalCharges from '../clinical-charges.component';
 import styles from './dashboard.scss';
 
-export const ChargeItemsDashboard = () => {
+interface ChargeItemsDashboardProps {
+  showHeader?: boolean;
+}
+
+export const ChargeItemsDashboard: React.FC<ChargeItemsDashboardProps> = ({ showHeader = true }) => {
   const { t } = useTranslation();
 
   return (
     <main className={styles.container}>
-      <BillingHeader title={t('chargeItems', 'Charge Items')} />
+      {showHeader ? <BillingHeader title={t('chargeItems', 'Charge Items')} /> : null}
       <main className={styles.servicesTableContainer}>
         <ClinicalCharges />
       </main>

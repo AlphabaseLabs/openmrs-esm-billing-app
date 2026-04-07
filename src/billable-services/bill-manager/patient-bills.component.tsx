@@ -17,7 +17,7 @@ import { convertToCurrency } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@openmrs/esm-patient-common-lib';
 import { type MappedBill, PaymentStatus } from '../../types';
-import styles from '../../bills-table/bills-table.scss';
+import styles from './bill-manager.scss';
 import BillLineItems from './bill-line-items.component';
 import { ExtensionSlot, ConfigurableLink } from '@openmrs/esm-framework';
 
@@ -33,15 +33,15 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
   const tableHeaders = [
     { header: 'Date', key: 'date' },
     { header: 'Identifier', key: 'identifier' },
-    { header: 'Invoice Number', key: 'invoiceNumber' },
+    { header: 'Invoice number', key: 'invoiceNumber' },
     { header: 'Status', key: 'status' },
-    { header: 'Total Amount', key: 'totalAmount' },
-    { header: 'Amount Paid', key: 'amountPaid' },
-    { header: 'Amount Waived', key: 'amountWaived' },
+    { header: 'Total amount', key: 'totalAmount' },
+    { header: 'Amount paid', key: 'amountPaid' },
+    { header: 'Amount waived', key: 'amountWaived' },
   ];
 
   if (hasRefundedItems) {
-    tableHeaders.splice(2, 0, { header: 'Refunded Amount', key: 'creditAmount' });
+    tableHeaders.splice(2, 0, { header: 'Refunded amount', key: 'creditAmount' });
   }
 
   const tableRows = bills.map((bill) => ({

@@ -1,5 +1,5 @@
-import { launchWorkspace, navigate, getGlobalStore } from '@openmrs/esm-framework';
-import { getPatientChartStore, type Order } from '@openmrs/esm-patient-common-lib';
+import { launchWorkspace2, launchWorkspaceGroup2, navigate } from '@openmrs/esm-framework';
+import { type Order } from '@openmrs/esm-patient-common-lib';
 import { useCallback } from 'react';
 import { mutate } from 'swr';
 
@@ -18,10 +18,6 @@ export function useModalHandler(mutateUrl?: string) {
     handleModalClose,
   };
 }
-
-export const getWorkspaceStore = () => {
-  return getGlobalStore('workspace');
-};
 
 export const launchPrescriptionEditWorkspace = (order: Order, patientUuid: string) => {
   const newItem = {
@@ -66,11 +62,6 @@ export const launchPrescriptionEditWorkspace = (order: Order, patientUuid: strin
     },
   };
 
-  const store = getPatientChartStore();
-  store.setState({
-    patientUuid,
-  });
-
   const targetUrl = `\${openmrsSpaBase}/patient/${patientUuid}/chart/Medications`;
   const workspaceName = 'add-drug-order';
   const additionalProps = {
@@ -83,21 +74,24 @@ export const launchPrescriptionEditWorkspace = (order: Order, patientUuid: strin
 
 export const navigateAndLaunchWorkspace = (
   targetUrl: string,
-  contextKey: string,
+  _contextKey: string,
   workspaceName: string,
   additionalProps: any,
   patientUuid: string,
+  workspaceGroupName?: string,
 ) => {
-  const workspaceStore = getWorkspaceStore();
-
   // Set up a one-time event listener for when navigation completes
-  const handleRoutingComplete = (event: Event) => {
+  const handleRoutingComplete = () => {
     // Remove the listener after it fires once
     window.removeEventListener('single-spa:routing-event', handleRoutingComplete);
 
-    // Now that navigation is complete, change context and launch workspace
-    workspaceStore.setState({ context: `patient/${patientUuid}`, openWorkspaces: [], prompt: null });
-    launchWorkspace(workspaceName, additionalProps);
+    window.requestAnimationFrame(() => {
+      if (workspaceGroupName) {
+        launchWorkspaceGroup2(workspaceGroupName, null);
+      }
+
+      launchWorkspace2(workspaceName, additionalProps);
+    });
   };
 
   // Add the event listener before navigating

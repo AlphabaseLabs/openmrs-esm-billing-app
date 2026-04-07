@@ -25,12 +25,8 @@ describe('Currency Utilities', () => {
 
   describe('DEFAULT_LOCALE_CURRENCY_MAP', () => {
     it('should have correct currency mappings', () => {
-      expect(DEFAULT_LOCALE_CURRENCY_MAP.en).toBe('KES');
-      expect(DEFAULT_LOCALE_CURRENCY_MAP.sw).toBe('KES');
-      expect(DEFAULT_LOCALE_CURRENCY_MAP.am).toBe('ETB');
-      expect(DEFAULT_LOCALE_CURRENCY_MAP['en-KE']).toBe('KES');
-      expect(DEFAULT_LOCALE_CURRENCY_MAP['sw-KE']).toBe('KES');
-      expect(DEFAULT_LOCALE_CURRENCY_MAP['am-ET']).toBe('ETB');
+      expect(DEFAULT_LOCALE_CURRENCY_MAP.en).toBe('PKR');
+      expect(DEFAULT_LOCALE_CURRENCY_MAP['en-PK']).toBe('PKR');
     });
   });
 
@@ -49,17 +45,17 @@ describe('Currency Utilities', () => {
   describe('getCurrencyForLocale', () => {
     it('should return correct currency for English locale', () => {
       mockLocalStorage.getItem.mockReturnValue('en');
-      expect(getCurrencyForLocale()).toBe('KES');
+      expect(getCurrencyForLocale()).toBe('PKR');
     });
 
-    it('should return correct currency for Swahili locale', () => {
-      mockLocalStorage.getItem.mockReturnValue('sw');
-      expect(getCurrencyForLocale()).toBe('KES');
+    it('should return correct currency for configured Pakistan locale', () => {
+      mockLocalStorage.getItem.mockReturnValue('en-PK');
+      expect(getCurrencyForLocale()).toBe('PKR');
     });
 
-    it('should return correct currency for Amharic locale', () => {
+    it('should fall back to KES for unmapped locales', () => {
       mockLocalStorage.getItem.mockReturnValue('am');
-      expect(getCurrencyForLocale()).toBe('ETB');
+      expect(getCurrencyForLocale()).toBe('KES');
     });
 
     it('should return KES as fallback for unknown locale', () => {

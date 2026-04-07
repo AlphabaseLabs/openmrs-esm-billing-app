@@ -2,22 +2,19 @@ import React, { useContext } from 'react';
 import dayjs from 'dayjs';
 import { DatePickerInput, DatePicker } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
-import { Location, UserFollow } from '@carbon/react/icons';
-import { useSession } from '@openmrs/esm-framework';
-import { omrsDateFormat } from '../constants';
 import BillingIllustration from './billing-illustration.component';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-header.scss';
 
 interface BillingHeaderProps {
   title: string;
+  actions?: React.ReactNode;
 }
 
-const BillingHeader: React.FC<BillingHeaderProps> = ({ title }) => {
+const BillingHeader: React.FC<BillingHeaderProps> = ({ title, actions }) => {
   const { t } = useTranslation();
-  const session = useSession();
-  const location = session?.sessionLocation?.display;
   const { selectedDate, setSelectedDate } = useContext(SelectedDateContext);
+  const dateValue = selectedDate ? dayjs(selectedDate).format('DD MMM YYYY') : '';
 
   return (
     <div className={styles.header} data-testid="billing-header">
@@ -29,20 +26,13 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({ title }) => {
         </div>
       </div>
       <div className={styles['right-justified-items']}>
-        <div className={styles.userContainer}>
-          <p>{session?.user?.person?.display}</p>
-          <UserFollow size={16} className={styles.userIcon} />
-        </div>
-        <div className={styles['date-and-location']}>
-          <Location size={16} />
-          <span className={styles.value}>{location}</span>
-          <span className={styles.middot}>&middot;</span>
+        <div className={styles.metadataContainer}>
           <DatePicker
-            onChange={([date]) => setSelectedDate(dayjs(date).startOf('day').format(omrsDateFormat))}
-            value={dayjs(selectedDate).format('DD MMM YYYY')}
+            onChange={([date]) => setSelectedDate(date ? dayjs(date).startOf('day').toISOString() : null)}
+            value={dateValue}
             dateFormat="d-M-Y"
             datePickerType="single"
-            maxDate={new Date()}>
+            maxDate={Date.now()}>
             <DatePickerInput
               style={{ cursor: 'pointer', backgroundColor: 'transparent', border: 'none', maxWidth: '10rem' }}
               id="appointment-date-picker"
@@ -52,6 +42,7 @@ const BillingHeader: React.FC<BillingHeaderProps> = ({ title }) => {
             />
           </DatePicker>
         </div>
+        {actions ? <div className={styles.actionsContainer}>{actions}</div> : null}
       </div>
     </div>
   );

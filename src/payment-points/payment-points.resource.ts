@@ -104,9 +104,19 @@ interface Person {
   uuid: string;
 }
 
+interface PersonWithDisplay extends Person {
+  display?: string;
+}
+
 interface ProviderResponse {
   uuid: string;
-  person: Person;
+  person: PersonWithDisplay;
+}
+
+export interface ProviderOption {
+  id: string;
+  uuid: string;
+  label: string;
 }
 
 interface UsersResponse {
@@ -120,6 +130,20 @@ export function useProviders() {
   const providers = data?.data?.results || [];
 
   return { providers, error, isLoading };
+}
+
+export function useProviderOptions() {
+  const url = `/ws/rest/v1/provider?v=custom:(uuid,person:(uuid,display))`;
+  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(url, openmrsFetch);
+  const providers = data?.data?.results || [];
+
+  const options: ProviderOption[] = (providers || []).map((p) => ({
+    id: p.uuid,
+    uuid: p.uuid,
+    label: p.person?.display ?? p.uuid,
+  })).sort((a, b) => a.label.localeCompare(b.label));
+
+  return { providerOptions: options, error, isLoading };
 }
 
 export function useUsers() {

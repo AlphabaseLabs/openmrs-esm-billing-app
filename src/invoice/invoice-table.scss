@@ -36,7 +36,7 @@
 }
 
 .invoiceContainer {
-  margin: layout.$spacing-05;
+  margin: 0 0 layout.$spacing-05;
   border: 1px solid $ui-03;
 }
 
@@ -98,15 +98,8 @@
   display: flex;
   margin:  0;
   padding: 0;
-}
 
-.addBillItemButton {
-  margin-left: auto;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-right: layout.$spacing-03;
-  
-  :global(.cds--btn__icon) {
-    margin-left: layout.$spacing-02;
+  :global(svg) {
+    pointer-events: none;
   }
 }

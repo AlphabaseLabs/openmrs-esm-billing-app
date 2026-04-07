@@ -28,13 +28,16 @@ const createWaiverAttributes = (
 const createPaymentPayload = (
   payment: Payment,
 ): {
+  uuid?: string;
   amountTendered: number;
   amount: number;
   attributes: Array<{ attributeType: string | undefined; value: string }>;
   instanceType: string | undefined;
   dateCreated: number;
+  allocations?: Payment['allocations'];
 } => {
   return {
+    uuid: payment.uuid,
     amountTendered: formatAmount(payment.amountTendered),
     amount: formatAmount(payment.amount),
     attributes: payment.attributes.map((attribute) => ({
@@ -42,6 +45,7 @@ const createPaymentPayload = (
       value: attribute.value,
     })),
     instanceType: payment?.instanceType?.uuid,
+    allocations: payment.allocations,
     dateCreated: payment.dateCreated,
   };
 };

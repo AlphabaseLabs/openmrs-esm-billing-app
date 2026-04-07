@@ -4,8 +4,9 @@ import { type MappedBill } from '../../../types';
 import styles from './payment.scss';
 import { Stack, TextInput, Button, ButtonSet, InlineLoading, Dropdown } from '@carbon/react';
 import {
-  type DefaultWorkspaceProps,
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   showNotification,
   showSnackbar,
   useLayoutType,
@@ -16,18 +17,18 @@ import { addPaymentToBill, usePaymentModes } from '../../../billing.resource';
 import { usePaymentForm } from './use-payment-form';
 import { type z } from 'zod';
 import { mutate } from 'swr';
+import { convertToCurrency } from '../../../helpers';
 
-type PaymentWorkspaceProps = DefaultWorkspaceProps & {
+type PaymentWorkspaceProps = {
   bill: MappedBill;
 };
 
-const PaymentWorkspace: React.FC<PaymentWorkspaceProps> = ({
-  bill,
+const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  promptBeforeClosing,
-  closeWorkspaceWithSavedChanges,
 }) => {
   const { t } = useTranslation();
+  const { bill } = workspaceProps ?? ({} as PaymentWorkspaceProps);
   const isTablet = useLayoutType() === 'tablet';
   const translationWrapper = (key: string, defaultValue?: string) => t(key, defaultValue);
   const { formMethods, paymentSchema } = usePaymentForm(translationWrapper, bill.balance);
@@ -68,7 +69,7 @@ const PaymentWorkspace: React.FC<PaymentWorkspaceProps> = ({
       }
       const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
       mutate((key) => typeof key === 'string' && key.startsWith(url), undefined, { revalidate: true });
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (error) {
       showSnackbar({
         title: t('errorSavingPayment', 'Error saving payment'),
@@ -86,110 +87,120 @@ const PaymentWorkspace: React.FC<PaymentWorkspaceProps> = ({
     });
   };
 
-  useEffect(() => {
-    promptBeforeClosing(() => formMethods.formState.isDirty);
-  }, [formMethods.formState.isDirty, promptBeforeClosing]);
-
   if (isLoadingPaymentModes) {
-    return <InlineLoading status="active" iconDescription="Loading payment modes" />;
+    return (
+      <Workspace2
+        title={t('additionalPayment', 'Additional Payment (Balance {{billBalance}})', {
+          billBalance: convertToCurrency(bill.balance),
+        })}
+        hasUnsavedChanges={formMethods.formState.isDirty}>
+        <InlineLoading status="active" iconDescription="Loading payment modes" />
+      </Workspace2>
+    );
   }
 
   const attributeTypes = (formMethods.watch('instanceType')?.attributeTypes as Array<Record<string, string>>) || [];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
-      <div className={styles.formContainer}>
-        <Stack className={styles.formStackControl} gap={7}>
-          <ResponsiveWrapper>
-            <Stack gap={4}>
-              <Controller
-                name="instanceType"
-                control={control}
-                render={({ field }) => (
-                  <Dropdown
-                    {...field}
-                    id="instanceType"
-                    titleText={t('instanceType', 'Instance Type')}
-                    label={t('selectInstanceType', 'Select instance type')}
-                    items={paymentModes}
-                    onChange={({ selectedItem }) => field.onChange(selectedItem)}
-                    itemToString={(item) => (item ? item.name : '')}
-                    invalid={!!errors.instanceType}
-                    invalidText={errors.instanceType?.message}
-                  />
-                )}
-              />
-            </Stack>
-          </ResponsiveWrapper>
-          <ResponsiveWrapper>
-            <Controller
-              name="amountTendered"
-              control={control}
-              render={({ field }) => (
-                <TextInput
-                  {...field}
-                  id="amountTendered"
-                  labelText={t('amountTendered', 'Amount Tendered')}
-                  placeholder={t('enterAmountTendered', 'Enter amount tendered, max is {{max}}', {
-                    max: bill.balance,
-                  })}
-                  type="number"
-                  step="0.01"
-                  max={bill.balance}
-                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                  invalid={!!errors.amountTendered}
-                  invalidText={errors.amountTendered?.message}
+    <Workspace2
+      title={t('additionalPayment', 'Additional Payment (Balance {{billBalance}})', {
+        billBalance: convertToCurrency(bill.balance),
+      })}
+      hasUnsavedChanges={formMethods.formState.isDirty}>
+      <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
+        <div className={styles.formContainer}>
+          <Stack className={styles.formStackControl} gap={7}>
+            <ResponsiveWrapper>
+              <Stack gap={4}>
+                <Controller
+                  name="instanceType"
+                  control={control}
+                  render={({ field }) => (
+                    <Dropdown
+                      {...field}
+                      id="instanceType"
+                      titleText={t('instanceType', 'Instance Type')}
+                      label={t('selectInstanceType', 'Select instance type')}
+                      items={paymentModes}
+                      onChange={({ selectedItem }) => field.onChange(selectedItem)}
+                      itemToString={(item) => (item ? item.name : '')}
+                      invalid={!!errors.instanceType}
+                      invalidText={errors.instanceType?.message}
+                    />
+                  )}
                 />
-              )}
-            />
-          </ResponsiveWrapper>
-          <ResponsiveWrapper>
-            {attributeTypes.map((attributeType) => (
+              </Stack>
+            </ResponsiveWrapper>
+            <ResponsiveWrapper>
               <Controller
-                key={attributeType.uuid}
-                name={`attributes.${attributeType.uuid}`}
+                name="amountTendered"
                 control={control}
                 render={({ field }) => (
                   <TextInput
                     {...field}
-                    id={attributeType.uuid}
-                    labelText={`${attributeType.name || 'Attribute'}${
-                      attributeType.required ? t('required', ' (Required)') : ''
-                    }`}
-                    placeholder={attributeType.description || 'Enter value'}
-                    invalid={!!errors.attributes?.[attributeType.uuid] || (attributeType.required && !field.value)}
-                    invalidText={
-                      errors.attributes?.[attributeType.uuid]?.message ||
-                      (attributeType.required && !field.value
-                        ? t('attributeValueRequired', 'Attribute value is required')
-                        : '')
-                    }
+                    id="amountTendered"
+                    labelText={t('amountTendered', 'Amount Tendered')}
+                    placeholder={t('enterAmountTendered', 'Enter amount tendered, max is {{max}}', {
+                      max: bill.balance,
+                    })}
+                    type="number"
+                    step="0.01"
+                    max={bill.balance}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    invalid={!!errors.amountTendered}
+                    invalidText={errors.amountTendered?.message}
                   />
                 )}
               />
-            ))}
-          </ResponsiveWrapper>
-        </Stack>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button
-          disabled={isSubmitting || Object.keys(errors).length > 0}
-          style={{ maxWidth: '50%' }}
-          kind="primary"
-          type="submit">
-          {isSubmitting ? (
-            <span style={{ display: 'flex', justifyItems: 'center' }}>
-              {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-            </span>
-          ) : (
-            t('saveAndClose', 'Save & close')
-          )}
-        </Button>
-      </ButtonSet>
-    </form>
+            </ResponsiveWrapper>
+            <ResponsiveWrapper>
+              {attributeTypes.map((attributeType) => (
+                <Controller
+                  key={attributeType.uuid}
+                  name={`attributes.${attributeType.uuid}`}
+                  control={control}
+                  render={({ field }) => (
+                    <TextInput
+                      {...field}
+                      id={attributeType.uuid}
+                      labelText={`${attributeType.name || 'Attribute'}${
+                        attributeType.required ? t('required', ' (Required)') : ''
+                      }`}
+                      placeholder={attributeType.description || 'Enter value'}
+                      invalid={!!errors.attributes?.[attributeType.uuid] || (attributeType.required && !field.value)}
+                      invalidText={
+                        errors.attributes?.[attributeType.uuid]?.message ||
+                        (attributeType.required && !field.value
+                          ? t('attributeValueRequired', 'Attribute value is required')
+                          : '')
+                      }
+                    />
+                  )}
+                />
+              ))}
+            </ResponsiveWrapper>
+          </Stack>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button
+            disabled={isSubmitting || Object.keys(errors).length > 0}
+            style={{ maxWidth: '50%' }}
+            kind="primary"
+            type="submit">
+            {isSubmitting ? (
+              <span style={{ display: 'flex', justifyItems: 'center' }}>
+                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+              </span>
+            ) : (
+              t('saveAndClose', 'Save & close')
+            )}
+          </Button>
+        </ButtonSet>
+      </form>
+    </Workspace2>
   );
 };
 

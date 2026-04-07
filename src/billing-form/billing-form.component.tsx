@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { mutate } from 'swr';
-import { getPatientUuidFromStore } from '@openmrs/esm-patient-common-lib';
-import { type DefaultWorkspaceProps, showSnackbar, useConfig } from '@openmrs/esm-framework';
+import { Workspace2, type Workspace2DefinitionProps, showSnackbar, useConfig } from '@openmrs/esm-framework';
 import {
   Button,
   ButtonSet,
@@ -30,18 +29,39 @@ import { type BillingConfig } from '../config-schema';
 
 import styles from './billing-form.scss';
 
-type BillingFormProps = DefaultWorkspaceProps & {
+type BillingFormProps = {
   patientUuid: string;
+  onSuccess?: () => void;
 };
 
 type FormType = z.infer<typeof billingFormSchema>;
+type BillingServicePrice = BillingService['servicePrices'][number];
 
-const BillingForm: React.FC<BillingFormProps> = ({ closeWorkspace, patientUuid: patientUuidProp }) => {
+const resolveDefaultServicePrice = (
+  service: BillingService | undefined,
+  defaultPaymentMethodName?: string,
+): BillingServicePrice | undefined => {
+  if (service?.servicePrices?.length !== 1) {
+    return undefined;
+  }
+
+  const normalizedConfiguredDefaultPaymentMethod = defaultPaymentMethodName?.trim().toLowerCase();
+
+  return (
+    service.servicePrices.find(
+      (price) => price.paymentMode?.name?.trim().toLowerCase() === normalizedConfiguredDefaultPaymentMethod,
+    ) ?? service.servicePrices[0]
+  );
+};
+
+const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ closeWorkspace, workspaceProps }) => {
   const { t } = useTranslation();
-  const patientUuid = patientUuidProp || getPatientUuidFromStore();
+  const patientUuidProp = workspaceProps?.patientUuid;
+  const onSuccess = workspaceProps?.onSuccess;
+  const patientUuid = patientUuidProp;
   const { billableServices, error, isLoading } = useBillableServices();
   const [searchTermValue, setSearchTermValue] = useState('');
-  const { cashPointUuid, cashierUuid } = useConfig<BillingConfig>();
+  const { cashPointUuid, cashierUuid, defaultPaymentMethodName } = useConfig<BillingConfig>();
 
   const form = useForm<FormType>({
     resolver: zodResolver(billingFormSchema),
@@ -68,7 +88,8 @@ const BillingForm: React.FC<BillingFormProps> = ({ closeWorkspace, patientUuid: 
         kind: 'success',
         timeoutInMs: 3000,
       });
-      closeWorkspace();
+      onSuccess?.();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (e) {
       showSnackbar({ title: 'Bill processing error', kind: 'error', subtitle: e });
     }
@@ -87,15 +108,19 @@ const BillingForm: React.FC<BillingFormProps> = ({ closeWorkspace, patientUuid: 
 
   const handleSuggestionSelected = (field: string, value: string) => {
     if (value) {
+      const selectedService = billableServices.find((service) => service.uuid === value);
+      const defaultServicePrice = resolveDefaultServicePrice(selectedService, defaultPaymentMethodName);
+
       form.setValue('lineItems', [
         ...lineItemsToWatch,
         {
           billableService: value,
           lineItemOrder: 0,
           quantity: 1,
-          price: 0,
+          price: defaultServicePrice?.price ?? 0,
           paymentStatus: 'PENDING',
-          priceName: 'Default',
+          priceName: defaultServicePrice?.name ?? 'Default',
+          priceUuid: defaultServicePrice?.uuid ?? '',
         },
       ]);
     }
@@ -108,129 +133,133 @@ const BillingForm: React.FC<BillingFormProps> = ({ closeWorkspace, patientUuid: 
   };
 
   return (
-    <Form onSubmit={form.handleSubmit(onSubmit, handleError)}>
-      <Stack gap={4} className={styles.grid}>
-        <Column>
-          <Autosuggest
-            value={searchTermValue}
-            onClear={() => setSearchTermValue('')}
-            getDisplayValue={(item: BillingService) => item.name}
-            getFieldValue={(item: BillingService) => item.uuid}
-            getSearchResults={handleSearch}
-            onSuggestionSelected={handleSuggestionSelected}
-            labelText={t('search', 'Search')}
-            placeholder={t('searchPlaceHolder', 'Find your billables here...')}
-          />
-        </Column>
-        <Column className={styles.billingItem}>
-          <Table aria-label="sample table">
-            <TableHead>
-              <TableRow>
-                <TableHeader>{t('item', 'Item')}</TableHeader>
-                <TableHeader>{t('quantity', 'Quantity')}</TableHeader>
-                <TableHeader>{t('paymentMethod', 'Payment Method')}</TableHeader>
-                <TableHeader>{t('price', 'Price')}</TableHeader>
-                <TableHeader>{t('total', 'Total')}</TableHeader>
-                <TableHeader></TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {lineItemsToWatch.map(({ billableService, quantity, price }, index) => {
-                const service = billableServices.find((serv) => serv.uuid === billableService);
-                return (
-                  <TableRow key={billableService}>
-                    <TableCell>{service?.name}</TableCell>
-                    <TableCell>
-                      <Controller
-                        control={form.control}
-                        name={`lineItems.${index}.quantity` as any}
-                        render={({ field }) => (
-                          <input
-                            ref={field.ref}
-                            value={field.value}
-                            onChange={({ target: { value } }) => {
-                              field.onChange(value);
-                            }}
-                            type="number"
-                            className="form-control"
-                            id={billableService}
-                            min={1}
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Controller
-                        control={form.control}
-                        name={`lineItems.${index}.priceUuid`}
-                        render={({ field }) => (
-                          <Dropdown
-                            hideLabel
-                            ref={field.ref}
-                            invalid={form.formState.errors[field.name]?.message}
-                            invalidText={form.formState.errors[field.name]?.message}
-                            id="priceUuid"
-                            onChange={(e) => {
-                              field.onChange(e.selectedItem);
-                              const price = service?.servicePrices.find((p) => p.uuid === e.selectedItem)?.price;
-                              form.setValue(`lineItems.${index}.price`, price ?? 0);
-                            }}
-                            selectedItem={field.value}
-                            label={t('choosePrice', 'Choose price')}
-                            titleText={t('choosePrice', 'Choose price')}
-                            items={service?.servicePrices.map((r) => r.uuid) ?? []}
-                            itemToString={(item) => service?.servicePrices.find((r) => r.uuid === item)?.name ?? ''}
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell id={service?.name + 'Price'}>{price}</TableCell>
-                    <TableCell id={service?.name + 'Total'}>{price * quantity}</TableCell>
-                    <TableCell id={service?.name + 'Delete'}>
-                      <Button
-                        renderIcon={TrashCan}
-                        iconDescription={t('delete', 'Delete')}
-                        kind="danger"
-                        hasIconOnly
-                        onClick={() => {
-                          form.setValue(
-                            'lineItems',
-                            lineItemsToWatch.filter((item) => item.billableService !== billableService),
-                          );
-                        }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              <TableRow>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
+    <Workspace2 title={t('billingForm', 'Billing Form')}>
+      <Form onSubmit={form.handleSubmit(onSubmit, handleError)}>
+        <Stack gap={4} className={styles.grid}>
+          <Column>
+            <Autosuggest
+              value={searchTermValue}
+              onClear={() => setSearchTermValue('')}
+              getDisplayValue={(item: BillingService) => item.name}
+              getFieldValue={(item: BillingService) => item.uuid}
+              getSearchResults={handleSearch}
+              onSuggestionSelected={handleSuggestionSelected}
+              labelText={t('search', 'Search')}
+              placeholder={t('searchPlaceHolder', 'Find your billables here...')}
+            />
+          </Column>
+          <Column className={styles.billingItem}>
+            <Table aria-label="sample table">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>{t('item', 'Item')}</TableHeader>
+                  <TableHeader>{t('quantity', 'Quantity')}</TableHeader>
+                  <TableHeader>{t('paymentMethod', 'Payment method')}</TableHeader>
+                  <TableHeader>{t('price', 'Price')}</TableHeader>
+                  <TableHeader>{t('total', 'Total')}</TableHeader>
+                  <TableHeader></TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {lineItemsToWatch.map(({ billableService, quantity, price }, index) => {
+                  const service = billableServices.find((serv) => serv.uuid === billableService);
+                  return (
+                    <TableRow key={billableService}>
+                      <TableCell>{service?.name}</TableCell>
+                      <TableCell>
+                        <Controller
+                          control={form.control}
+                          name={`lineItems.${index}.quantity` as any}
+                          render={({ field }) => (
+                            <input
+                              ref={field.ref}
+                              value={field.value}
+                              onChange={({ target: { value } }) => {
+                                field.onChange(value);
+                              }}
+                              type="number"
+                              className="form-control"
+                              id={billableService}
+                              min={1}
+                            />
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Controller
+                          control={form.control}
+                          name={`lineItems.${index}.priceUuid`}
+                          render={({ field }) => (
+                            <Dropdown
+                              autoAlign
+                              className={styles.paymentMethodDropdown}
+                              hideLabel
+                              ref={field.ref}
+                              invalid={form.formState.errors[field.name]?.message}
+                              invalidText={form.formState.errors[field.name]?.message}
+                              id="priceUuid"
+                              onChange={(e) => {
+                                field.onChange(e.selectedItem);
+                                const price = service?.servicePrices.find((p) => p.uuid === e.selectedItem)?.price;
+                                form.setValue(`lineItems.${index}.price`, price ?? 0);
+                              }}
+                              selectedItem={field.value}
+                              label={t('choosePrice', 'Choose price')}
+                              titleText={t('choosePrice', 'Choose price')}
+                              items={service?.servicePrices.map((r) => r.uuid) ?? []}
+                              itemToString={(item) => service?.servicePrices.find((r) => r.uuid === item)?.name ?? ''}
+                            />
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell id={service?.name + 'Price'}>{price}</TableCell>
+                      <TableCell id={service?.name + 'Total'}>{price * quantity}</TableCell>
+                      <TableCell id={service?.name + 'Delete'}>
+                        <Button
+                          renderIcon={TrashCan}
+                          iconDescription={t('delete', 'Delete')}
+                          kind="danger"
+                          hasIconOnly
+                          onClick={() => {
+                            form.setValue(
+                              'lineItems',
+                              lineItemsToWatch.filter((item) => item.billableService !== billableService),
+                            );
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                <TableRow>
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
 
-                <TableCell style={{ fontWeight: 'bold' }}>{t('grandTotal', 'Grand Total')}:</TableCell>
-                <TableCell id="GrandTotalSum">
-                  {lineItemsToWatch.reduce((prev, curr) => {
-                    const total = curr.quantity * curr.price;
-                    return prev + total;
-                  }, 0)}
-                </TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Column>
-      </Stack>
+                  <TableCell style={{ fontWeight: 'bold' }}>{t('grandTotal', 'Grand Total')}:</TableCell>
+                  <TableCell id="GrandTotalSum">
+                    {lineItemsToWatch.reduce((prev, curr) => {
+                      const total = curr.quantity * curr.price;
+                      return prev + total;
+                    }, 0)}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Column>
+        </Stack>
 
-      <ButtonSet className={styles.buttonSet}>
-        <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('discard', 'Discard')}
-        </Button>
-        <Button className={styles.button} kind="primary" type="submit" disabled={form.formState.isSubmitting}>
-          {t('saveAndClose', 'Save & Close')}
-        </Button>
-      </ButtonSet>
-    </Form>
+        <ButtonSet className={styles.buttonSet}>
+          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('discard', 'Discard')}
+          </Button>
+          <Button className={styles.button} kind="primary" type="submit" disabled={form.formState.isSubmitting}>
+            {t('saveAndClose', 'Save & Close')}
+          </Button>
+        </ButtonSet>
+      </Form>
+    </Workspace2>
   );
 };
 

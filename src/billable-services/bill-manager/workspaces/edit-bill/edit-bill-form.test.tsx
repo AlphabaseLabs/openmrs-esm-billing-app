@@ -21,12 +21,17 @@ jest.mock('../../../../billing.resource', () => ({
 
 const testProps = {
   closeWorkspace: jest.fn(),
-  promptBeforeClosing: jest.fn(),
-  closeWorkspaceWithSavedChanges: jest.fn(),
-  setTitle: jest.fn(),
-  lineItem: mockBillData[0].lineItems[0],
-  bill: mockBillData[0],
-};
+  launchChildWorkspace: jest.fn(),
+  workspaceProps: {
+    lineItem: mockBillData[0].lineItems[0],
+    bill: mockBillData[0],
+  },
+  windowProps: {},
+  groupProps: {},
+  overlay: true,
+  isOpen: true,
+  isPinned: false,
+} as any;
 
 describe('EditBillForm', () => {
   it('should display the current form values correctly and submit the form with adjustment reason', async () => {
@@ -38,7 +43,7 @@ describe('EditBillForm', () => {
     });
     render(<EditBillForm {...testProps} />);
     // Expect the form to be displayed with the correct values
-    const currentItemText = await screen.findByText(testProps.lineItem.billableService?.split(':')[1]);
+    const currentItemText = await screen.findByText(testProps.workspaceProps.lineItem.billableService?.split(':')[1]);
     expect(currentItemText).toBeInTheDocument();
 
     // Expect form fields to be displayed
@@ -47,8 +52,8 @@ describe('EditBillForm', () => {
     const adjustmentReasonField = await screen.findByPlaceholderText(/please enter adjustment reason/i);
 
     expect(priceField).toHaveValue(`TEST PRICE - (100)`);
-    expect(quantityField).toHaveValue(testProps.lineItem.quantity);
-    expect(adjustmentReasonField).toHaveValue(testProps.bill.adjustmentReason);
+    expect(quantityField).toHaveValue(testProps.workspaceProps.lineItem.quantity);
+    expect(adjustmentReasonField).toHaveValue(testProps.workspaceProps.bill.adjustmentReason);
 
     // Expect the save and cancel buttons to be displayed
     const saveButton = await screen.findByRole('button', { name: /save/i });
@@ -76,9 +81,9 @@ describe('EditBillForm', () => {
     expect(saveButton).toBeEnabled();
 
     const expectedPayload = createEditBillPayload(
-      testProps.lineItem,
+      testProps.workspaceProps.lineItem,
       { quantity: '2', price: '100' },
-      testProps.bill,
+      testProps.workspaceProps.bill,
       'Adjustment test reason',
     );
     // Submit the form

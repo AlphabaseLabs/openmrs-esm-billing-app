@@ -10,9 +10,10 @@ export interface LinkConfig {
   title: string;
   otherRoutes?: Array<string>;
   icon?: CarbonIconType;
+  onSelect?: () => void;
 }
 
-export const LinkExtension: React.FC<LinkConfig> = ({ route, title, otherRoutes = [], icon }) => {
+export const LinkExtension: React.FC<LinkConfig> = ({ route, title, otherRoutes = [], icon, onSelect }) => {
   const { t } = useTranslation();
   const spaBasePath = window.getOpenmrsSpaBase();
   const location = useLocation();
@@ -39,6 +40,7 @@ export const LinkExtension: React.FC<LinkConfig> = ({ route, title, otherRoutes 
 
   return (
     <ConfigurableLink
+      onClick={onSelect}
       to={to}
       className={`cds--side-nav__link ${isActive || isOtherRoutesActive ? 'active-left-nav-link' : ''} ${
         styles.itemTitle

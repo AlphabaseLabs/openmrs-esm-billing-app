@@ -1,63 +1,84 @@
 import React from 'react';
 import { Button, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { navigate, showSnackbar } from '@openmrs/esm-framework';
+import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
-import { FormProvider, useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { mutate } from 'swr';
 import { z } from 'zod';
 import { processBillPayment } from '../../billing.resource';
+import { processPaymentMethodTaxExpenses } from '../../accounting.resource';
 import { convertToCurrency } from '../../helpers';
 import { useClockInStatus } from '../../payment-points/use-clock-in-status';
 import { type LineItem, type PaymentFormValue, PaymentStatus, type MappedBill } from '../../types';
-import { computeWaivedAmount, extractErrorMessagesFromResponse } from '../../utils';
+import { extractErrorMessagesFromResponse } from '../../utils';
 import { InvoiceBreakDown } from './invoice-breakdown/invoice-breakdown.component';
 import PaymentForm from './payment-form/payment-form.component';
 import PaymentHistory from './payment-history/payment-history.component';
 import styles from './payments.scss';
 import { createPaymentPayload } from './utils';
 import { usePaymentSchema } from '../../hooks/usePaymentSchema';
+import { type BillingConfig } from '../../config-schema';
 
 type PaymentProps = {
   bill: MappedBill;
   selectedLineItems: Array<LineItem>;
+  showDiscardButton?: boolean;
+  discardDestination?: string;
+  onDiscard?: () => void | Promise<void>;
 };
 
-const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
+const Payments: React.FC<PaymentProps> = ({
+  bill,
+  selectedLineItems,
+  showDiscardButton = true,
+  discardDestination,
+  onDiscard,
+}) => {
   const { t } = useTranslation();
+  const { paymentMethodTaxes } = useConfig<BillingConfig>();
   const paymentSchema = usePaymentSchema(bill);
   const { globalActiveSheet } = useClockInStatus();
 
   const methods = useForm<PaymentFormValue>({
-    mode: 'onSubmit',
-    defaultValues: { payment: [] },
+    mode: 'onChange',
+    defaultValues: { payment: [{ method: null, amount: undefined, referenceCode: '' }] },
     resolver: zodResolver(z.object({ payment: z.array(paymentSchema) })),
   });
-  const formArrayMethods = useFieldArray({ name: 'payment', control: methods.control });
 
   const formValues = useWatch({
     name: 'payment',
     control: methods.control,
   });
 
-  const totalWaivedAmount = computeWaivedAmount(bill);
-  const totalAmountTendered = formValues?.reduce((curr: number, prev) => Number(prev.amount) + curr, 0) ?? 0;
-  const amountDue = bill.balance - totalAmountTendered;
+  const selectedUnpaidLineItems = selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID);
+  const hasSelectedUnpaidLineItems = selectedUnpaidLineItems.length > 0;
+  const hasEnteredPaymentAmount = formValues?.some((item) => Number(item.amount ?? 0) > 0) ?? false;
+  const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount ?? 0) + curr, 0) ?? 0;
+  const amountDue = bill.balance ?? 0;
+  const summaryTotalAmount = (bill.totalAmountWithoutTaxAndDiscount ?? 0) + (bill.totalTax ?? 0);
 
   // selected line items amount due
-  const selectedLineItemsAmountDue =
-    selectedLineItems
-      .filter((item) => item.paymentStatus !== PaymentStatus.PAID)
-      .reduce((curr: number, prev) => curr + Number(prev.price * prev.quantity), 0) - totalWaivedAmount;
+  const selectedLineItemsAmountDue = selectedUnpaidLineItems.reduce(
+    (curr: number, prev) =>
+      curr +
+      Number(prev.price * prev.quantity) +
+      Number(
+        prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+          Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
+      ),
+    0,
+  );
 
   const handleNavigateToBillingDashboard = () =>
-    navigate({
-      to: window.getOpenmrsSpaBase() + 'home/billing',
-    });
+    onDiscard
+      ? onDiscard()
+      : navigate({
+          to: discardDestination ?? window.getOpenmrsSpaBase() + 'home/billing',
+        });
 
-  const handleProcessPayment = () => {
-    const { remove } = formArrayMethods;
+  const handleProcessPayment = async () => {
     const paymentPayload = createPaymentPayload(
       bill,
       bill.patientUuid,
@@ -66,41 +87,60 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
       selectedLineItems,
       globalActiveSheet,
     );
-    remove();
 
-    processBillPayment(paymentPayload, bill.uuid).then(
-      (resp) => {
-        showSnackbar({
-          title: t('billPayment', 'Bill payment'),
-          subtitle: 'Bill payment processing has been successful',
-          kind: 'success',
-          timeoutInMs: 3000,
+    try {
+      const resp = await processBillPayment(paymentPayload, bill.uuid);
+
+      showSnackbar({
+        title: t('billPayment', 'Bill payment'),
+        subtitle: 'Bill payment processing has been successful',
+        kind: 'success',
+        timeoutInMs: 3000,
+      });
+
+      const updatedBill = resp?.data;
+      if (paymentMethodTaxes?.enabled && updatedBill?.payments) {
+        processPaymentMethodTaxExpenses({
+          previousBill: { uuid: bill.uuid, id: bill.id, payments: bill.payments ?? [] },
+          updatedBill: { uuid: bill.uuid, id: updatedBill?.id ?? bill.id, payments: updatedBill?.payments ?? [] },
+          paymentMethodTaxes,
+        }).catch((err) => {
+          showSnackbar({
+            title: t('paymentTaxAccountingWarning', 'Payment tax accounting warning'),
+            kind: 'warning',
+            subtitle:
+              err?.message ??
+              t(
+                'paymentTaxAccountingWarningSubtitle',
+                'Payment completed, but an error occurred while posting payment tax expenses.',
+              ),
+            timeoutInMs: 5000,
+          });
         });
-        const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
-        mutate((key) => typeof key === 'string' && key.startsWith(url), undefined, { revalidate: true });
-      },
-      (error) => {
-        showSnackbar({
-          title: t('failedBillPayment', 'Bill payment failed'),
-          subtitle: `An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: ${extractErrorMessagesFromResponse(
-            error.responseBody,
-          )}`,
-          kind: 'error',
-          timeoutInMs: 3000,
-          isLowContrast: true,
-        });
-      },
-    );
+      }
+
+      const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
+      await mutate((key) => typeof key === 'string' && key.startsWith(url));
+      methods.reset({ payment: [{ method: null, amount: undefined, referenceCode: '' }] });
+    } catch (error) {
+      showSnackbar({
+        title: t('failedBillPayment', 'Bill payment failed'),
+        subtitle: `An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: ${extractErrorMessagesFromResponse(
+          error.responseBody,
+        )}`,
+        kind: 'error',
+        timeoutInMs: 3000,
+        isLowContrast: true,
+      });
+    }
   };
 
-  const amountDueDisplay = (amount: number) => (amount < 0 ? 'Client balance' : 'Amount Due');
+  const amountDueDisplay = (amount: number) => (amount < 0 ? 'Client balance' : 'Amount due');
 
-  const isFullyPaid = totalAmountTendered >= selectedLineItemsAmountDue;
-  const hasAmountPaidExceeded =
-    formValues.some((item) => item.amount !== 0) &&
-    totalAmountTendered > selectedLineItemsAmountDue &&
-    bill.lineItems.length > 1;
-  const isPaymentInvalid = !isFullyPaid && formValues.some((item) => item.amount !== 0) && bill.lineItems.length > 1;
+  const isFullyPaid = !hasSelectedUnpaidLineItems || totalNewPayments >= selectedLineItemsAmountDue;
+  const hasAmountPaidExceeded = amountDue > 0 && formValues.some((item) => Number(item.amount) > amountDue);
+  const isPaymentInvalid =
+    hasSelectedUnpaidLineItems && hasEnteredPaymentAmount && !isFullyPaid && bill.lineItems.length > 1;
 
   return (
     <FormProvider {...methods}>
@@ -131,9 +171,9 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
                 title={t('overPayment', 'Over payment')}
                 subtitle={t(
                   'overPaymentSubtitle',
-                  'Amount paid {{totalAmountTendered}} should not be greater than amount due {{selectedLineItemsAmountDue}} for selected line items',
+                  'Amount paid {{totalNewPayments}} should not be greater than amount due {{amountDue}} for selected line items',
                   {
-                    totalAmountTendered: convertToCurrency(totalAmountTendered),
+                    totalNewPayments: convertToCurrency(totalNewPayments),
                     selectedLineItemsAmountDue: convertToCurrency(selectedLineItemsAmountDue),
                   },
                 )}
@@ -142,33 +182,40 @@ const Payments: React.FC<PaymentProps> = ({ bill, selectedLineItems }) => {
                 className={styles.paymentError}
               />
             )}
-            <PaymentForm {...formArrayMethods} disablePayment={amountDue <= 0} amountDue={amountDue} />
+            <PaymentForm disablePayment={amountDue <= 0} />
           </div>
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
-          <InvoiceBreakDown label={t('totalAmount', 'Total Amount')} value={convertToCurrency(bill.totalAmount)} />
           <InvoiceBreakDown
-            label={t('totalDeposits', 'Total Deposits')}
-            value={convertToCurrency(bill.totalDeposits)}
+            label={t('totalAmount', 'Total amount')}
+            value={convertToCurrency(summaryTotalAmount)}
+            tooltip={t('pricePlusTax', 'Price + tax')}
           />
+          <InvoiceBreakDown label={t('discount', 'Discount')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
           <InvoiceBreakDown
-            label={t('totalTendered', 'Total Tendered')}
-            value={convertToCurrency(bill.tenderedAmount + totalAmountTendered)}
+            label={t('totalTendered', 'Total tendered')}
+            value={convertToCurrency(bill.totalActualPayments ?? 0)}
           />
-          <InvoiceBreakDown label={t('discount', 'Discount')} value={'--'} />
           <InvoiceBreakDown
             hasBalance={amountDue < 0}
             label={amountDueDisplay(amountDue)}
-            value={convertToCurrency(amountDue)}
+            value={convertToCurrency(amountDue ?? 0)}
           />
           <div className={styles.processPayments}>
-            <Button onClick={handleNavigateToBillingDashboard} kind="secondary">
-              {t('discard', 'Discard')}
-            </Button>
+            {showDiscardButton ? (
+              <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
+                {t('discard', 'Discard')}
+              </Button>
+            ) : null}
+            {/* Process Payment is disabled when ANY of these are true:
+                1. No payment rows (not applicable with the default row)
+                2. Form invalid: usePaymentSchema validates each row (method required, amount > 0 and amount <= bill.balance per row, referenceCode when method requires it)
+                3. Overpayment: any single row has amount > bill.balance (hasAmountPaidExceeded) */}
             <Button
+              type="button"
               onClick={() => handleProcessPayment()}
-              disabled={!formValues?.length || !methods.formState.isValid || hasAmountPaidExceeded}>
+              disabled={!methods.formState.isValid || hasAmountPaidExceeded}>
               {t('processPayment', 'Process Payment')}
             </Button>
           </div>

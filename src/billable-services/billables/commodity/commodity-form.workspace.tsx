@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ButtonSet, Button, Stack, Toggle, InlineNotification, InlineLoading } from '@carbon/react';
+import { ButtonSet, Button, Stack, Toggle, InlineNotification, InlineLoading, ComboBox } from '@carbon/react';
 import { Add } from '@carbon/react/icons';
 import { useForm, FormProvider, useFieldArray, Controller } from 'react-hook-form';
 
-import { useLayoutType, ResponsiveWrapper, showSnackbar, restBaseUrl } from '@openmrs/esm-framework';
-import { type DefaultPatientWorkspaceProps } from '@openmrs/esm-patient-common-lib';
+import {
+  useLayoutType,
+  ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
+  showSnackbar,
+  restBaseUrl,
+} from '@openmrs/esm-framework';
 import styles from './commodity-form.scss';
 import StockItemSearch from './stock-search.component';
 import classNames from 'classnames';
@@ -13,21 +19,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import PriceField from '../services/price.component';
 import { billableFormSchema, type BillableFormSchema } from '../form-schemas';
 import { formatBillableServicePayloadForSubmission, mapInputToPayloadSchema } from '../form-helper';
-import { createBillableService } from '../../billable-service.resource';
+import { createBillableService, useSalesTaxes } from '../../billable-service.resource';
 import { handleMutate } from '../../utils';
 
-type CommodityFormProps = DefaultPatientWorkspaceProps & {
+type CommodityFormProps = {
   initialValues?: BillableFormSchema;
 };
 
-const CommodityForm: React.FC<CommodityFormProps> = ({
-  closeWorkspace,
-  closeWorkspaceWithSavedChanges,
-  promptBeforeClosing,
-  initialValues,
-}) => {
+const CommodityForm: React.FC<Workspace2DefinitionProps<CommodityFormProps>> = ({ closeWorkspace, workspaceProps }) => {
   const { t } = useTranslation();
+  const { initialValues } = workspaceProps ?? {};
   const isTablet = useLayoutType() === 'tablet';
+  const inEditMode = !!initialValues;
+  const { isLoading: isLoadingSalesTaxes, salesTaxes } = useSalesTaxes();
   const formMethods = useForm<BillableFormSchema>({
     resolver: zodResolver(billableFormSchema),
     defaultValues: initialValues
@@ -38,7 +42,7 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
             display: initialValues.serviceType?.display ?? '',
           },
         }
-      : { servicePrices: [], serviceStatus: 'ENABLED' },
+      : { servicePrices: [], serviceStatus: 'ENABLED', serviceTax: null },
   });
 
   const {
@@ -46,6 +50,7 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
     control,
     handleSubmit,
     trigger,
+    getValues,
     formState: { errors, isDirty, isSubmitting },
   } = formMethods;
 
@@ -60,6 +65,16 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
     }
   }, [initialValues, trigger]);
 
+  // When editing: resolve sales tax label from concept set once options have loaded
+  useEffect(() => {
+    if (!inEditMode || !salesTaxes?.length) return;
+    const current = getValues('serviceTax');
+    if (current?.uuid && !current?.display) {
+      const match = salesTaxes.find((t: { uuid: string }) => t.uuid === current.uuid);
+      if (match) setValue('serviceTax', match);
+    }
+  }, [salesTaxes, inEditMode, getValues, setValue]);
+
   const onSubmit = async (formValues: BillableFormSchema) => {
     const payload = formatBillableServicePayloadForSubmission(formValues, initialValues?.['uuid']);
     try {
@@ -73,7 +88,7 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
           timeoutInMs: 5000,
         });
         handleMutate(`${restBaseUrl}/cashier/billableService?v`);
-        closeWorkspaceWithSavedChanges();
+        closeWorkspace({ discardUnsavedChanges: true });
       }
     } catch (e) {
       const errorMessage =
@@ -93,10 +108,6 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
       });
     }
   };
-
-  useEffect(() => {
-    promptBeforeClosing(() => isDirty);
-  }, [isDirty, promptBeforeClosing]);
 
   const renderServicePriceFields = useMemo(
     () =>
@@ -146,67 +157,98 @@ const CommodityForm: React.FC<CommodityFormProps> = ({
   };
 
   return (
-    <FormProvider {...formMethods}>
-      <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
-        <div className={styles.formContainer}>
-          <Stack className={styles.formStackControl} gap={7}>
-            <StockItemSearch setValue={setValue} defaultStockItem={initialValues?.name} />
-            {errors.concept && (
-              <InlineNotification
-                kind="error"
-                lowContrast={true}
-                title={t('conceptMissing', 'Concept missing for {{name}}', { name: initialValues?.name })}
-                subtitle={t('conceptMissingSubtitle', 'Please delete the current item and re-create the charge item')}
-              />
-            )}
-            <ResponsiveWrapper>
-              <Controller
-                control={control}
-                name="serviceStatus"
-                render={({ field }) => (
-                  <Toggle
-                    labelText={t('status', 'Status')}
-                    labelA="Off"
-                    labelB="On"
-                    defaultToggled={field.value === 'ENABLED'}
-                    id="serviceStatus"
-                    onToggle={(value) => (value ? field.onChange('ENABLED') : field.onChange('DISABLED'))}
-                  />
-                )}
-              />
-            </ResponsiveWrapper>
-            {renderServicePriceFields}
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => append({})}>
-              {t('addPaymentMethod', 'Add payment method')}
+    <Workspace2
+      title={
+        initialValues ? t('editChargeItem', 'Edit Charge Item') : t('chargeCommodityForm', 'Charge Commodity Form')
+      }
+      hasUnsavedChanges={isDirty}>
+      <FormProvider {...formMethods}>
+        <form onSubmit={handleSubmit(onSubmit, handleError)} className={styles.form}>
+          <div className={styles.formContainer}>
+            <Stack className={styles.formStackControl} gap={7}>
+              <StockItemSearch setValue={setValue} defaultStockItem={initialValues?.name} />
+              {errors.concept && (
+                <InlineNotification
+                  kind="error"
+                  lowContrast={true}
+                  title={t('conceptMissing', 'Concept missing for {{name}}', { name: initialValues?.name })}
+                  subtitle={t('conceptMissingSubtitle', 'Please delete the current item and re-create the charge item')}
+                />
+              )}
+              <ResponsiveWrapper>
+                <Controller
+                  name="serviceTax"
+                  control={control}
+                  render={({ field }) => (
+                    <ComboBox
+                      id="serviceTax"
+                      onChange={({ selectedItem }) => field.onChange(selectedItem ?? null)}
+                      titleText={t('salesTax', 'Sales tax')}
+                      items={salesTaxes ?? []}
+                      itemToString={(item) => (item ? item.display : '')}
+                      placeholder={t('selectSalesTax', 'Select sales tax')}
+                      disabled={isLoadingSalesTaxes}
+                      selectedItem={field.value ?? null}
+                      invalid={!!errors.serviceTax}
+                      invalidText={errors?.serviceTax?.message}
+                      itemToElement={(item) => (
+                        <div role="option" aria-selected={field.value?.uuid === item?.uuid}>
+                          {item?.display}
+                        </div>
+                      )}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              <ResponsiveWrapper>
+                <Controller
+                  control={control}
+                  name="serviceStatus"
+                  render={({ field }) => (
+                    <Toggle
+                      labelText={t('status', 'Status')}
+                      labelA="Off"
+                      labelB="On"
+                      defaultToggled={field.value === 'ENABLED'}
+                      id="serviceStatus"
+                      onToggle={(value) => (value ? field.onChange('ENABLED') : field.onChange('DISABLED'))}
+                    />
+                  )}
+                />
+              </ResponsiveWrapper>
+              {renderServicePriceFields}
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => append({})}>
+                {t('addPaymentMethod', 'Add payment method')}
+              </Button>
+              {!!errors.servicePrices && (
+                <InlineNotification
+                  aria-label="closes notification"
+                  kind="error"
+                  lowContrast={true}
+                  statusIconDescription="notification"
+                  title={t('paymentMethodRequired', 'Payment method required')}
+                  subtitle={t('atLeastOnePriceRequired', 'At least one price is required')}
+                />
+              )}
+            </Stack>
+          </div>
+          <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+            <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
+              {t('cancel', 'Cancel')}
             </Button>
-            {!!errors.servicePrices && (
-              <InlineNotification
-                aria-label="closes notification"
-                kind="error"
-                lowContrast={true}
-                statusIconDescription="notification"
-                title={t('paymentMethodRequired', 'Payment method required')}
-                subtitle={t('atLeastOnePriceRequired', 'At least one price is required')}
-              />
-            )}
-          </Stack>
-        </div>
-        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-          <Button style={{ maxWidth: '50%' }} kind="secondary" onClick={() => closeWorkspace()}>
-            {t('cancel', 'Cancel')}
-          </Button>
-          <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
-            {isSubmitting ? (
-              <span style={{ display: 'flex', justifyItems: 'center' }}>
-                {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
-              </span>
-            ) : (
-              t('saveAndClose', 'Save & close')
-            )}
-          </Button>
-        </ButtonSet>
-      </form>
-    </FormProvider>
+            <Button disabled={isSubmitting || !isDirty} style={{ maxWidth: '50%' }} kind="primary" type="submit">
+              {isSubmitting ? (
+                <span style={{ display: 'flex', justifyItems: 'center' }}>
+                  {t('submitting', 'Submitting...')} <InlineLoading status="active" iconDescription="Loading" />
+                </span>
+              ) : (
+                t('saveAndClose', 'Save & close')
+              )}
+            </Button>
+          </ButtonSet>
+        </form>
+      </FormProvider>
+    </Workspace2>
   );
 };
 

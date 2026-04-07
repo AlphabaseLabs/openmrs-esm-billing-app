@@ -6,12 +6,20 @@
   row-gap: layout.$layout-01;
 }
 
+.emptyStateContainer {
+  margin-top: layout.$spacing-05;
+}
+
 .billListContainer {
   background-color: colors.$white-0;
 }
 
 .dataTableSkeleton {
   margin-top: layout.$spacing-05;
+}
+
+.expendableRow {
+  padding-left: 1rem;
 }
 
 .refundedItem {

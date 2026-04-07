@@ -2,6 +2,11 @@ import { type ConfigSchema, Type } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
   enforceBillPayment: boolean;
+  /**
+   * Whether billing UI flows should require an active visit before allowing users to add/edit bills.
+   * When disabled, billing workspaces should be launchable even if there is no active visit.
+   */
+  visitRequired: boolean;
   localeCurrencyMapping: Record<string, string>;
   promptDuration: {
     enable: boolean;
@@ -14,6 +19,7 @@ export interface BillingConfig {
   paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
   cashPointUuid: string;
   cashierUuid: string;
+  defaultPaymentMethodName: string;
   insuranceSchemes: Array<string>;
   billHistoryDays: number;
   visitAttributeTypes: {
@@ -31,6 +37,17 @@ export interface BillingConfig {
   concepts: {
     emergencyPriorityConceptUuid: string;
     serviceConceptSetUuid: string;
+    salesTaxConceptSetUuid: string;
+  };
+  paymentMethodTaxes: {
+    enabled: boolean;
+    taxExpenseAccountUuid: string;
+    paymentTypeTaxPercents: Array<{
+      paymentModeUuid?: string;
+      paymentModeName?: string;
+      taxPercent: number;
+      deductibleFromProviderShare?: boolean;
+    }>;
   };
 }
 
@@ -39,6 +56,12 @@ export const configSchema: ConfigSchema = {
     _type: Type.Boolean,
     _default: false,
     _description: 'Whether to enforce bill payment or not for patient to receive service',
+  },
+  visitRequired: {
+    _type: Type.Boolean,
+    _default: true,
+    _description:
+      'Whether an active visit is required before launching billing workspaces to add/edit bills. If false, bills can be created/updated without a visit.',
   },
   localeCurrencyMapping: {
     _type: Type.Object,
@@ -110,6 +133,11 @@ export const configSchema: ConfigSchema = {
     _type: Type.String,
     _description: 'Who Generated the bill',
     _default: 'e9d5e99a-a527-4258-9a93-afbea4fef174',
+  },
+  defaultPaymentMethodName: {
+    _type: Type.String,
+    _default: 'Cash',
+    _description: 'The payment method name to preselect across billing payment forms',
   },
   insuranceSchemes: {
     _type: Type.Array,
@@ -196,6 +224,22 @@ export const configSchema: ConfigSchema = {
       _type: Type.String,
       _description: 'The concept uuid containing all available services e.g lab, pharmacy, surgical etc',
       _default: 'a8f3f64a-11d5-4a09-b0fb-c8118fa349f3',
+    },
+    salesTaxConceptSetUuid: {
+      _type: Type.String,
+      _description: 'The concept set uuid for sales tax options in billable service form',
+      _default: 'b4af9c5f-70af-4db8-899d-4c37afccc871',
+    },
+  },
+  paymentMethodTaxes: {
+    _type: Type.Object,
+    _description: 'Optional taxes applied to payment modes (e.g. card surcharge) and posted as accounting expenses',
+    _default: {
+      enabled: false,
+      // Default to "Other Direct Costs" account (see accounting app default direct cost categories)
+      taxExpenseAccountUuid: 'b1000000-0000-0000-0000-000000000027',
+      // Default: Card payments 2.5%
+      paymentTypeTaxPercents: [{ paymentModeName: 'Card', taxPercent: 2.5, deductibleFromProviderShare: true }],
     },
   },
 };

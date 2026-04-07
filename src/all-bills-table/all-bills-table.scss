@@ -44,16 +44,16 @@
   }
 }
 
-.menu {
-  margin-left: layout.$spacing-03;
-}
-
 .headerContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: layout.$spacing-04 layout.$spacing-05;
   background-color: $ui-02;
+}
+
+.billDateCell {
+  white-space: nowrap;
 }
 
 .backgroundDataFetchingIndicator {
@@ -65,6 +65,16 @@
   &:global(.cds--inline-loading) {
     max-height: 1rem;
   }
+}
+
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+}
+
+.searchbar {
+  flex: 1;
 }
 
 .tableContainer section {
@@ -81,38 +91,6 @@
   &:global(.cds--pagination) {
     border-top: none;
   }
-}
-
-.hiddenRow {
-  display: none;
-}
-
-.emptyRow {
-  padding: 0 1rem;
-  display: flex;
-  align-items: center;
-}
-
-.visitSummaryContainer {
-  width: 100%;
-  max-width: 768px;
-  margin: 1rem auto;
-}
-
-.expandedActiveVisitRow > td > div {
-  max-height: max-content !important;
-}
-
-.expandedActiveVisitRow td {
-  padding: 0 2rem;
-}
-
-.expandedActiveVisitRow th[colspan] td[colspan] > div:first-child {
-  padding: 0 1rem;
-}
-
-.action {
-  margin-bottom: layout.$spacing-03;
 }
 
 .illo {
@@ -152,10 +130,6 @@
   border: 1px solid $ui-03;
 }
 
-.menuitem {
-  max-width: none;
-}
-
 .filterEmptyState {
   display: flex;
   justify-content: center;
@@ -180,15 +154,6 @@
   color: $text-02;
 }
 
-.expendableRow {
-  padding-left: 1rem;
-}
-
-.scalpel {
-  cursor: pointer;
-}
-
 .errorContainer {
   margin-top: layout.$spacing-05;
 }
-

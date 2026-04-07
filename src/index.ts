@@ -1,14 +1,15 @@
 import { configSchema } from './config-schema';
-import { createDashboardLink } from '@openmrs/esm-patient-common-lib';
+import { createDashboardLink as createPatientDashboardLink } from '@openmrs/esm-patient-common-lib';
 import { defineConfigSchema, getAsyncLifecycle, getSyncLifecycle } from '@openmrs/esm-framework';
 import { dashboardMeta } from './dashboard.meta';
+import { createDashboardLink as createHomeDashboardLink } from './create-dashboard-link';
 
 // Dashboard and Navigation Components
-import { createDashboardGroup } from './app-navigation/nav-utils';
-import { createLeftPanelLink } from './left-panel-link.component';
+import { createBillingActionItem, createLeftPanelLink } from './app-navigation/nav-utils';
 import RootComponent from './root.component';
 
 import BillableServicesCardLink from './billable-services-admin-card-link.component';
+import { ChargeItemsDashboard } from './billable-services/dashboard/dashboard.component';
 
 // Billing Core Components
 import BillingForm from './billing-form/billing-form.component';
@@ -74,20 +75,18 @@ const options = {
   moduleName,
 };
 
-// t('Accounting', 'Accounting')
-export const billingDashboardNavGroup = getSyncLifecycle(
-  createDashboardGroup({
-    slotName: 'billing-dashboard-group-nav-slot',
-    title: 'Accounting',
-    icon: null,
-    isExpanded: true,
+export const billingDashboardLink = getSyncLifecycle(
+  createHomeDashboardLink({
+    path: 'billing',
+    title: 'Billing',
+    basePath: `${window.spaBase}/home`,
   }),
   options,
 );
 
 // Dashboard Links
 export const billingSummaryDashboardLink = getSyncLifecycle(
-  createDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
+  createPatientDashboardLink({ ...dashboardMeta, icon: 'omrs-icon-money', moduleName }),
   options,
 );
 
@@ -95,7 +94,7 @@ export const billingSummaryDashboardLink = getSyncLifecycle(
 // t('overview', 'Overview')
 export const billingOverviewLink = getSyncLifecycle(
   createLeftPanelLink({
-    name: '',
+    route: 'home/billing',
     title: 'Overview',
   }),
   options,
@@ -104,7 +103,7 @@ export const billingOverviewLink = getSyncLifecycle(
 // t('Bill Deposit', 'Bill Deposit')
 export const billDepositDashboardLink = getSyncLifecycle(
   createLeftPanelLink({
-    name: 'bill-deposit',
+    route: 'home/billing/bill-deposit',
     title: 'Bill Deposit',
   }),
   options,
@@ -112,8 +111,8 @@ export const billDepositDashboardLink = getSyncLifecycle(
 
 // t('Payment History', 'Payment History')
 export const paymentHistoryLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'payment-history',
+  createBillingActionItem({
+    actionKey: 'payment-history',
     title: 'Payment History',
   }),
   options,
@@ -122,7 +121,7 @@ export const paymentHistoryLink = getSyncLifecycle(
 // t('Payment Points', 'Payment Points')
 export const paymentPointsLink = getSyncLifecycle(
   createLeftPanelLink({
-    name: 'payment-points',
+    route: 'home/billing/payment-points',
     title: 'Payment Points',
   }),
   options,
@@ -131,7 +130,7 @@ export const paymentPointsLink = getSyncLifecycle(
 // t('Payment Modes', 'Payment Modes')
 export const paymentModesLink = getSyncLifecycle(
   createLeftPanelLink({
-    name: 'payment-modes',
+    route: 'home/billing/payment-modes',
     title: 'Payment Modes',
   }),
   options,
@@ -139,16 +138,16 @@ export const paymentModesLink = getSyncLifecycle(
 
 // t('Bill Manager', 'Bill Manager')
 export const billManagerLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'bill-manager',
+  createBillingActionItem({
+    actionKey: 'bill-manager',
     title: 'Bill Manager',
   }),
   options,
 );
 // t('Charge Items', 'Charge Items')
 export const chargeableItemsLink = getSyncLifecycle(
-  createLeftPanelLink({
-    name: 'charge-items',
+  createBillingActionItem({
+    actionKey: 'charge-items',
     title: 'Charge Items',
   }),
   options,
@@ -163,6 +162,7 @@ export const billingDashboard = getAsyncLifecycle(
   () => import('./billing-dashboard/billing-dashboard.component'),
   options,
 );
+export const billableServicesHome = getSyncLifecycle(ChargeItemsDashboard, options);
 
 // Bill Manager Components
 export const deleteBillableServiceModal = getSyncLifecycle(DeleteBillableServiceModal, options);

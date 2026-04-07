@@ -1,179 +1,94 @@
-import { Button, Popover, PopoverContent } from '@carbon/react';
-import { Close, Printer, Wallet, FolderOpen, BaggageClaim, Scalpel } from '@carbon/react/icons';
-import {
-  launchWorkspace,
-  restBaseUrl,
-  showModal,
-  UserHasAccess,
-  useFeatureFlag,
-  useVisit,
-  useVisitContextStore,
-  defaultVisitCustomRepresentation,
-  navigate,
-  showSnackbar,
-  showToast,
-  updateVisit,
-} from '@openmrs/esm-framework';
 import React, { useState } from 'react';
+import { Button, IconButton, Popover, PopoverContent } from '@carbon/react';
+import { Close, FolderOpen, OverflowMenuVertical, Printer, Wallet } from '@carbon/react/icons';
+import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
-import { mutate } from 'swr';
-import { convertToCurrency } from '../helpers';
-import { type MappedBill, type LineItem, PaymentStatus } from '../types';
-import { spaBasePath } from '../constants';
-// import { useCheckShareGnum } from './invoice.resource';
-import styles from './invoice.scss';
 import startCase from 'lodash-es/startCase';
+import { launchBillingWorkspace } from '../workspaces';
+import { type MappedBill } from '../types';
+import styles from './invoice.scss';
 
 interface InvoiceActionsProps {
   readonly bill: MappedBill;
-  readonly selectedLineItems?: LineItem[];
-  readonly activeVisit?: any;
 }
 
-export function InvoiceActions({ bill, selectedLineItems = [], activeVisit }: InvoiceActionsProps) {
+export function InvoiceActions({ bill }: InvoiceActionsProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const { billUuid, patientUuid } = useParams();
-  // const { checkSHARegNum } = useCheckShareGnum();
-  const { patientUuid: visitStorePatientUuid, manuallySetVisitUuid } = useVisitContextStore();
 
-  const launchBillCloseOrReopenModal = (action: 'close' | 'reopen') => {
-    const dispose = showModal('bill-action-modal', {
-      closeModal: () => dispose(),
-      bill: bill,
-      action,
-    });
-  };
-
-  const shouldCloseBill = bill.balance === 0 && !bill.closed;
-
-  const handlePrint = (documentType: string, documentTitle: string) => {
+  const openPrintPreview = (documentUrl: string, title: string) => {
     const dispose = showModal('print-preview-modal', {
       onClose: () => dispose(),
-      title: documentTitle,
-      documentUrl: `/openmrs${restBaseUrl}/cashier/print?documentType=${documentType}&billId=${bill?.id}`,
+      title,
+      documentUrl,
     });
+    setIsOpen(false);
   };
 
-  const handleOpenWaiveBillWorkspace = () => {
-    launchWorkspace('waive-bill-form', {
-      workspaceTitle: t('waiveBillForm', 'Waive Bill Form'),
-      bill: bill,
+  const launchBillActionModal = (action: 'close' | 'reopen') => {
+    const dispose = showModal('bill-action-modal', {
+      closeModal: () => dispose(),
+      bill,
+      action,
     });
+    setIsOpen(false);
   };
+
+  const closeAction = bill?.closed ? 'reopen' : 'close';
+  const closeActionLabel = bill?.closed ? t('reopenBill', 'Reopen bill') : t('closeBill', 'Close bill');
+  const closeActionIcon = bill?.closed ? FolderOpen : Close;
+  const isCloseDisabled = !bill?.closed && bill?.balance !== 0;
 
   return (
-    <div className="invoiceSummaryActions">
-      <Popover isTabTip align="bottom-right" onKeyDown={() => {}} onRequestClose={() => setIsOpen(false)} open={isOpen}>
-        <button
-          className={styles.printButton}
-          aria-expanded
-          aria-label="Settings"
-          onClick={() => setIsOpen(!isOpen)}
-          type="button">
-          <span className={styles.printButtonContent}>
-            <span className={styles.printButtonText}>{t('print', 'Print')}</span>
-            <Printer />
-          </span>
-        </button>
-        <PopoverContent>
-          <div className={styles.popoverContent}>
-            <Button
-              kind="ghost"
-              size="sm"
-              onClick={() =>
-                handlePrint(
-                  'invoice',
-                  `${t('invoice', 'Invoice')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
-                )
-              }
-              renderIcon={Printer}>
-              {t('printInvoice', 'Print Invoice')}
-            </Button>
-            <Button
-              kind="ghost"
-              size="sm"
-              onClick={() => {
-                const dispose = showModal('print-preview-modal', {
-                  onClose: () => dispose(),
-                  title: `${t('receipt', 'Receipt')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
-                  documentUrl: `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill.id}`,
-                });
-              }}
-              renderIcon={Printer}>
-              {t('printReceipt', 'Print Receipt')}
-            </Button>
-            <Button
-              kind="ghost"
-              size="sm"
-              onClick={() =>
-                handlePrint(
-                  'billstatement',
-                  `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
-                )
-              }
-              renderIcon={Printer}>
-              {t('printBillStatement', 'Print Bill Statement')}
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-      {shouldCloseBill && (
-        <UserHasAccess privilege="Close Cashier Bills">
-          <Button
-            kind="danger--ghost"
-            size="sm"
-            renderIcon={Close}
-            iconDescription="Add"
-            tooltipPosition="right"
-            onClick={() => launchBillCloseOrReopenModal('close')}>
-            {t('closeBill', 'Close Bill')}
-          </Button>
-        </UserHasAccess>
-      )}
-      {bill?.closed && (
-        <UserHasAccess privilege="Reopen Cashier Bills">
+    <Popover align="bottom-right" open={isOpen} onRequestClose={() => setIsOpen(false)}>
+      <IconButton
+        kind="tertiary"
+        label={t('actions', 'Actions')}
+        aria-label={t('actions', 'Actions')}
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        size="xs"
+        className={styles.actionMenuTrigger}>
+        <OverflowMenuVertical size={20} />
+      </IconButton>
+      <PopoverContent>
+        <div className={styles.actionMenuContent}>
           <Button
             kind="ghost"
             size="sm"
-            renderIcon={FolderOpen}
-            iconDescription="Add"
-            tooltipPosition="right"
-            onClick={() => launchBillCloseOrReopenModal('reopen')}>
-            {t('reopen', 'Reopen')}
+            renderIcon={Printer}
+            className={styles.actionMenuItem}
+            onClick={() =>
+              openPrintPreview(
+                `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${bill?.id}`,
+                `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
+              )
+            }>
+            {t('printStatement', 'Print Statement')}
           </Button>
-        </UserHasAccess>
-      )}
-      <Button
-        kind="ghost"
-        size="sm"
-        renderIcon={Wallet}
-        iconDescription="Add"
-        tooltipPosition="right"
-        onClick={() =>
-          launchWorkspace('payment-workspace', {
-            bill,
-            workspaceTitle: t('additionalPayment', 'Additional Payment (Balance {{billBalance}})', {
-              billBalance: convertToCurrency(bill.balance),
-            }),
-          })
-        }>
-        {t('additionalPayment', 'Additional Payment')}
-      </Button>
-      {bill.status !== PaymentStatus.PAID && (
-        <UserHasAccess privilege="o3: Delete Bill">
           <Button
-            kind="danger--ghost"
+            kind="ghost"
             size="sm"
-            renderIcon={Scalpel}
-            iconDescription={t('waiveBill', 'Waive Bill')}
-            tooltipPosition="right"
-            onClick={handleOpenWaiveBillWorkspace}>
-            {t('waiveBill', 'Waive Bill')}
+            renderIcon={Wallet}
+            className={styles.actionMenuItem}
+            onClick={() => {
+              launchBillingWorkspace('payment-workspace', { bill });
+              setIsOpen(false);
+            }}>
+            {t('additionalPayments', 'Additional payments')}
           </Button>
-        </UserHasAccess>
-      )}
-    </div>
+          <UserHasAccess privilege={bill?.closed ? 'Reopen Cashier Bills' : 'Close Cashier Bills'}>
+            <Button
+              kind="ghost"
+              size="sm"
+              renderIcon={closeActionIcon}
+              disabled={isCloseDisabled}
+              className={styles.actionMenuItem}
+              onClick={() => launchBillActionModal(closeAction)}>
+              {closeActionLabel}
+            </Button>
+          </UserHasAccess>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

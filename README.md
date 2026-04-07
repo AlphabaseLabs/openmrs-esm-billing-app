@@ -142,6 +142,39 @@ Configure billing behavior using OpenMRS frontend config overrides.
 }
 ```
 
+### Payment method taxes (accounting expenses)
+
+You can optionally configure a **payment-mode tax (e.g. card surcharge)**. When a payment is successfully posted, the billing app will:
+
+- Look up the tax for the payment mode
+- Calculate tax **per bill line item** using **payment allocations**
+- Create **Accounting `EXPENSE`** transactions (`sourceType: "PAYMENT_METHOD_TAX"`) for each line item allocation
+
+Configuration is under `billing.paymentMethodTaxes`:
+
+```json
+{
+  "openmrs": {
+    "config": {
+      "billing": {
+        "paymentMethodTaxes": {
+          "enabled": true,
+          "taxExpenseAccountUuid": "b1000000-0000-0000-0000-000000000027",
+          "paymentTypeTaxPercents": [
+            { "paymentModeName": "Card", "taxPercent": 2.5, "deductibleFromProviderShare": true },
+            { "paymentModeName": "Mobile Transfer", "taxPercent": 5, "deductibleFromProviderShare": true }
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+Notes:
+- **Matching**: A tax entry can match by `paymentModeUuid` (preferred) or `paymentModeName` (case-insensitive).
+- **`deductibleFromProviderShare`**: Stored in the expense transaction `meta` so downstream provider-share calculations can optionally deduct these taxes from the share base.
+
 Ensure all UUIDs exist in your OpenMRS instance.
 
 ## Troubleshooting

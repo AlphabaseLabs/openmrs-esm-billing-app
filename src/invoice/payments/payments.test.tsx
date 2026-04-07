@@ -1,5 +1,5 @@
-import { showSnackbar } from '@openmrs/esm-framework';
-import { render, screen } from '@testing-library/react';
+import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockedActiveSheet, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
@@ -10,7 +10,16 @@ import { type LineItem, type PaymentMethod } from '../../types';
 
 const mockProcessBillPayment = processBillPayment as jest.MockedFunction<typeof processBillPayment>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
+const mockNavigate = navigate as jest.MockedFunction<typeof navigate>;
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
+const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
+
+jest.mock('@openmrs/esm-framework', () => ({
+  ...jest.requireActual('@openmrs/esm-framework'),
+  navigate: jest.fn(),
+  showSnackbar: jest.fn(),
+  useConfig: jest.fn(),
+}));
 
 jest.mock('../../billing.resource', () => ({
   processBillPayment: jest.fn(),
@@ -77,9 +86,23 @@ const updatedMockLineItems: LineItem[] = mockLineItems.map((item) => ({
   },
 }));
 
+const paymentBill = {
+  ...mockBill,
+  balance: 100,
+  totalAmountWithoutTaxAndDiscount: 100,
+  totalDiscounts: 0,
+  totalTax: 0,
+  totalActualPayments: 0,
+  totalDeposits: 0,
+};
+
 describe('Payment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseConfig.mockReturnValue({
+      paymentMethodTaxes: { enabled: false, paymentTypeTaxPercents: [] },
+      defaultPaymentMethodName: 'Cash',
+    } as any);
   });
 
   test('should display error when posting payment fails', async () => {
@@ -111,9 +134,7 @@ describe('Payment', () => {
       isClockedInCurrentPaymentPoint: false,
     });
 
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
-    const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
-    await user.click(addPaymentMethod);
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
     const mobileMoneyOption = screen.getByRole('option', { name: /Mobile Money/i });
     await user.click(mobileMoneyOption);
@@ -126,6 +147,8 @@ describe('Payment', () => {
     await user.type(referenceInput, 'MPESA123456');
 
     const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await user.tab();
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
     await user.click(submitButton);
 
     expect(mockProcessBillPayment).toHaveBeenCalledTimes(1);
@@ -267,9 +290,7 @@ describe('Payment', () => {
       isClockedInCurrentPaymentPoint: false,
     });
 
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
-    const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
-    await user.click(addPaymentMethod);
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
     const cashOption = screen.getByRole('option', { name: /Cash/i });
     await user.click(cashOption);
@@ -278,6 +299,8 @@ describe('Payment', () => {
     await user.type(amountInput, '100');
 
     const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await user.tab();
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
     await user.click(submitButton);
 
     expect(mockProcessBillPayment).toHaveBeenCalledTimes(1);
@@ -296,7 +319,76 @@ describe('Payment', () => {
     );
   });
 
-  test('should automatically focus on the payment method field when user clicks add payment options', async () => {
+  test('should show a default payment row with cash preselected', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    expect(screen.queryByRole('button', { name: /Add payment option/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Cash/i);
+    expect(screen.getByRole('spinbutton', { name: /Amount/i })).toBeInTheDocument();
+  });
+
+  test('should preselect the configured default payment method on the bill payment form', () => {
+    mockUseConfig.mockReturnValue({
+      paymentMethodTaxes: { enabled: false, paymentTypeTaxPercents: [] },
+      defaultPaymentMethodName: 'Mobile Money',
+    } as any);
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+
+    expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i);
+  });
+
+  test('should not show incomplete payment before a line item is selected and payment amount is entered', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
+
+    expect(screen.queryByText(/Incomplete payment/i)).not.toBeInTheDocument();
+  });
+
+  test('should navigate back to home when the invoice was opened from home', async () => {
     const user = userEvent.setup();
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
@@ -304,18 +396,53 @@ describe('Payment', () => {
       error: null,
       mutate: jest.fn(),
     });
-    render(<Payments bill={mockBill as any} selectedLineItems={updatedMockLineItems} />);
-    const addPaymentMethod = screen.getByRole('button', { name: /Add payment option/i });
-    await user.click(addPaymentMethod);
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
 
-    // Check if the payment method field is focused
-    expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveFocus();
-    await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
-    const cashOption = screen.getByRole('option', { name: /Cash/i });
-    await user.click(cashOption);
-    // Check if the amount field is focused
-    expect(screen.getByRole('spinbutton', { name: /Amount/i })).toHaveFocus();
-    const amountInput = screen.getByRole('spinbutton', { name: /Amount/i });
-    await user.type(amountInput, '100');
+    render(
+      <Payments
+        bill={paymentBill as any}
+        selectedLineItems={updatedMockLineItems}
+        discardDestination={`${window.getOpenmrsSpaBase()}home`}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: `${window.getOpenmrsSpaBase()}home`,
+    });
+  });
+
+  test('should navigate back to billing home by default', async () => {
+    const user = userEvent.setup();
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+    mockedUseClockInStatus.mockReturnValue({
+      globalActiveSheet: mockedActiveSheet,
+      localActiveSheet: undefined,
+      isClockedIn: true,
+      error: null,
+      isLoading: false,
+      isClockedInCurrentPaymentPoint: false,
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: `${window.getOpenmrsSpaBase()}home/billing`,
+    });
   });
 });

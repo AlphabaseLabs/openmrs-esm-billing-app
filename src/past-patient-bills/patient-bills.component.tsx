@@ -1,4 +1,4 @@
-import React, { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
+import React, { type Dispatch, type SetStateAction, useEffect } from 'react';
 import {
   DataTable,
   TableContainer,
@@ -11,10 +11,9 @@ import {
   Button,
   InlineLoading,
 } from '@carbon/react';
-import { Add, Close } from '@carbon/react/icons';
+import { Close } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { ConfigurableLink, getPatientName, usePatient, setCurrentVisit } from '@openmrs/esm-framework';
-import { getPatientChartStore, useLaunchWorkspaceRequiringVisit } from '@openmrs/esm-patient-common-lib';
+import { ConfigurableLink, getPatientName, usePatient } from '@openmrs/esm-framework';
 import capitalize from 'lodash/capitalize';
 
 import { convertToCurrency } from '../helpers';
@@ -31,24 +30,20 @@ type PatientBillsProps = {
 
 export const patientBillsHeaders = [
   { header: 'Date', key: 'date' },
-  { header: 'Charge Item', key: 'chargeItem' },
-  { header: 'Total Amount', key: 'totalAmount' },
+  { header: 'Charge item', key: 'chargeItem' },
+  { header: 'Total amount', key: 'totalAmount' },
   { header: 'Status', key: 'status' },
 ];
 
 export const PatientBills: React.FC<PatientBillsProps> = ({ bills, onCancel, patientUuid }) => {
   const { t } = useTranslation();
-  const { patient, isLoading, error } = usePatient(patientUuid);
-  if (isLoading) {
-    return <InlineLoading status="active" description={t('loading', 'Loading...')} />;
-  }
 
   const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${uuid}';
 
   if (bills.length === 0) {
     return (
       <>
-        <PatientHeader patient={patient} onCancel={onCancel} />
+        <PatientHeader patientUuid={patientUuid} onCancel={onCancel} />
         <EmptyPatientBill
           title={t('noBillsFound', 'No bills found')}
           subTitle={t('noBillsFoundDescription', 'No bills found for this patient')}
@@ -74,7 +69,7 @@ export const PatientBills: React.FC<PatientBillsProps> = ({ bills, onCancel, pat
 
   return (
     <div className={styles.container}>
-      <PatientHeader patient={patient} onCancel={onCancel} />
+      <PatientHeader patientUuid={patientUuid} onCancel={onCancel} />
       <DataTable
         rows={tableRows}
         headers={patientBillsHeaders}
@@ -120,28 +115,20 @@ export const PatientBills: React.FC<PatientBillsProps> = ({ bills, onCancel, pat
 };
 
 type PatientHeaderProps = {
-  patient: fhir.Patient;
+  patientUuid: string;
   onCancel: Dispatch<SetStateAction<string>>;
 };
 
-export const PatientHeader: React.FC<PatientHeaderProps> = ({ patient, onCancel }) => {
+export const PatientHeader: React.FC<PatientHeaderProps> = ({ patientUuid, onCancel }) => {
   const { t } = useTranslation();
+  const { patient, isLoading } = usePatient(patientUuid);
+
+  if (isLoading || !patient) {
+    return <InlineLoading status="active" description={t('loading', 'Loading...')} />;
+  }
+
   const patientName = getPatientName(patient);
   const identifier = patient?.identifier[0]?.value ?? '--';
-  const state = useMemo(() => ({ patient, patientUuid: patient.id }), [patient]);
-  const launchPatientWorkspace = useLaunchWorkspaceRequiringVisit('billing-form');
-
-  const handleAddNewBill = () => {
-    setCurrentVisit(patient.id, null);
-    launchPatientWorkspace({ workspaceTitle: t('billingForm', 'Billing Form'), patientUuid: patient.id, patient });
-  };
-
-  useEffect(() => {
-    getPatientChartStore().setState({ ...state });
-    return () => {
-      getPatientChartStore().setState({});
-    };
-  }, [state]);
 
   return (
     <div className={styles.patientHeaderContainer}>
@@ -153,9 +140,6 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ patient, onCancel 
       <div className={styles.headerActions}>
         <Button kind="ghost" onClick={() => onCancel('')} renderIcon={Close}>
           {t('close', 'Close')}
-        </Button>
-        <Button kind="ghost" onClick={handleAddNewBill} renderIcon={Add}>
-          {t('addNewBillItem', 'Add New Bill Item')}
         </Button>
       </div>
     </div>

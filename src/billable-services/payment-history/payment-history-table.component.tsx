@@ -11,14 +11,13 @@ import {
   Search,
   TableContainer,
   Button,
-  DataTableHeader,
 } from '@carbon/react';
 import { Download } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { useDebounce, useLayoutType, usePagination, navigate } from '@openmrs/esm-framework';
 import { usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import { convertToCurrency } from '../../helpers/functions';
-import { DataTableRow, type MappedBill } from '../../types';
+import { type MappedBill } from '../../types';
 import { exportToExcel } from '../../helpers/excelExport';
 import dayjs from 'dayjs';
 
@@ -69,7 +68,9 @@ export const PaymentHistoryTable = ({
       ...row,
       id: `${row.id}`,
       billingService: row.lineItems.map((item) => item.billableService).join(', '),
-      totalAmount: convertToCurrency(row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0)),
+      totalAmount: convertToCurrency(
+        row.totalAmount ?? row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0),
+      ),
       totalPaid: convertToCurrency(totalPaid),
       totalWaived: convertToCurrency(totalWaived),
       referenceCodes: row.payments
@@ -85,13 +86,32 @@ export const PaymentHistoryTable = ({
   };
 
   const handleExport = () => {
-    const dataForExport = rows.map((row) => {
-      return {
-        ...row,
-        totalAmount: convertToCurrency(row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0)),
-      };
-    });
-    const data = dataForExport.map((row) => {
+    const round2 = (value: number) => Number((value || 0).toFixed(2));
+    const summarizeLineItems = (row: MappedBill) =>
+      row.lineItems.reduce(
+        (acc, item) => {
+          const qty = Number(item.quantity) || 1;
+          const base = item.discounts?.[0]?.baseAmount ?? (Number(item.price) || 0) * qty;
+          const discount = item.discounts?.reduce((sum, d) => sum + (Number(d.amount) || 0), 0) ?? 0;
+          const tax = item.taxes?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) ?? 0;
+          const total = base - discount + tax;
+
+          return {
+            base: acc.base + base,
+            discount: acc.discount + discount,
+            tax: acc.tax + tax,
+            total: acc.total + total,
+          };
+        },
+        { base: 0, discount: 0, tax: 0, total: 0 },
+      );
+
+    const data = rows.map((row) => {
+      const summary = summarizeLineItems(row);
+      const baseAmount = row.totalAmountWithoutTaxAndDiscount ?? summary.base;
+      const discountAmount = row.totalDiscounts ?? row.billLineItemDiscounts ?? summary.discount;
+      const taxAmount = row.totalTax ?? summary.tax;
+      const totalAmount = row.totalAmount ?? summary.total;
       const totalPaid = row.payments
         .filter((payment) => payment.instanceType?.name !== 'Waiver')
         .reduce((acc, payment) => acc + payment.amountTendered, 0);
@@ -101,13 +121,17 @@ export const PaymentHistoryTable = ({
         'Receipt Number': row.receiptNumber,
         'Patient ID': row.identifier,
         'Patient Name': row.patientName,
-        'Total Amount Due': row.lineItems.reduce((acc, item) => acc + item.price, 0),
-        'Total Paid': totalPaid,
-        'Total Waived': totalWaived,
-        'Date of Payment': dayjs(row.payments[0].dateCreated).format('DD-MM-YYYY'),
+        'Base Amount': round2(baseAmount),
+        'Discount Amount': round2(discountAmount),
+        'Tax Amount': round2(taxAmount),
+        'Total Amount': round2(totalAmount),
+        'Total Paid': round2(totalPaid),
+        'Total Waived': round2(totalWaived),
+        'Date of Payment': row.payments[0]?.dateCreated ? dayjs(row.payments[0].dateCreated).format('DD-MM-YYYY') : '',
         'Mode of Payment': row.payments
-        .map((payment: (typeof row.payments)[0]) => payment.instanceType.name)
-        .join(', '),
+          .map((payment: (typeof row.payments)[0]) => payment.instanceType?.name)
+          .filter(Boolean)
+          .join(', '),
         'Reason/Reference': row.payments
           .map(({ attributes }) => attributes.map(({ value }) => value).join(' '))
           .filter((code) => code !== '')

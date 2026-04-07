@@ -4,10 +4,11 @@ import CommodityForm from './commodity-form.workspace';
 import userEvent from '@testing-library/user-event';
 import { useCommodityItem } from './useCommodityItem';
 import { usePaymentModes } from '../../../billing.resource';
-import { createBillableService } from '../../billable-service.resource';
+import { createBillableService, useSalesTaxes } from '../../billable-service.resource';
 
 jest.mock('../../billable-service.resource', () => ({
   createBillableService: jest.fn(),
+  useSalesTaxes: jest.fn(),
 }));
 
 const mockStockItems = [
@@ -101,6 +102,7 @@ const mockStockItems = [
 
 const mockUseCommodityItem = useCommodityItem as jest.MockedFunction<typeof useCommodityItem>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
+const mockUseSalesTaxes = useSalesTaxes as jest.MockedFunction<typeof useSalesTaxes>;
 
 const mockPaymentModes = {
   paymentModes: [
@@ -221,13 +223,15 @@ jest.mock('../../../billing.resource', () => ({
 }));
 
 const commodityFormProps = {
-  patient: {} as fhir.Patient,
-  patientUuid: 'patient-123',
   closeWorkspace: jest.fn(),
-  promptBeforeClosing: jest.fn(),
-  closeWorkspaceWithSavedChanges: jest.fn(),
-  setTitle: jest.fn(),
-};
+  launchChildWorkspace: jest.fn(),
+  workspaceProps: {},
+  windowProps: {},
+  groupProps: {},
+  overlay: true,
+  isOpen: true,
+  isPinned: false,
+} as any;
 
 describe('CommodityForm', () => {
   beforeEach(() => {
@@ -239,6 +243,11 @@ describe('CommodityForm', () => {
       mutate: jest.fn(),
     });
     mockUsePaymentModes.mockReturnValue(mockPaymentModes);
+    mockUseSalesTaxes.mockReturnValue({
+      salesTaxes: [],
+      isLoading: false,
+      error: null,
+    });
   });
 
   it('should render commodity form and be a able to search and save a commodity billiable item', async () => {
@@ -266,13 +275,13 @@ describe('CommodityForm', () => {
 
     // Add a payment method
     const addPaymentMethodButton = screen.getByText(/Add payment method/i);
-    userEvent.click(addPaymentMethodButton);
+    await userEvent.click(addPaymentMethodButton);
 
-    const openDropdown = await screen.findByRole('button', { name: /Open/i });
-    userEvent.click(openDropdown);
+    const paymentMethodOpenButton = screen.getAllByRole('button', { name: 'Open' }).at(-1)!;
+    await userEvent.click(paymentMethodOpenButton);
 
-    const cashOption = await screen.findByRole('option', { name: /Cash/i });
-    userEvent.click(cashOption);
+    const cashOption = (await screen.findAllByRole('option', { name: /Cash/i }))[0];
+    await userEvent.click(cashOption);
 
     const priceInput = await screen.findByPlaceholderText(/Enter price/i);
     expect(priceInput).toHaveProperty('value', '0');
@@ -286,7 +295,7 @@ describe('CommodityForm', () => {
     });
 
     // Click save and wait for the API call
-    userEvent.click(saveAndCloseButton);
+    await userEvent.click(saveAndCloseButton);
 
     // Wait for the API call to be made
     await waitFor(() => {

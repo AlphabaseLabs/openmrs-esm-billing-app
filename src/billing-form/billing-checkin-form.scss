@@ -12,3 +12,91 @@
 .sectionField {
   flex-basis: 70%;
 }
+
+/*
+ * Cap the expanded menu height but keep it constrained to the field width so the
+ * dropdown does not introduce horizontal scrolling inside narrow panels.
+ */
+.billableServiceMultiselect :global(.cds--list-box--expanded .cds--list-box__menu) {
+  max-block-size: min(12.5rem, 32vh) !important;
+  max-height: min(12.5rem, 32vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  inline-size: 100%;
+  min-inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+/*
+ * Carbon applies clipping on the checkbox label and label text, which truncates the
+ * trailing price. Keep the option wrappers fluid and only ellipsize the service name.
+ */
+.billableServiceMultiselect :global(.cds--list-box__menu-item__option) {
+  inline-size: 100%;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.billableServiceMultiselect :global(.cds--list-box__menu-item .cds--checkbox-wrapper) {
+  overflow: visible;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.billableServiceMultiselect :global(.cds--list-box__menu-item .cds--checkbox-label) {
+  display: block;
+  overflow: visible;
+  inline-size: 100%;
+  min-inline-size: 0;
+  white-space: normal;
+}
+
+.billableServiceMultiselect :global(.cds--checkbox-label-text) {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.dropdownOptionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: layout.$spacing-03;
+  inline-size: 100%;
+  min-inline-size: 0;
+  box-sizing: border-box;
+}
+
+.dropdownOptionName {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownOptionPrice {
+  flex-shrink: 0;
+  text-align: end;
+  white-space: nowrap;
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+}
+
+.selectionTags {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+  margin-top: layout.$spacing-03;
+  display: flex;
+  flex-wrap: wrap;
+  gap: layout.$spacing-03;
+  align-items: center;
+}
+
+.tag {
+  margin: 0;
+  max-inline-size: 100%;
+}

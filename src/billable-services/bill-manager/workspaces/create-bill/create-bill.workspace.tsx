@@ -14,8 +14,9 @@ import {
   Column,
 } from '@carbon/react';
 import {
-  type DefaultWorkspaceProps,
   ResponsiveWrapper,
+  Workspace2,
+  type Workspace2DefinitionProps,
   restBaseUrl,
   useConfig,
   useLayoutType,
@@ -29,7 +30,7 @@ import { type BillingConfig } from '../../../../config-schema';
 import { processBillItems } from '../../../../billing.resource';
 import { mutate } from 'swr';
 
-type CreateBillWorkspaceProps = DefaultWorkspaceProps & {
+type CreateBillWorkspaceProps = {
   patientUuid: string;
   order: Order;
   closeModal: () => void;
@@ -144,15 +145,12 @@ const StandardBillForm: React.FC<Omit<BillFormProps, 'quantityToDispense'>> = (p
   return <BillForm {...props} quantityToDispense={1} />;
 };
 
-const CreateBillWorkspace: React.FC<CreateBillWorkspaceProps> = ({
-  patientUuid,
-  order,
+const CreateBillWorkspace: React.FC<Workspace2DefinitionProps<CreateBillWorkspaceProps>> = ({
+  workspaceProps,
   closeWorkspace,
-  closeWorkspaceWithSavedChanges,
-  promptBeforeClosing,
-  medicationRequestBundle,
 }) => {
   const { t } = useTranslation();
+  const { patientUuid, order, medicationRequestBundle } = workspaceProps ?? ({} as CreateBillWorkspaceProps);
   const defaultPaymentStatus = 'PENDING';
   const isTablet = useLayoutType() === 'tablet';
   const { cashPointUuid, cashierUuid } = useConfig<BillingConfig>();
@@ -220,7 +218,7 @@ const CreateBillWorkspace: React.FC<CreateBillWorkspaceProps> = ({
       mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
         revalidate: true,
       });
-      closeWorkspaceWithSavedChanges();
+      closeWorkspace({ discardUnsavedChanges: true });
     } catch (error) {
       console.error('Bill processing error:', error);
       showSnackbar({
@@ -231,14 +229,12 @@ const CreateBillWorkspace: React.FC<CreateBillWorkspaceProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (isDirty) {
-      promptBeforeClosing(() => true);
-    }
-  }, [isDirty, promptBeforeClosing]);
-
   if (isLoading) {
-    return <InlineLoading description={t('loadingBillableItems', 'Loading billable items...')} />;
+    return (
+      <Workspace2 title={t('createBill', 'Create Bill')} hasUnsavedChanges={isDirty}>
+        <InlineLoading description={t('loadingBillableItems', 'Loading billable items...')} />
+      </Workspace2>
+    );
   }
 
   const commonFormProps = {
@@ -250,43 +246,49 @@ const CreateBillWorkspace: React.FC<CreateBillWorkspaceProps> = ({
   };
 
   return (
-    <form
-      className={styles.form}
-      onSubmit={handleSubmit(handleCreateBill, (errors) => console.error('errors', errors))}>
-      <div className={styles.formContainer}>
-        <ResponsiveWrapper>
-          <InlineNotification
-            aria-label="closes notification"
-            kind="info"
-            lowContrast
-            statusIconDescription="notification"
-            subtitle={t('createBillForOrder', 'Create bill for order {{order}} by selecting the correct unit price', {
-              order: order?.concept?.display ?? order?.drug?.display,
-            })}
-            title={t('orderBillCreation', 'Order Bill Creation {{orderNumber}}', { orderNumber: order.orderNumber })}
-          />
-        </ResponsiveWrapper>
-        <ResponsiveWrapper>
-          {medicationRequestBundle ? (
-            <MedicationBillForm {...commonFormProps} medicationRequestBundle={medicationRequestBundle} />
-          ) : (
-            <StandardBillForm {...commonFormProps} />
-          )}
-        </ResponsiveWrapper>
-      </div>
-      <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
-        <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button className={styles.button} disabled={!isValid || !isDirty || isSubmitting} kind="primary" type="submit">
-          {isSubmitting ? (
-            <InlineLoading className={styles.spinner} description={t('creatingBill', 'Creating bill...')} />
-          ) : (
-            <span>{t('saveAndClose', 'Save & close')}</span>
-          )}
-        </Button>
-      </ButtonSet>
-    </form>
+    <Workspace2 title={t('createBill', 'Create Bill')} hasUnsavedChanges={isDirty}>
+      <form
+        className={styles.form}
+        onSubmit={handleSubmit(handleCreateBill, (errors) => console.error('errors', errors))}>
+        <div className={styles.formContainer}>
+          <ResponsiveWrapper>
+            <InlineNotification
+              aria-label="closes notification"
+              kind="info"
+              lowContrast
+              statusIconDescription="notification"
+              subtitle={t('createBillForOrder', 'Create bill for order {{order}} by selecting the correct unit price', {
+                order: order?.concept?.display ?? order?.drug?.display,
+              })}
+              title={t('orderBillCreation', 'Order Bill Creation {{orderNumber}}', { orderNumber: order.orderNumber })}
+            />
+          </ResponsiveWrapper>
+          <ResponsiveWrapper>
+            {medicationRequestBundle ? (
+              <MedicationBillForm {...commonFormProps} medicationRequestBundle={medicationRequestBundle} />
+            ) : (
+              <StandardBillForm {...commonFormProps} />
+            )}
+          </ResponsiveWrapper>
+        </div>
+        <ButtonSet className={classNames({ [styles.tablet]: isTablet, [styles.desktop]: !isTablet })}>
+          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button
+            className={styles.button}
+            disabled={!isValid || !isDirty || isSubmitting}
+            kind="primary"
+            type="submit">
+            {isSubmitting ? (
+              <InlineLoading className={styles.spinner} description={t('creatingBill', 'Creating bill...')} />
+            ) : (
+              <span>{t('saveAndClose', 'Save & close')}</span>
+            )}
+          </Button>
+        </ButtonSet>
+      </form>
+    </Workspace2>
   );
 };
 

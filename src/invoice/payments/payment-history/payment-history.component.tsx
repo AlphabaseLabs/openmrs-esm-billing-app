@@ -1,11 +1,12 @@
 import React, { useCallback } from 'react';
 import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell, Button } from '@carbon/react';
 import { PaymentStatus, type MappedBill, type Payment } from '../../../types';
-import { formatDate, launchWorkspace, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
+import { formatDate, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
 import { convertToCurrency } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { TrashCan } from '@carbon/react/icons';
 import styles from './payment-history.scss';
+import { launchBillingWorkspace } from '../../../workspaces';
 
 type PaymentHistoryProps = {
   bill: MappedBill;
@@ -21,13 +22,12 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
 
   const handleDeletePayment = useCallback(
     (payment: Payment) => {
-      launchWorkspace('delete-payment-workspace', {
-        workspaceTitle: t('deletePayment', 'Delete Payment'),
+      launchBillingWorkspace('delete-payment-workspace', {
         bill,
         payment,
       });
     },
-    [bill, t],
+    [bill],
   );
 
   const headers = [

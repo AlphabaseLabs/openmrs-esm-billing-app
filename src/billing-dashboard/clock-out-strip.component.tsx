@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
-import { IbmCloudSysdigSecure, Shuffle, Location as LocationIcon } from '@carbon/react/icons';
+import { IbmCloudSysdigSecure, Shuffle } from '@carbon/react/icons';
 import { formatDate, parseDate, showModal, useLayoutType } from '@openmrs/esm-framework';
 
 import { useClockInStatus } from '../payment-points/use-clock-in-status';

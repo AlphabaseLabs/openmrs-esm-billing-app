@@ -2,10 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useTranslation } from 'react-i18next';
-import { useLayoutType, usePagination, showModal, launchWorkspace, type LayoutType } from '@openmrs/esm-framework';
+import { useLayoutType, usePagination, showModal, type LayoutType } from '@openmrs/esm-framework';
 import ChargeSummaryTable from './charge-summary-table.component';
 import { useChargeSummaries, type ChargeAble } from './charge-summary.resource';
 import { downloadExcelTemplateFile } from './form-helper';
+import { launchBillingWorkspace } from '../../workspaces';
 
 jest.mock('@openmrs/esm-framework', () => {
   const originalModule = jest.requireActual('@openmrs/esm-framework');
@@ -14,9 +15,11 @@ jest.mock('@openmrs/esm-framework', () => {
     useLayoutType: jest.fn(),
     usePagination: jest.fn(),
     showModal: jest.fn(),
-    launchWorkspace: jest.fn(),
   };
 });
+jest.mock('../../workspaces', () => ({
+  launchBillingWorkspace: jest.fn(),
+}));
 jest.mock('./charge-summary.resource', () => ({
   useChargeSummaries: jest.fn(),
 }));
@@ -56,7 +59,7 @@ describe('ChargeSummaryTable', () => {
   const mockUseLayoutType = useLayoutType as jest.MockedFunction<typeof useLayoutType>;
   const mockUsePagination = usePagination as jest.MockedFunction<typeof usePagination>;
   const mockShowModal = showModal as jest.MockedFunction<typeof showModal>;
-  const mockLaunchWorkspace = launchWorkspace as jest.MockedFunction<typeof launchWorkspace>;
+  const mockLaunchWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
   const mockUseChargeSummaries = useChargeSummaries as jest.MockedFunction<typeof useChargeSummaries>;
 
   beforeEach(() => {
@@ -118,7 +121,7 @@ describe('ChargeSummaryTable', () => {
     });
 
     render(<ChargeSummaryTable />);
-    expect(screen.getByText('There are no {{displayText}} to display for this patient')).toBeInTheDocument();
+    expect(screen.getByText('There are no Charge Items to display for this patient')).toBeInTheDocument();
     const launchFormButton = screen.getByRole('button', { name: /Record Charge Items/i });
     expect(launchFormButton).toBeInTheDocument();
     await user.click(launchFormButton);
@@ -130,7 +133,7 @@ describe('ChargeSummaryTable', () => {
 
     // Check if table headers are present
     expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Short Name')).toBeInTheDocument();
+    expect(screen.getByText('Short name')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Type')).toBeInTheDocument();
     expect(screen.getByText('Prices')).toBeInTheDocument();
@@ -164,7 +167,6 @@ describe('ChargeSummaryTable', () => {
 
     expect(mockLaunchWorkspace).toHaveBeenCalledWith('billable-service-form', {
       initialValues: mockChargeSummaryItems[0],
-      workspaceTitle: 'Edit Service Charge Item',
     });
   });
 

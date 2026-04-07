@@ -23,6 +23,7 @@ jest.mock('@openmrs/esm-framework', () => ({
   useLayoutType: jest.fn(),
   showSnackbar: jest.fn(),
   ResponsiveWrapper: ({ children }) => <div>{children}</div>,
+  Workspace2: ({ children }) => <div>{children}</div>,
   restBaseUrl: '/openmrs/ws/rest/v1',
 }));
 
@@ -140,14 +141,19 @@ describe('CreateBillWorkspace', () => {
   };
 
   const defaultProps = {
-    patientUuid: 'patient-uuid',
-    order: mockOrder,
     closeWorkspace: jest.fn(),
-    closeWorkspaceWithSavedChanges: jest.fn(),
-    promptBeforeClosing: jest.fn(),
-    setTitle: jest.fn(),
-    closeModal: jest.fn(),
-  };
+    launchChildWorkspace: jest.fn(),
+    workspaceProps: {
+      patientUuid: 'patient-uuid',
+      order: mockOrder,
+      closeModal: jest.fn(),
+    },
+    windowProps: {},
+    groupProps: {},
+    overlay: true,
+    isOpen: true,
+    isPinned: false,
+  } as any;
 
   // Reset mocks before each test
   beforeEach(() => {
@@ -202,7 +208,7 @@ describe('CreateBillWorkspace', () => {
 
     // Since Carbon dropdown items might be rendered in a portal or with complex structure,
     // we need to find them by their text content regardless of their exact structure
-    const dropdownItem = await screen.findByText(/Cash - Ksh 100.00/);
+    const dropdownItem = await screen.findByText(/Cash - .*100\.00/);
     await user.click(dropdownItem);
 
     // Submit form
@@ -245,7 +251,7 @@ describe('CreateBillWorkspace', () => {
     await user.type(quantityInput, '2');
 
     await user.click(priceDropdown);
-    const dropdownItem = await screen.findByText(/Cash - Ksh 100.00/);
+    const dropdownItem = await screen.findByText(/Cash - .*100\.00/);
     await user.click(dropdownItem);
 
     // Submit form

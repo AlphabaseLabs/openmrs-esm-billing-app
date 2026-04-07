@@ -1,8 +1,6 @@
 import {
-  formatDate,
   openmrsFetch,
   type OpenmrsResource,
-  parseDate,
   restBaseUrl,
   useConfig,
   useSession,
@@ -12,12 +10,12 @@ import {
 import dayjs from 'dayjs';
 import isEmpty from 'lodash-es/isEmpty';
 import sortBy from 'lodash-es/sortBy';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
-import { extractString } from './helpers';
-import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, PaymentStatus } from './types';
+import { extractString, formatBillDateTime } from './helpers';
+import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, type PaymentStatus } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   // create base object
@@ -27,15 +25,13 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     patientName: bill?.patient?.display.split('-')?.[1],
     identifier: bill?.patient?.display.split('-')?.[0],
     patientUuid: bill?.patient?.uuid,
-    status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
-      ? PaymentStatus.PAID
-      : PaymentStatus.PENDING,
+    status: bill?.status,
     receiptNumber: bill?.receiptNumber,
     cashier: bill?.cashier,
     cashPointUuid: bill?.cashPoint?.uuid,
     cashPointName: bill?.cashPoint?.name,
     cashPointLocation: bill?.cashPoint?.location?.display,
-    dateCreated: bill?.dateCreated ? formatDate(parseDate(bill?.dateCreated), { mode: 'wide' }) : '--',
+    dateCreated: formatBillDateTime(bill?.dateCreated),
     dateCreatedUnformatted: bill?.dateCreated,
     lineItems: bill?.lineItems.filter((li) => !li?.voided),
     billingService: extractString(
@@ -43,7 +39,13 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     ),
     payments: bill?.payments,
     display: bill?.display,
-    totalAmount: bill?.lineItems?.map((item) => item?.price * item?.quantity).reduce((prev, curr) => prev + curr, 0),
+    totalAmount:
+      bill?.lineItems?.reduce((sum, item) => {
+        const subtotal = (item?.price ?? 0) * (item?.quantity ?? 0);
+        const tax = (item?.taxes ?? []).reduce((acc, t) => acc + (t?.amount ?? 0), 0);
+        const discount = (item?.discounts ?? []).reduce((acc, d) => acc + (d?.amount ?? 0), 0);
+        return sum + subtotal + tax - discount;
+      }, 0) ?? 0,
     tenderedAmount: bill?.payments?.map((item) => item?.amountTendered).reduce((prev, curr) => prev + curr, 0),
     referenceCodes: bill?.payments
       .map((payment) =>
@@ -61,29 +63,34 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
       .join(', '),
     adjustmentReason: bill?.adjustmentReason,
     balance: bill?.balance,
-    totalPayments: bill?.totalPayments,
-    totalDeposits: bill?.totalDeposits,
-    totalExempted: bill?.totalExempted,
-    totalWaived: bill?.payments
-      ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
-      .reduce((prev, curr) => prev + curr?.amountTendered, 0),
+    totalPayments: bill?.totalPayments ?? 0,
+    totalDeposits: bill?.totalDeposits ?? 0,
+    totalExempted: bill?.totalExempted ?? 0,
+    totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
-    totalActualPayments: bill?.totalActualPayments,
+    totalActualPayments: bill?.totalActualPayments ?? 0,
+    totalTax: bill?.totalTax ?? 0,
+    billLineItemDiscounts: bill?.totalDiscount ?? 0,
+    totalAmountWithoutTaxAndDiscount: bill?.lineItems
+      ?.map((item) => item?.price * item?.quantity)
+      .reduce((prev, curr) => prev + curr, 0),
   };
-
+  mappedBill.totalDiscounts = (mappedBill.billLineItemDiscounts ?? 0) + (mappedBill.totalWaived ?? 0);
   return mappedBill;
 };
 
 export const useBills = (
   patientUuid: string = '',
   billStatus: PaymentStatus.PENDING | '' | string = '',
-  startingDate: Date = dayjs().startOf('day').toDate(),
-  endDate: Date = dayjs().endOf('day').toDate(),
+  startingDate?: Date,
+  endDate?: Date,
 ) => {
-  const startingDateISO = startingDate.toISOString();
-  const endDateISO = endDate.toISOString();
+  const startingDateISO = startingDate?.toISOString();
+  const endDateISO = endDate?.toISOString();
 
-  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))&createdOnOrAfter=${startingDateISO}&createdOnOrBefore=${endDateISO}`;
+  const dateParams =
+    startingDateISO && endDateISO ? `&createdOnOrAfter=${startingDateISO}&createdOnOrBefore=${endDateISO}` : '';
+  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))${dateParams}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<PatientInvoice> } }>(
     patientUuid ? `${url}&patientUuid=${patientUuid}` : url,
@@ -109,7 +116,7 @@ export const useBills = (
 };
 
 export const useBill = (billUuid: string) => {
-  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false`;
+  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false&v=full`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: PatientInvoice }>(
     billUuid ? url : null,
     openmrsFetch,
@@ -117,43 +124,6 @@ export const useBill = (billUuid: string) => {
       errorRetryCount: 2,
     },
   );
-
-  const mapBillProperties = (bill: PatientInvoice): MappedBill => {
-    // create base object
-    const mappedBill: MappedBill = {
-      id: bill?.id,
-      uuid: bill?.uuid,
-      patientName: bill?.patient?.display.split('-')?.[1],
-      identifier: bill?.patient?.display.split('-')?.[0],
-      patientUuid: bill?.patient?.uuid,
-      status: bill?.lineItems.every((item) => item?.paymentStatus === PaymentStatus.PAID)
-        ? PaymentStatus.PAID
-        : bill?.status,
-      receiptNumber: bill?.receiptNumber,
-      cashier: bill?.cashier,
-      cashPointUuid: bill?.cashPoint?.uuid,
-      cashPointName: bill?.cashPoint?.name,
-      cashPointLocation: bill?.cashPoint?.location?.display,
-      dateCreated: bill?.dateCreated ?? '--',
-      dateCreatedUnformatted: bill?.dateCreated,
-      lineItems: bill?.lineItems,
-      billingService: bill?.lineItems.map((bill) => bill?.item).join(' '),
-      payments: bill?.payments,
-      totalAmount: bill?.lineItems?.map((item) => item.price * item.quantity).reduce((prev, curr) => prev + curr, 0),
-      tenderedAmount: bill?.payments?.map((item) => item.amountTendered).reduce((prev, curr) => prev + curr, 0),
-      totalPayments: bill?.totalPayments,
-      totalDeposits: bill?.totalDeposits,
-      totalExempted: bill?.totalExempted,
-      balance: bill?.balance,
-      closed: bill?.closed,
-      totalWaived: bill?.payments
-        ?.filter((payment) => payment?.instanceType?.name === 'Waiver')
-        .reduce((prev, curr) => prev + curr?.amountTendered, 0),
-      totalActualPayments: bill?.totalActualPayments,
-    };
-
-    return mappedBill;
-  };
 
   // filter out voided line items to prevent them from being included in the bill
   // TODO: add backend support for voided line items
@@ -200,17 +170,32 @@ export function useFetchSearchResults(searchVal, category) {
   return { data: data?.data, error, isLoading: isLoading, isValidating };
 }
 
-export const usePatientPaymentInfo = (patientUuid: string) => {
-  const { currentVisit } = useVisit(patientUuid);
-  const attributes = currentVisit?.attributes ?? [];
-  const paymentInformation = attributes
-    .map((attribute) => ({
-      name: attribute.attributeType.name,
-      value: attribute.value,
-    }))
-    .filter(({ name }) => name === 'Insurance scheme' || name === 'Policy Number');
+type PatientPaymentVisitAttribute = {
+  attributeType?: {
+    name?: string;
+  };
+  value?: string;
+};
 
-  return paymentInformation;
+export const usePatientPaymentInfo = (patientUuid?: string) => {
+  const visitUrl = patientUuid
+    ? `${restBaseUrl}/visit?patient=${patientUuid}&v=custom:(stopDatetime,attributes:(attributeType:(name),value))&includeInactive=false`
+    : null;
+  const { data } = useSWR<{
+    data: { results: Array<{ stopDatetime: string | null; attributes?: Array<PatientPaymentVisitAttribute> }> };
+  }>(visitUrl, openmrsFetch);
+
+  return useMemo(() => {
+    const activeVisit = data?.data?.results?.find((visit) => visit?.stopDatetime === null);
+    const attributes = activeVisit?.attributes ?? [];
+
+    return attributes
+      .map((attribute) => ({
+        name: attribute?.attributeType?.name,
+        value: attribute?.value,
+      }))
+      .filter(({ name, value }) => (name === 'Insurance scheme' || name === 'Policy Number') && value);
+  }, [data?.data?.results]);
 };
 
 export const processBillItems = (payload) => {
@@ -232,8 +217,9 @@ export const usePaymentModes = (excludeWaiver: boolean = true) => {
   });
   const allowedPaymentModes =
     excludedPaymentMode?.length > 0
-      ? data?.data?.results.filter((mode) => !excludedPaymentMode.some((excluded) => excluded.uuid === mode.uuid)) ?? []
-      : data?.data?.results ?? [];
+      ? (data?.data?.results.filter((mode) => !excludedPaymentMode.some((excluded) => excluded.uuid === mode.uuid)) ??
+        [])
+      : (data?.data?.results ?? []);
   return {
     paymentModes: excludeWaiver ? allowedPaymentModes : data?.data?.results,
     isLoading,
@@ -329,6 +315,7 @@ export interface UseBillsPaginatedParams {
   endDate?: Date;
   page?: number;
   pageSize?: number;
+  enabled?: boolean;
 }
 
 /**
@@ -345,6 +332,7 @@ export const useBillsPaginated = ({
   endDate = dayjs().endOf('day').toDate(),
   page = 1,
   pageSize = 10,
+  enabled = true,
 }: UseBillsPaginatedParams = {}): BillsPaginatedResponse => {
   const startingDateISO = startingDate.toISOString();
   const endDateISO = endDate.toISOString();
@@ -374,7 +362,7 @@ export const useBillsPaginated = ({
       totalCount?: number;
       links?: Array<{ rel: string; uri: string }>;
     };
-  }>(url, openmrsFetch, {
+  }>(enabled ? url : null, openmrsFetch, {
     errorRetryCount: 2,
   });
 

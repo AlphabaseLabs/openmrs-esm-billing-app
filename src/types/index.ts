@@ -30,6 +30,10 @@ export interface MappedBill {
   closed?: boolean;
   totalWaived?: number;
   totalActualPayments?: number;
+  totalTax?: number;
+  billLineItemDiscounts?: number;
+  totalDiscounts?: number;
+  totalAmountWithoutTaxAndDiscount?: number;
 }
 
 interface LocationLink {
@@ -64,9 +68,43 @@ interface Provider {
   links: ProviderLink[];
 }
 
+export interface LinePaymentAllocation {
+  uuid?: string;
+  billLineItem?: { uuid: string; display?: string } | string;
+  allocatedAmount: number;
+  dateCreated?: string | number;
+  voided?: boolean;
+  resourceVersion?: string;
+}
+
+/** Discount on a bill line item. Request: amount, baseAmount, rate?, description?, sponsor?; Response: same + uuid */
+export interface BillLineItemDiscount {
+  uuid?: string;
+  amount: number;
+  baseAmount: number;
+  rate?: number;
+  description?: string;
+  sponsor?: string;
+}
+
+/** Tax on a bill line item. Request: amount, baseAmount, rate?, concept?; Response: same + uuid */
+export interface BillLineItemTax {
+  uuid?: string;
+  amount: number;
+  baseAmount: number;
+  rate?: number;
+  concept?: string;
+}
+
 export interface LineItem {
   uuid: string;
   display: string;
+  /** When present (from REST), creation time of this line item */
+  dateCreated?: string;
+  /** Some REST representations expose line item time under auditInfo */
+  auditInfo?: {
+    dateCreated?: string;
+  };
   voided: boolean;
   voidReason: string | null;
   item: string;
@@ -81,6 +119,13 @@ export interface LineItem {
   itemOrServiceConceptUuid: string;
   serviceTypeUuid: string;
   order: OpenmrsResource;
+  discounts?: BillLineItemDiscount[];
+  taxes?: BillLineItemTax[];
+  amount?: number;
+  totalAllocated?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  total?: number;
 }
 
 interface PatientLink {
@@ -126,17 +171,6 @@ interface PaymentInstanceType {
   name: string;
   description: string;
   retired: boolean;
-}
-
-export interface Payment {
-  uuid: string;
-  instanceType: PaymentInstanceType;
-  attributes: Attribute[];
-  amount: number;
-  amountTendered: number;
-  dateCreated: number;
-  voided: boolean;
-  resourceVersion: string;
 }
 
 export interface PatientDetails {
@@ -284,6 +318,9 @@ export interface PatientInvoice {
   balance?: number;
   closed?: boolean;
   totalActualPayments?: number;
+  totalWaivers?: number;
+  totalTax?: number;
+  totalDiscount?: number;
 }
 
 export type BillingService = {
@@ -350,12 +387,17 @@ export interface Payment {
   attributes: Attribute[];
   amount: number;
   amountTendered: number;
+  allocations?: LinePaymentAllocation[];
   dateCreated: number;
   voided: boolean;
   resourceVersion: string;
 }
 
-export type FormPayment = { method: PaymentMethod; amount: string | number; referenceCode?: number | string };
+export type FormPayment = {
+  method: PaymentMethod | null;
+  amount: string | number | undefined;
+  referenceCode?: number | string;
+};
 
 export type PaymentFormValue = {
   payment: Array<FormPayment>;
