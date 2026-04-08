@@ -99,20 +99,18 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
   }, [paymentMethod]);
 
   const handleCreateBill = useCallback(async (createBillPayload) => {
-    createPatientBill(createBillPayload).then(
-      () => {
-        showSnackbar({ title: 'Patient Bill', subtitle: 'Patient has been billed successfully', kind: 'success' });
-      },
-      (error) => {
-        const errorMessage = JSON.stringify(error?.responseBody?.error?.message?.replace(/\[/g, '').replace(/\]/g, ''));
-        showSnackbar({
-          title: 'Patient Bill Error',
-          subtitle: `An error has occurred while creating patient bill, Contact system administrator quoting this error ${errorMessage}`,
-          kind: 'error',
-          isLowContrast: true,
-        });
-      },
-    );
+    try {
+      await createPatientBill(createBillPayload);
+      showSnackbar({ title: 'Patient Bill', subtitle: 'Patient has been billed successfully', kind: 'success' });
+    } catch (error: any) {
+      const errorMessage = JSON.stringify(error?.responseBody?.error?.message?.replace(/\[/g, '').replace(/\]/g, ''));
+      showSnackbar({
+        title: 'Patient Bill Error',
+        subtitle: `An error has occurred while creating patient bill, Contact system administrator quoting this error ${errorMessage}`,
+        kind: 'error',
+        isLowContrast: true,
+      });
+    }
   }, []);
 
   useEffect(() => {

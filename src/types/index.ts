@@ -340,6 +340,7 @@ export interface Filter {
   cashiers?: Array<string>;
   status?: string;
   billStatus?: string;
+  patientUuid?: string;
 }
 
 export interface DataTableRow {

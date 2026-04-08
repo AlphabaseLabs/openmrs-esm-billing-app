@@ -85,6 +85,13 @@
   display: inline-block;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+  flex-wrap: wrap;
+}
+
 .optionsMenu {
   position: absolute;
   top: calc(100% + #{layout.$spacing-02});
@@ -165,6 +172,10 @@
   }
 
   .optionsMenu {
+    width: 100%;
+  }
+
+  .headerActions {
     width: 100%;
   }
 }

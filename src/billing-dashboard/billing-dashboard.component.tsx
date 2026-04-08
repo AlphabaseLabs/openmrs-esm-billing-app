@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@carbon/react';
-import { ArrowLeft, OverflowMenuVertical } from '@carbon/react/icons';
+import { Add, ArrowLeft, OverflowMenuVertical } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import BillingHeader from '../billing-header/billing-header.component';
@@ -12,6 +12,7 @@ import { PaymentHistory } from '../billable-services/payment-history/payment-his
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
 import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.component';
 import Invoice from '../invoice/invoice.component';
+import { launchCreateBillWorkspace } from '../workspaces';
 
 type BillingActionKey = 'overview' | 'payment-history' | 'bill-manager' | 'charge-items';
 
@@ -43,7 +44,9 @@ function BillingDashboard() {
   const optionsMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const [selectedAction, setSelectedAction] = useState<BillingActionKey>(() => getBillingActionFromPath(location.pathname));
+  const [selectedAction, setSelectedAction] = useState<BillingActionKey>(() =>
+    getBillingActionFromPath(location.pathname),
+  );
   const showInvoiceOverview = isInvoiceRoute(location.pathname);
 
   const getPageTitle = (action: BillingActionKey) => {
@@ -105,6 +108,10 @@ function BillingDashboard() {
     [navigate],
   );
 
+  const handleLaunchCreateBill = useCallback(() => {
+    launchCreateBillWorkspace(t);
+  }, [t]);
+
   const handleBack = () => {
     if (getBillingActionFromPath(location.pathname) !== 'overview') {
       navigate('/');
@@ -129,7 +136,10 @@ function BillingDashboard() {
   };
 
   const headerActions = (
-    <>
+    <div className={styles.headerActions}>
+      <Button kind="primary" size="sm" renderIcon={Add} onClick={handleLaunchCreateBill}>
+        {t('createBill', 'Create Bill')}
+      </Button>
       <div className={styles.optionsMenuWrapper} ref={optionsMenuRef}>
         <Button
           kind="tertiary"
@@ -152,7 +162,7 @@ function BillingDashboard() {
           </div>
         ) : null}
       </div>
-    </>
+    </div>
   );
 
   return (

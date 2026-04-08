@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { mutate } from 'swr';
-import { Workspace2, type Workspace2DefinitionProps, showSnackbar, useConfig } from '@openmrs/esm-framework';
+import {
+  ExtensionSlot,
+  Workspace2,
+  type Workspace2DefinitionProps,
+  showSnackbar,
+  useConfig,
+  usePatient,
+} from '@openmrs/esm-framework';
 import {
   Button,
   ButtonSet,
@@ -32,6 +39,7 @@ import styles from './billing-form.scss';
 type BillingFormProps = {
   patientUuid: string;
   onSuccess?: () => void;
+  workspaceTitle?: string;
 };
 
 type FormType = z.infer<typeof billingFormSchema>;
@@ -58,7 +66,9 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   const { t } = useTranslation();
   const patientUuidProp = workspaceProps?.patientUuid;
   const onSuccess = workspaceProps?.onSuccess;
+  const workspaceTitle = workspaceProps?.workspaceTitle;
   const patientUuid = patientUuidProp;
+  const { patient } = usePatient(patientUuid);
   const { billableServices, error, isLoading } = useBillableServices();
   const [searchTermValue, setSearchTermValue] = useState('');
   const { cashPointUuid, cashierUuid, defaultPaymentMethodName } = useConfig<BillingConfig>();
@@ -133,8 +143,18 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   };
 
   return (
-    <Workspace2 title={t('billingForm', 'Billing Form')}>
+    <Workspace2 title={workspaceTitle ?? t('billingForm', 'Billing Form')}>
       <Form onSubmit={form.handleSubmit(onSubmit, handleError)}>
+        {patient && patientUuid ? (
+          <ExtensionSlot
+            name="patient-header-slot"
+            state={{
+              patient,
+              patientUuid,
+              hideActionsOverflow: true,
+            }}
+          />
+        ) : null}
         <Stack gap={4} className={styles.grid}>
           <Column>
             <Autosuggest
@@ -251,7 +271,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
         </Stack>
 
         <ButtonSet className={styles.buttonSet}>
-          <Button className={styles.button} kind="secondary" onClick={() => closeWorkspace()}>
+          <Button className={styles.button} kind="secondary" type="button" onClick={() => closeWorkspace()}>
             {t('discard', 'Discard')}
           </Button>
           <Button className={styles.button} kind="primary" type="submit" disabled={form.formState.isSubmitting}>

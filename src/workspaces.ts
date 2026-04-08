@@ -3,6 +3,7 @@ import { launchWorkspace2, launchWorkspaceGroup2, showModal, useVisit, useFeatur
 import { launchStartVisitPrompt, useSystemVisitSetting } from '@openmrs/esm-patient-common-lib';
 
 export const billingWorkspaceGroupName = 'billing-workspace-group';
+export const billingPatientSearchWorkspaceName = 'billing-patient-search-workspace';
 
 export function initializeBillingWorkspaceGroup(groupProps?: Record<string, unknown> | null) {
   return launchWorkspaceGroup2(billingWorkspaceGroupName, groupProps ?? null);
@@ -20,6 +21,31 @@ export function launchBillingWorkspace<WorkspaceProps extends object>(
 ) {
   initializeBillingWorkspaceGroup();
   return launchWorkspace2(workspaceName, workspaceProps ?? null);
+}
+
+export function launchCreateBillWorkspace(t: (key: string, defaultValue: string) => string) {
+  initializeBillingWorkspaceGroup();
+
+  return launchWorkspace2(
+    billingPatientSearchWorkspaceName,
+    {
+      hideActionsOverflow: true,
+      initialQuery: '',
+      primaryActionLabel: t('createBill', 'Create Bill'),
+      primaryActionMode: 'selectPatient',
+      workspaceTitle: t('createBill', 'Create Bill'),
+      onPatientSelected(patientUuid, patient, launchChildWorkspace, closeWorkspace) {
+        launchChildWorkspace('billing-form', {
+          patientUuid: patient.id ?? patientUuid,
+          workspaceTitle: t('createBill', 'Create Bill'),
+          onSuccess: () => closeWorkspace({ discardUnsavedChanges: true }),
+        });
+      },
+    },
+    {
+      startVisitWorkspaceName: 'billing-form',
+    },
+  );
 }
 
 export function useLaunchBillingWorkspaceRequiringVisit<WorkspaceProps extends object>(

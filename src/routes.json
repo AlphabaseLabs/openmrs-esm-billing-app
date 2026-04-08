@@ -223,6 +223,11 @@
       "window": "billing-form-workspace-window"
     },
     {
+      "name": "billing-patient-search-workspace",
+      "component": "@openmrs/esm-patient-search-app#patientSearchWorkspace2",
+      "window": "billing-form-workspace-window"
+    },
+    {
       "name": "payment-mode-workspace",
       "component": "paymentModeWorkspace",
       "window": "billing-workspace-window"

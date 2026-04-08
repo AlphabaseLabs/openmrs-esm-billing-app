@@ -3,6 +3,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import BillingDashboard from './billing-dashboard.component';
+import { launchCreateBillWorkspace } from '../workspaces';
+
+jest.mock('../workspaces', () => ({
+  launchCreateBillWorkspace: jest.fn(),
+}));
 
 jest.mock('../billing-header/billing-header.component', () => ({ title }) => (
   <div title="billing module illustration">
@@ -47,8 +52,18 @@ test('renders billing home controls and the bills table by default', () => {
   expect(screen.getByTitle(/billing module illustration/i)).toBeInTheDocument();
   expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Home');
   expect(screen.queryByRole('button', { name: /show more/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /create bill/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /billing options/i })).toBeInTheDocument();
   expect(screen.getByText('All Bills Table')).toBeInTheDocument();
+});
+
+test('launches the create bill workspace flow from the billing home', async () => {
+  const user = userEvent.setup();
+  renderBillingDashboard();
+
+  await user.click(screen.getByRole('button', { name: /create bill/i }));
+
+  expect(launchCreateBillWorkspace).toHaveBeenCalledTimes(1);
 });
 
 test('renders the selected billing action inline and shows a back button', async () => {
