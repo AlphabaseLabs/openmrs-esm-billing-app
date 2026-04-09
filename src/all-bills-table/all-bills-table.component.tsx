@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { useLayoutType, isDesktop, useConfig, ErrorState, navigate } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useBillsPaginated } from '../billing.resource';
-import { convertToCurrency } from '../helpers';
+import { convertToCurrency, getInvoiceUrl, getPatientChartUrl } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './all-bills-table.scss';
 
@@ -188,7 +188,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
         className={styles.patientNameChartLink}
         onClick={(e) => {
           e.stopPropagation();
-          navigate({ to: `${window.getOpenmrsSpaBase()}patient/${bill.patientUuid}/chart` });
+          navigate({ to: getPatientChartUrl(bill.patientUuid) });
         }}>
         {bill.patientName}
       </button>
@@ -212,10 +212,8 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
     setCurrentPage(1);
   };
 
-  const handleRowClick = useCallback((patientUuid: string, uuid: string) => {
-    navigate({
-      to: `${window.getOpenmrsSpaBase()}home/billing/patient/${patientUuid}/${uuid}`,
-    });
+  const handleRowClick = useCallback((patientUuid: string, billUuid: string) => {
+    navigate({ to: getInvoiceUrl(patientUuid, billUuid) });
   }, []);
 
   const handleRefresh = useCallback(() => {

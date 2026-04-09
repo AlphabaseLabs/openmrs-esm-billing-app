@@ -5,6 +5,17 @@ import { launchStartVisitPrompt, useSystemVisitSetting } from '@openmrs/esm-pati
 export const billingWorkspaceGroupName = 'billing-workspace-group';
 export const billingPatientSearchWorkspaceName = 'billing-patient-search-workspace';
 
+/** Billing form opened from patient chart / search: show banner and land on invoice after save. */
+export function mergePatientChartBillingFormProps<T extends { patientUuid: string }>(
+  props: T,
+): T & { showPatientHeader: true; navigateToBillAfterSave: true } {
+  return {
+    ...props,
+    showPatientHeader: true,
+    navigateToBillAfterSave: true,
+  };
+}
+
 export function initializeBillingWorkspaceGroup(groupProps?: Record<string, unknown> | null) {
   return launchWorkspaceGroup2(billingWorkspaceGroupName, groupProps ?? null);
 }
@@ -35,11 +46,14 @@ export function launchCreateBillWorkspace(t: (key: string, defaultValue: string)
       primaryActionMode: 'selectPatient',
       workspaceTitle: t('createBill', 'Create Bill'),
       onPatientSelected(patientUuid, patient, launchChildWorkspace, closeWorkspace) {
-        launchChildWorkspace('billing-form', {
-          patientUuid: patient.id ?? patientUuid,
-          workspaceTitle: t('createBill', 'Create Bill'),
-          onSuccess: () => closeWorkspace({ discardUnsavedChanges: true }),
-        });
+        launchChildWorkspace(
+          'billing-form',
+          mergePatientChartBillingFormProps({
+            patientUuid: patient.id ?? patientUuid,
+            workspaceTitle: t('createBill', 'Create Bill'),
+            onSuccess: () => closeWorkspace({ discardUnsavedChanges: true }),
+          }),
+        );
       },
     },
     {

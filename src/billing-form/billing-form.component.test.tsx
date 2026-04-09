@@ -21,6 +21,7 @@ jest.mock('@openmrs/esm-framework', () => {
         {children}
       </div>
     ),
+    navigate: jest.fn(),
     showSnackbar: jest.fn(),
     useConfig: jest.fn(() => ({
       cashPointUuid: 'cash-point-uuid',
@@ -36,6 +37,22 @@ jest.mock('@openmrs/esm-framework', () => {
 
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
 
+const workspaceChromeProps = {
+  closeWorkspace: jest.fn(),
+  launchChildWorkspace: jest.fn(),
+  promptBeforeClosing: jest.fn(),
+  setTitle: jest.fn(),
+  setLoading: jest.fn(),
+  setDirty: jest.fn(),
+  windowProps: {},
+  groupProps: {},
+  workspaceName: 'billing-form-workspace',
+} as const;
+
+function renderBillingForm(workspaceProps: Record<string, unknown>) {
+  return render(<BillingForm {...(workspaceChromeProps as any)} workspaceProps={workspaceProps} />);
+}
+
 describe('BillingForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,24 +63,17 @@ describe('BillingForm', () => {
     } as ReturnType<typeof useBillableServices>);
   });
 
-  it('renders the patient header slot and custom workspace title', () => {
-    const props = {
-      closeWorkspace: jest.fn(),
-      workspaceProps: { patientUuid: 'patient-uuid', workspaceTitle: 'Create Bill' },
-      launchChildWorkspace: jest.fn(),
-      promptBeforeClosing: jest.fn(),
-      setTitle: jest.fn(),
-      setLoading: jest.fn(),
-      setDirty: jest.fn(),
-      windowProps: {},
-      groupProps: {},
-      workspaceName: 'billing-form-workspace',
-    } as any;
-
-    render(<BillingForm {...props} />);
+  it('does not render patient header slot by default', () => {
+    renderBillingForm({ patientUuid: 'patient-uuid', workspaceTitle: 'Create Bill' });
 
     expect(screen.getByText('Create Bill')).toBeInTheDocument();
-    expect(screen.getByTestId('extension-slot')).toHaveTextContent('patient-header-slot:patient-uuid');
+    expect(screen.queryByTestId('extension-slot')).not.toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search/i })).toBeInTheDocument();
+  });
+
+  it('renders patient header slot when showPatientHeader is true', () => {
+    renderBillingForm({ patientUuid: 'patient-uuid', workspaceTitle: 'Create Bill', showPatientHeader: true });
+
+    expect(screen.getByTestId('extension-slot')).toHaveTextContent('patient-header-slot:patient-uuid');
   });
 });

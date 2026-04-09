@@ -111,6 +111,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     launchBillingWorkspace('billing-form', {
       patientUuid: bill.patientUuid,
       workspaceTitle: t('addBillItem', 'Add bill item'),
+      navigateToBillAfterSave: true,
     });
   }, [bill.patientUuid, t]);
 

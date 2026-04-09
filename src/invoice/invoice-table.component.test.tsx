@@ -24,6 +24,12 @@ jest.mock('../workspaces', () => ({
 
 const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
 
+const addBillItemWorkspaceExpectation = (patientUuid: string) => ({
+  patientUuid,
+  workspaceTitle: 'Add bill item',
+  navigateToBillAfterSave: true,
+});
+
 describe('InvoiceTable', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,10 +45,10 @@ describe('InvoiceTable', () => {
 
     await user.click(addBillItemButton);
 
-    expect(mockLaunchBillingWorkspace).toHaveBeenCalledWith('billing-form', {
-      patientUuid: mockBillData[0].patientUuid,
-      workspaceTitle: 'Add bill item',
-    });
+    expect(mockLaunchBillingWorkspace).toHaveBeenCalledWith(
+      'billing-form',
+      addBillItemWorkspaceExpectation(mockBillData[0].patientUuid),
+    );
   });
 
   it('hides add bill item button for closed bills', () => {

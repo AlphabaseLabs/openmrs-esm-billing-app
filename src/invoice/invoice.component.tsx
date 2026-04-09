@@ -5,6 +5,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 import { useBill } from '../billing.resource';
+import { getInvoiceDiscardDestinationFromSearch } from '../helpers';
 import BillDetails from './bill-details.component';
 import styles from './invoice.scss';
 
@@ -21,9 +22,7 @@ const Invoice: React.FC<InvoiceProps> = ({ showPatientHeader = true, showDiscard
   const { bill, isLoading: isLoadingBill, error: billingError } = useBill(billUuid);
   const isLoadingInvoice = isLoadingBill || (showPatientHeader && isLoadingPatient);
   const invoiceError = billingError ?? (showPatientHeader ? patientError : undefined);
-  const invoiceOrigin = new URLSearchParams(location.search).get('from');
-  const discardDestination =
-    invoiceOrigin === 'home' ? window.getOpenmrsSpaBase() + 'home' : window.getOpenmrsSpaBase() + 'home/billing';
+  const discardDestination = getInvoiceDiscardDestinationFromSearch(location.search);
 
   if (isLoadingInvoice) {
     return (

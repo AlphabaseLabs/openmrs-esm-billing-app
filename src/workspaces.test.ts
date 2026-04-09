@@ -1,5 +1,10 @@
 import { launchWorkspace2, launchWorkspaceGroup2 } from '@openmrs/esm-framework';
-import { billingPatientSearchWorkspaceName, billingWorkspaceGroupName, launchCreateBillWorkspace } from './workspaces';
+import {
+  billingPatientSearchWorkspaceName,
+  billingWorkspaceGroupName,
+  launchCreateBillWorkspace,
+  mergePatientChartBillingFormProps,
+} from './workspaces';
 
 jest.mock('@openmrs/esm-framework', () => ({
   launchWorkspace2: jest.fn(),
@@ -51,11 +56,14 @@ describe('launchCreateBillWorkspace', () => {
       closeSearchWorkspace,
     );
 
-    expect(launchChildWorkspace).toHaveBeenCalledWith('billing-form', {
-      patientUuid: 'patient-uuid',
-      workspaceTitle: 'Create Bill',
-      onSuccess: expect.any(Function),
-    });
+    expect(launchChildWorkspace).toHaveBeenCalledWith(
+      'billing-form',
+      mergePatientChartBillingFormProps({
+        patientUuid: 'patient-uuid',
+        workspaceTitle: 'Create Bill',
+        onSuccess: expect.any(Function),
+      }),
+    );
 
     const [, launchedBillingFormProps] = launchChildWorkspace.mock.calls[0];
     launchedBillingFormProps.onSuccess();

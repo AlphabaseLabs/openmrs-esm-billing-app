@@ -24,7 +24,11 @@ import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
 import { PaymentStatus } from '../types';
-import { launchBillingWorkspace, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
+import {
+  launchBillingWorkspace,
+  mergePatientChartBillingFormProps,
+  useLaunchBillingWorkspaceRequiringVisit,
+} from '../workspaces';
 
 interface BillHistoryProps {
   patientUuid: string;
@@ -44,9 +48,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     dayjs().subtract(config.billHistoryDays, 'day').startOf('day').toDate(),
     dayjs().endOf('day').toDate(),
   );
-  const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit<{
-    patientUuid: string;
-  }>(patientUuid, 'billing-form');
+  const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit(patientUuid, 'billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
   const [selectedBillUuid, setSelectedBillUuid] = React.useState<string | null>(null);
@@ -59,12 +61,14 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   );
 
   const handleLaunchBillForm = () => {
+    const props = mergePatientChartBillingFormProps({ patientUuid });
+
     if (shouldRequireVisit) {
-      launchPatientWorkspaceRequiringVisit({ patientUuid });
+      launchPatientWorkspaceRequiringVisit(props);
       return;
     }
 
-    launchBillingWorkspace('billing-form', { patientUuid });
+    launchBillingWorkspace('billing-form', props);
   };
 
   const handleDiscardSelectedBill = React.useCallback(async () => {

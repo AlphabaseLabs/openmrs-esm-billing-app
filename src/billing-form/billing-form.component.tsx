@@ -4,6 +4,7 @@ import {
   ExtensionSlot,
   Workspace2,
   type Workspace2DefinitionProps,
+  navigate,
   showSnackbar,
   useConfig,
   usePatient,
@@ -29,6 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { type z } from 'zod';
 
 import { Autosuggest } from '../autosuggest/autosuggest.component';
+import { getBillUuidFromSaveResponse, getInvoiceUrl } from '../helpers';
 import useBillableServices from '../hooks/useBillableServices';
 import { billingFormSchema, processBillItems } from '../billing.resource';
 import { type BillingService } from '../types';
@@ -40,6 +42,12 @@ type BillingFormProps = {
   patientUuid: string;
   onSuccess?: () => void;
   workspaceTitle?: string;
+  /** Renders patient-header-slot when true. Default false. */
+  showPatientHeader?: boolean;
+  /** When set, called on Discard instead of closing the workspace. */
+  onDiscard?: () => void;
+  /** After a successful save, navigate to the bill URL using the API response uuid. */
+  navigateToBillAfterSave?: boolean;
 };
 
 type FormType = z.infer<typeof billingFormSchema>;
@@ -67,6 +75,9 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   const patientUuidProp = workspaceProps?.patientUuid;
   const onSuccess = workspaceProps?.onSuccess;
   const workspaceTitle = workspaceProps?.workspaceTitle;
+  const showPatientHeader = workspaceProps?.showPatientHeader === true;
+  const onDiscardProp = workspaceProps?.onDiscard;
+  const navigateToBillAfterSave = workspaceProps?.navigateToBillAfterSave === true;
   const patientUuid = patientUuidProp;
   const { patient } = usePatient(patientUuid);
   const { billableServices, error, isLoading } = useBillableServices();
@@ -88,7 +99,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   const onSubmit = async (values: FormType) => {
     try {
       const payload = { ...values };
-      await processBillItems(payload);
+      const response = await processBillItems(payload);
       mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill`), undefined, {
         revalidate: true,
       });
@@ -98,11 +109,23 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
         kind: 'success',
         timeoutInMs: 3000,
       });
+      const billUuid = getBillUuidFromSaveResponse(response);
+      if (navigateToBillAfterSave && billUuid && patientUuid) {
+        navigate({ to: getInvoiceUrl(patientUuid, billUuid) });
+      }
       onSuccess?.();
       closeWorkspace({ discardUnsavedChanges: true });
     } catch (e) {
       showSnackbar({ title: 'Bill processing error', kind: 'error', subtitle: e });
     }
+  };
+
+  const handleDiscard = () => {
+    if (onDiscardProp) {
+      onDiscardProp();
+      return;
+    }
+    closeWorkspace({ discardUnsavedChanges: true });
   };
 
   const handleSearch = async (searchText: string) => {
@@ -145,7 +168,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   return (
     <Workspace2 title={workspaceTitle ?? t('billingForm', 'Billing Form')}>
       <Form onSubmit={form.handleSubmit(onSubmit, handleError)}>
-        {patient && patientUuid ? (
+        {showPatientHeader && patient && patientUuid ? (
           <ExtensionSlot
             name="patient-header-slot"
             state={{
@@ -271,7 +294,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
         </Stack>
 
         <ButtonSet className={styles.buttonSet}>
-          <Button className={styles.button} kind="secondary" type="button" onClick={() => closeWorkspace()}>
+          <Button className={styles.button} kind="secondary" type="button" onClick={handleDiscard}>
             {t('discard', 'Discard')}
           </Button>
           <Button className={styles.button} kind="primary" type="submit" disabled={form.formState.isSubmitting}>

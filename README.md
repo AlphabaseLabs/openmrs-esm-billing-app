@@ -16,6 +16,25 @@ Dependency: Note that this frontend module depends on the backend module called 
 For more information, please see the
 [OpenMRS Frontend Developer Documentation](https://openmrs.atlassian.net/wiki/x/IABBHg).
 
+## Billing form workspace props
+
+When launching the `billing-form` workspace (`launchBillingWorkspace`, etc.), optional props:
+
+| Prop | Default | Purpose |
+|------|---------|---------|
+| `showPatientHeader` | `false` | When `true`, renders `patient-header-slot` above the form. |
+| `onDiscard` | — | If set, called on **Discard** instead of closing the workspace. |
+| `navigateToBillAfterSave` | `false` | When `true`, after a successful save navigates to the new bill’s invoice URL (see below). |
+
+Patient-chart flows (e.g. create bill from search) use `mergePatientChartBillingFormProps({ patientUuid, ... })` from `src/workspaces.ts` to set `showPatientHeader` and `navigateToBillAfterSave` together.
+
+## Invoice URL `from` query (discard routing)
+
+Invoice URLs may include `?from=<encodeURIComponent(pathname)>`, where `pathname` is the SPA path **before** opening the invoice (set when navigating from the billing form or bill list). Helpers live in `src/helpers/billing-navigation.ts`.
+
+- If the decoded path contains `/home/billing`, **Discard** on the invoice goes to **billing home** (`…/home/billing`).
+- Otherwise it goes to **clinical home** (`…/home`).
+
 ## Local development
 
 Check out the developer documentation [here](https://openmrs.atlassian.net/wiki/x/IABBHg).

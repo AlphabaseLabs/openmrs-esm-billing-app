@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { navigate } from '@openmrs/esm-framework';
 import { useBillsPaginated } from '../billing.resource';
+import { getInvoiceUrl, getPatientChartUrl } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import AllBillsTable from './all-bills-table.component';
 
@@ -99,7 +100,7 @@ describe('AllBillsTable', () => {
     await user.click(screen.getByText('PENDING'));
 
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/home/billing/patient/patient-uuid/bill-uuid',
+      to: getInvoiceUrl('patient-uuid', 'bill-uuid'),
     });
   });
 
@@ -115,7 +116,7 @@ describe('AllBillsTable', () => {
     await user.click(screen.getByRole('button', { name: 'Jane Doe' }));
 
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/patient/patient-uuid/chart',
+      to: getPatientChartUrl('patient-uuid'),
     });
   });
 
