@@ -183,15 +183,12 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
     uuid: bill.uuid,
     patientUuid: bill.patientUuid,
     patientName: (
-      <button
-        type="button"
-        className={styles.patientNameChartLink}
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate({ to: getPatientChartUrl(bill.patientUuid) });
-        }}>
+      <a
+        href={getPatientChartUrl(bill.patientUuid)}
+        className={styles.patientChartLink}
+        onClick={(e) => e.stopPropagation()}>
         {bill.patientName}
-      </button>
+      </a>
     ),
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
     status: bill.status,

@@ -72,13 +72,8 @@
   white-space: nowrap;
 }
 
-.patientNameChartLink {
-  border: 0;
-  background: none;
-  font: inherit;
+.patientChartLink {
   color: inherit;
-  padding: 0;
-  cursor: pointer;
   text-decoration: none;
 
   &:hover {

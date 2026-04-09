@@ -104,20 +104,15 @@ describe('AllBillsTable', () => {
     });
   });
 
-  test('navigates to the patient chart when the patient name is clicked', async () => {
-    const user = userEvent.setup();
-
+  test('patient name links to the patient chart', () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
         <AllBillsTable />
       </SelectedDateContext.Provider>,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Jane Doe' }));
-
-    expect(mockNavigate).toHaveBeenCalledWith({
-      to: getPatientChartUrl('patient-uuid'),
-    });
+    const link = screen.getByRole('link', { name: 'Jane Doe' });
+    expect(link).toHaveAttribute('href', getPatientChartUrl('patient-uuid'));
   });
 
   test('renders the bill list columns in the new order without the identifier column', () => {
