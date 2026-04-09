@@ -17,11 +17,14 @@ const PaymentDashboardContent = () => {
 
   return (
     <>
-      <MetricsCards bills={filteredBills} isLoading={isLoading} error={error} />
       <PaymentFilters />
+      <MetricsCards bills={filteredBills} isLoading={isLoading} error={error} />
       <Layer className={styles.paymentDashboard}>
         <Tabs>
-          <TabList aria-label={t('listOfTabs', 'List of tabs on transactions')} contained>
+          <TabList
+            aria-label={t('listOfTabs', 'List of tabs on transactions')}
+            className={styles.compactTabList}
+            contained>
             <Tab renderIcon={Dashboard}>{t('transactionHistory', 'Transaction History')}</Tab>
             <Tab renderIcon={CloudMonitoring}>{t('paymentModeSummary', 'Payment Mode Summary')}</Tab>
           </TabList>

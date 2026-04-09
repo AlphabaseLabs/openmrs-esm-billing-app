@@ -15,8 +15,16 @@ interface MetricsCardsProps {
 
 export default function MetricsCards({ bills, isLoading = false, error = null }: MetricsCardsProps) {
   const { t } = useTranslation();
-  const { totalBills, pendingBills, paidBills, exemptedBills, waivedBills, exemptedAmount, taxCollection, taxCollectionAmount } =
-    useBillMetrics(bills);
+  const {
+    totalBills,
+    pendingBills,
+    paidBills,
+    exemptedBills,
+    waivedBills,
+    exemptedAmount,
+    taxCollection,
+    taxCollectionAmount,
+  } = useBillMetrics(bills);
 
   const cards = useMemo(() => {
     const allCards = [
@@ -43,7 +51,17 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     }
 
     return allCards;
-  }, [totalBills, paidBills, pendingBills, waivedBills, exemptedBills, exemptedAmount, taxCollection, taxCollectionAmount, t]);
+  }, [
+    totalBills,
+    paidBills,
+    pendingBills,
+    waivedBills,
+    exemptedBills,
+    exemptedAmount,
+    taxCollection,
+    taxCollectionAmount,
+    t,
+  ]);
 
   if (isLoading) {
     return (

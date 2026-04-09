@@ -1,121 +1,76 @@
 @use '@carbon/layout';
 
-/*
- * 8-column grid: date-preset(1) | date-picker(2) | bill-status(1) | patient(2) | payment-type(1) | cashier(1)
- * This gives the date picker and patient search exactly 2 equal columns each,
- * keeping them compact while matching the calendar popup width.
- */
+$single-control-basis: 11rem;
+$range-control-basis: 22rem;
+$search-control-basis: 20rem;
+$compact-control-height: 2rem;
+
+@mixin full-width-field {
+  width: 100% !important;
+  inline-size: 100% !important;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@mixin compact-control-height {
+  min-block-size: $compact-control-height;
+  block-size: $compact-control-height;
+  max-block-size: $compact-control-height;
+}
+
 .root {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: layout.$spacing-05 layout.$spacing-04;
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-05;
   width: 100%;
   padding: layout.$spacing-05;
 }
 
-/* Date preset dropdown — 1 col */
-.root > :nth-child(1) {
-  grid-column: span 1;
+.primaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: layout.$spacing-05 layout.$spacing-04;
+  align-items: end;
 }
 
-/* Date range picker — 2 cols */
-.dateRangePicker {
-  grid-column: span 2;
+.filterControl {
+  flex: 1 1 $single-control-basis;
+}
+
+.dateRangeControl {
+  flex: 2 1 $range-control-basis;
   min-width: 0;
-  overflow: hidden;
-  margin-top: 0;
-  margin-bottom: 0;
 }
 
-/* Bill status — 1 col */
-.root > :nth-child(3) {
-  grid-column: span 1;
-}
-
-/* Patient search — 2 cols */
 .patientSearchWrapper {
-  grid-column: span 2;
   position: relative;
-  min-width: 0;
-}
-
-/* Payment type — 1 col */
-/* Cashier — 1 col */
-/* Timesheet (optional) — 1 col — naturally fills next slot */
-
-.control,
-.datePresetControl,
-.dateRangeControl,
-.patientControl {
+  flex: 999 1 $search-control-basis;
   min-width: 0;
   width: 100%;
 }
 
-.control {
+.filterControl,
+.dateRangeControl,
+.patientSearchWrapper {
+  min-width: 0;
+}
+
+.root {
   :global(.cds--dropdown__wrapper),
   :global(.cds--list-box__wrapper),
   :global(.cds--list-box),
   :global(.cds--list-box__field),
   :global(.cds--multi-select__wrapper),
   :global(.cds--multi-select),
+  :global(.cds--date-picker),
   :global(.cds--text-input),
   :global(.cds--form-item),
   :global(.cds--select),
-  :global(.cds--select-input) {
-    width: 100% !important;
-    inline-size: 100% !important;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-}
-
-.root {
-  :global(.cds--dropdown__wrapper),
-  :global(.cds--list-box__wrapper),
-  :global(.cds--multi-select__wrapper),
-  :global(.cds--form-item),
-  :global(.cds--select),
-  :global(.cds--select-input) {
-    width: 100% !important;
-    inline-size: 100% !important;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  /* Allow dropdown/multiselect menus to expand wider than their trigger button.
-     Carbon uses inline-size to size the menu — override it to fit content.
-     Align to the RIGHT edge of the trigger so it doesn't overflow off-screen. */
-  :global(.cds--list-box__menu) {
-    inline-size: max-content !important;
-    min-inline-size: 100%;
-    max-inline-size: 24rem;
-    max-block-size: none !important;
-    overflow-y: visible !important;
-    inset-inline-start: auto !important;
-    inset-inline-end: 0 !important;
-  }
-
-  :global(.cds--list-box__menu-item) {
-    inline-size: auto !important;
-    min-inline-size: 100%;
-  }
-
-  :global(.cds--list-box__menu-item__option) {
-    white-space: nowrap;
-    overflow: visible;
-    text-overflow: clip;
-    padding-inline-end: layout.$spacing-05;
-  }
-}
-
-.patientSearchInput {
+  :global(.cds--select-input),
   :global(.cds--search),
   :global(.cds--search-input) {
-    width: 100%;
-    min-width: 0;
+    @include full-width-field;
   }
 }
 
@@ -174,58 +129,36 @@
   padding: layout.$spacing-04;
 }
 
-/* Date range picker internal layout — let Carbon handle its own input widths,
-   only fix the outer container sizing */
 .dateRangePicker {
-  width: 100%;
-
-  :global(.cds--date-picker) {
-    width: 100%;
-    min-width: 0;
-  }
-
-  :global(.cds--date-picker-container) {
-    display: flex;
-    flex-direction: column;
-    gap: layout.$spacing-02;
-    width: 100%;
-    min-width: 0;
-  }
-
-  :global(.cds--date-picker-container > .cds--label + [data-rac]) {
+  :global(.cds--date-picker--range) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: layout.$spacing-04;
     width: 100%;
-    min-width: 0;
+    inline-size: 100%;
   }
 
-  :global(.cds--date-picker-container > .cds--label + [data-rac] > div:first-child) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: layout.$spacing-03;
-    width: 100% !important;
-    inline-size: 100% !important;
-    max-width: none !important;
-    min-width: 0;
-    margin-inline-start: 0 !important;
+  :global(.cds--date-picker--range > .cds--date-picker-container:first-child) {
+    margin-inline-end: 0;
   }
 
-  :global(.cds--date-picker-container > .cds--label + [data-rac] > div:first-child > .cds--date-picker-input__wrapper) {
-    width: 100% !important;
-    inline-size: 100% !important;
-    max-width: none !important;
-    min-width: 0;
-    margin: 0 !important;
+  :global(.cds--date-picker-container),
+  :global(.cds--date-picker-input__wrapper),
+  :global(.cds--date-picker__input) {
+    @include full-width-field;
   }
 
-  :global(.cds--date-picker-container > .cds--label + [data-rac] > div:first-child > div:nth-child(2)) {
-    margin-inline: 0 !important;
+  :global(.cds--date-picker__input--sm) {
+    @include compact-control-height;
   }
+}
 
-  :global(.cds--date-picker-container > .cds--label + [data-rac] > button[data-rac]) {
-    flex: 0 0 auto;
+.root {
+  :global(.cds--list-box--sm),
+  :global(.cds--list-box--sm .cds--list-box__field),
+  :global(.cds--search--sm .cds--search-input),
+  :global(.cds--search--sm .cds--search-close) {
+    @include compact-control-height;
   }
 }
 
@@ -234,35 +167,14 @@
   height: 2.5rem;
 }
 
-@media (max-width: 1400px) {
-  .root {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .dateRangePicker,
-  .patientSearchWrapper {
-    grid-column: span 2;
-  }
-}
-
-@media (max-width: 900px) {
-  .root {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dateRangePicker,
-  .patientSearchWrapper {
-    grid-column: span 2;
-  }
-}
-
 @media (max-width: 640px) {
-  .root {
-    grid-template-columns: minmax(0, 1fr);
+  .dateRangeControl {
+    flex-basis: 100%;
   }
 
-  .dateRangePicker,
-  .patientSearchWrapper {
-    grid-column: auto;
+  .dateRangePicker {
+    :global(.cds--date-picker--range) {
+      grid-template-columns: 1fr;
+    }
   }
 }

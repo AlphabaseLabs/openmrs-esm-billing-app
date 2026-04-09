@@ -46,7 +46,7 @@
         "columnSpan": 1,
         "hideVitalsAndBiometricsHeader": true,
         "slot": "patient-chart-billing-dashboard-slot",
-        "path": "Billing",
+        "path": "Billing History",
         "layoutMode": "anchored"
       }
     },

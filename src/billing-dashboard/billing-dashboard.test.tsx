@@ -9,9 +9,10 @@ jest.mock('../workspaces', () => ({
   launchCreateBillWorkspace: jest.fn(),
 }));
 
-jest.mock('../billing-header/billing-header.component', () => ({ title }) => (
+jest.mock('../billing-header/billing-header.component', () => ({ title, showDateFilter }) => (
   <div title="billing module illustration">
     <span data-testid="billing-header-title">{title}</span>
+    <span data-testid="billing-header-date-filter">{showDateFilter ? 'shown' : 'hidden'}</span>
   </div>
 ));
 jest.mock('../all-bills-table/all-bills-table.component', () => ({ actions }) => (
@@ -51,6 +52,7 @@ test('renders billing home controls and the bills table by default', () => {
 
   expect(screen.getByTitle(/billing module illustration/i)).toBeInTheDocument();
   expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Home');
+  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('shown');
   expect(screen.queryByRole('button', { name: /show more/i })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /create bill/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /billing options/i })).toBeInTheDocument();
@@ -70,6 +72,7 @@ test('renders the selected billing action inline and shows a back button', async
   renderBillingDashboard('/payment-history');
 
   expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
+  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
   expect(screen.getByRole('button', { name: /back/i })).toHaveTextContent('Back');
   expect(screen.getAllByText('Payment History')).toHaveLength(2);
 });
@@ -84,6 +87,7 @@ test('renders the selected billing action inline without route navigation', asyn
   await user.click(screen.getByRole('button', { name: /billing actions slot/i }));
   expect(screen.queryByRole('menu', { name: /billing options/i })).not.toBeInTheDocument();
   expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
+  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
   expect(screen.getByRole('button', { name: /back/i })).toHaveTextContent('Back');
   expect(screen.getAllByText('Payment History')).toHaveLength(2);
 });
@@ -92,6 +96,7 @@ test('renders the invoice overview inside the billing home shell for patient bil
   renderBillingDashboard('/patient/patient-uuid/bill-uuid');
 
   expect(screen.getByText('Invoice Overview')).toBeInTheDocument();
+  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
   expect(screen.queryByText('All Bills Table')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
 });

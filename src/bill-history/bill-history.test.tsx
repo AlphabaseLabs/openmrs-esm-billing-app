@@ -179,13 +179,6 @@ jest.mock('../workspaces', () => ({
 }));
 
 jest.mock('@openmrs/esm-framework', () => ({
-  ConfigurableLink: ({ children, to, templateParams }: any) => {
-    const href = to
-      .replace('${openmrsSpaBase}', '')
-      .replace('${patientUuid}', templateParams?.patientUuid ?? '')
-      .replace('${billUuid}', templateParams?.billUuid ?? '');
-    return <a href={href}>{children}</a>;
-  },
   useConfig: jest.fn(),
   useLayoutType: jest.fn(() => 'desktop'),
   isDesktop: jest.fn(() => true),
@@ -255,13 +248,16 @@ describe('BillHistory', () => {
     expect(screen.getByText('Bill date')).toBeInTheDocument();
     expect(screen.getByText('Invoice number')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText(/Cumulative total:/i)).toBeInTheDocument();
+    expect(screen.getByText(/All bills total:/i)).toBeInTheDocument();
     const expectedColumnHeaders = [/Bill date/, /Invoice number/, /Billed items/, /Bill total/, /Status/];
     expectedColumnHeaders.forEach((header) => {
       expect(screen.getByRole('button', { name: header })).toBeInTheDocument();
     });
-    expect(screen.getByRole('link', { name: 'INV-001' })).toHaveAttribute('href', '/home/billing/patient/some-uuid/1');
-    expect(screen.getAllByRole('button', { name: 'Print' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /view bill details from status for invoice inv-001/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
 
     const tableRowGroup = screen.getAllByRole('rowgroup');
     expect(tableRowGroup).toHaveLength(2);
@@ -280,7 +276,7 @@ describe('BillHistory', () => {
     expect(screen.getByText(/1–10 of 12 items/)).toBeInTheDocument();
   });
 
-  test('should only make pending and posted statuses clickable', () => {
+  test('should make invoice number and status clickable for every bill status', () => {
     (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -296,13 +292,23 @@ describe('BillHistory', () => {
 
     render(<BillHistory {...testProps} />);
 
-    expect(screen.getByRole('button', { name: /view bill details for invoice inv-001/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /view bill details for invoice inv-posted/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /view bill details for invoice inv-002/i })).not.toBeInTheDocument();
-    expect(screen.getByText('PAID')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /view bill details from invoice number inv-posted/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view bill details from invoice number inv-002/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /view bill details from status for invoice inv-001/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /view bill details from status for invoice inv-posted/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /view bill details from status for invoice inv-002/i }),
+    ).toBeInTheDocument();
   });
 
-  test('should show bill details below the table when status is clicked and hide it on discard', async () => {
+  test('should show bill details below the table when invoice number is clicked and hide it on discard', async () => {
     (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
@@ -321,7 +327,7 @@ describe('BillHistory', () => {
     });
 
     render(<BillHistory {...testProps} />);
-    await user.click(screen.getByRole('button', { name: /view bill details for invoice inv-001/i }));
+    await user.click(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i }));
 
     expect(screen.getByText('Bill details')).toBeInTheDocument();
     expect(screen.queryByText('Patient billing history')).not.toBeInTheDocument();
@@ -334,6 +340,30 @@ describe('BillHistory', () => {
     expect(screen.queryByText('Bill details')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add bill item(s)' })).toBeInTheDocument();
     expect(screen.getByText('Invoice number')).toBeInTheDocument();
+  });
+
+  test('should show bill details below the table when status is clicked', async () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
+    const user = userEvent.setup();
+    mockbills.mockReturnValueOnce({
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      bills: mockBillsData as any,
+      mutate: mockBillsMutate,
+    });
+    mockUseBill.mockReturnValueOnce({
+      bill: { uuid: '2', lineItems: [], payments: [], status: PaymentStatus.PAID, closed: false } as any,
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<BillHistory {...testProps} />);
+    await user.click(screen.getByRole('button', { name: /view bill details from status for invoice inv-002/i }));
+
+    expect(screen.getByText('Bill details')).toBeInTheDocument();
   });
 
   test('should render empty state view when there are no bills', async () => {

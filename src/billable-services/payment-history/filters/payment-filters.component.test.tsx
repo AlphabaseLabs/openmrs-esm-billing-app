@@ -33,6 +33,28 @@ jest.mock('../../../payment-points/payment-points.resource', () => ({
 jest.mock('swr', () => jest.fn());
 
 jest.mock('@carbon/react', () => ({
+  DatePicker: ({ children, onChange }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onChange([new Date('2026-04-02T00:00:00.000Z'), new Date('2026-04-09T00:00:00.000Z')])}>
+        Set mock date range
+      </button>
+      <button type="button" onClick={() => onChange([new Date('2026-04-04T00:00:00.000Z')])}>
+        Set mock start date only
+      </button>
+      <button type="button" onClick={() => onChange([undefined, new Date('2026-04-10T00:00:00.000Z')])}>
+        Set mock end date only
+      </button>
+      {children}
+    </div>
+  ),
+  DatePickerInput: ({ id, labelText, placeholder }: any) => (
+    <label htmlFor={id}>
+      {labelText}
+      <input id={id} placeholder={placeholder} readOnly />
+    </label>
+  ),
   Dropdown: ({ id, items, selectedItem, onChange, titleText }: any) => (
     <label htmlFor={id}>
       {titleText}
@@ -96,13 +118,6 @@ jest.mock('@carbon/react', () => ({
 }));
 
 jest.mock('@openmrs/esm-framework', () => ({
-  OpenmrsDateRangePicker: ({ labelText, onChange }: any) => (
-    <button
-      type="button"
-      onClick={() => onChange([new Date('2026-04-02T00:00:00.000Z'), new Date('2026-04-09T00:00:00.000Z')])}>
-      {labelText}
-    </button>
-  ),
   openmrsFetch: jest.fn(),
   restBaseUrl: '/ws/rest/v1',
   useDebounce: (value: string) => value,
@@ -210,11 +225,33 @@ describe('PaymentFilters', () => {
   it('applies a custom range from the recurring appointment picker', () => {
     render(<PaymentFilters />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set date range' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set mock date range' }));
 
     expect(mockSetDateRange).toHaveBeenCalledWith([
       new Date('2026-04-02T00:00:00.000Z'),
       new Date('2026-04-09T23:59:59.999Z'),
+    ]);
+  });
+
+  it('keeps the existing end date when only the start date changes', () => {
+    render(<PaymentFilters />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set mock start date only' }));
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-04T00:00:00.000Z'),
+      new Date('2026-04-08T23:59:59.999Z'),
+    ]);
+  });
+
+  it('keeps the existing start date when only the end date changes', () => {
+    render(<PaymentFilters />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set mock end date only' }));
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-01T00:00:00.000Z'),
+      new Date('2026-04-10T23:59:59.999Z'),
     ]);
   });
 

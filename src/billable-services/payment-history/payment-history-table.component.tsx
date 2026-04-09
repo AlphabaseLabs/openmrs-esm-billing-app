@@ -33,7 +33,9 @@ export const PaymentHistoryTable = ({
 }) => {
   const { t } = useTranslation();
   const [pageSize, setPageSize] = useState(10);
-  const responsiveSize = useLayoutType() !== 'tablet' ? 'sm' : 'md';
+  const layout = useLayoutType();
+  const controlSize = 'sm';
+  const responsiveSize = layout !== 'tablet' ? 'sm' : 'md';
   const [searchString, setSearchString] = useState('');
   const debouncedSearchString = useDebounce(searchString, 1000);
 
@@ -149,7 +151,7 @@ export const PaymentHistoryTable = ({
     <div>
       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
         <Search
-          size="sm"
+          size={controlSize}
           placeholder={t('searchTransactions', 'Search transactions table')}
           labelText={t('searchTransactions', 'Search transactions table')}
           closeButtonLabelText={t('clearSearch', 'Clear search input')}
@@ -157,7 +159,7 @@ export const PaymentHistoryTable = ({
           onChange={(event) => setSearchString(event.target.value)}
         />
 
-        <Button size={responsiveSize} renderIcon={Download} iconDescription="Download" onClick={handleExport}>
+        <Button size={controlSize} renderIcon={Download} iconDescription="Download" onClick={handleExport}>
           {t('download', 'Download')}
         </Button>
       </div>

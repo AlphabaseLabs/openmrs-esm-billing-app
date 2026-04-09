@@ -42,10 +42,14 @@
 
 .searchbox {
   flex: 1;
-  
+
   input:focus {
     outline: 2px solid colors.$orange-40 !important;
   }
+}
+
+.addBillItemButton {
+  margin-inline-start: auto;
 }
 
 .table {
@@ -85,6 +89,10 @@
 :global(.omrs-breakpoint-lt-desktop) {
   .toolbarWrapper {
     height: layout.$spacing-09;
+  }
+
+  .headerContainer {
+    flex-wrap: wrap;
   }
 }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
+  Button,
   DataTable,
   DataTableSkeleton,
   IconButton,
@@ -18,12 +19,11 @@ import {
   TableToolbarSearch,
   TableSelectRow,
   Tile,
-  Button,
 } from '@carbon/react';
 import { isDesktop, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
-import { Document, TrashCan } from '@carbon/react/icons';
+import { Add, Document, TrashCan } from '@carbon/react/icons';
 import { launchBillingWorkspace } from '../workspaces';
 import { formatBillAmount } from '../helpers';
 
@@ -59,7 +59,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
   const tableHeaders = useMemo(() => {
     const headers = [
-      { header: t('number', 'Number'), key: 'no' }, // Width as a percentage
+      { header: t('number', 'Number'), key: 'no' },
       { header: t('billItem', 'Bill item'), key: 'billItem' },
       { header: t('status', 'Status'), key: 'status' },
       { header: t('quantity', 'Quantity'), key: 'quantity' },
@@ -107,6 +107,13 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     [bill],
   );
 
+  const handleAddBillItem = useCallback(() => {
+    launchBillingWorkspace('billing-form', {
+      patientUuid: bill.patientUuid,
+      workspaceTitle: t('addBillItem', 'Add bill item'),
+    });
+  }, [bill.patientUuid, t]);
+
   const tableRows = useMemo(() => {
     const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
     const getLineItemDiscount = (item: LineItem) =>
@@ -147,7 +154,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     data-testid={`cancel-button-${item.uuid}`}
                     renderIcon={(props) => <TrashCan size={16} {...props} />}
                     iconDescription={t('cancelItem', 'Cancel item')}
-                    kind="danger--ghost"
+                    kind="ghost"
                     onClick={() => handleCancelLineItem(item)}
                     disabled={item.paymentStatus !== PaymentStatus.PENDING}
                   />
@@ -210,6 +217,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
+                  {!bill.closed ? (
+                    <Button
+                      className={styles.addBillItemButton}
+                      kind="ghost"
+                      size="sm"
+                      renderIcon={Add}
+                      onClick={handleAddBillItem}>
+                      {t('addBillItem', 'Add bill item')}
+                    </Button>
+                  ) : null}
                 </TableToolbarContent>
               </TableToolbar>
             </div>

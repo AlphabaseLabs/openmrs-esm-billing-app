@@ -139,12 +139,12 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
       key: 'billDate',
     },
     {
-      header: t('patientIdentifier', 'Patient identifier'),
-      key: 'identifier',
-    },
-    {
       header: t('name', 'Name'),
       key: 'patientName',
+    },
+    {
+      header: t('status', 'Status'),
+      key: 'status',
     },
     {
       header: t('billedItems', 'Billed items'),
@@ -153,10 +153,6 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
     {
       header: t('billTotal', 'Bill total'),
       key: 'billTotal',
-    },
-    {
-      header: t('status', 'Status'),
-      key: 'status',
     },
   ];
 
@@ -186,14 +182,21 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
     id: `${index}`,
     uuid: bill.uuid,
     patientUuid: bill.patientUuid,
-    patientName: bill.patientName,
+    patientName: (
+      <button
+        type="button"
+        className={styles.patientNameChartLink}
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate({ to: `${window.getOpenmrsSpaBase()}patient/${bill.patientUuid}/chart` });
+        }}>
+        {bill.patientName}
+      </button>
+    ),
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
-    identifier: bill.identifier,
-    department: '--',
+    status: bill.status,
     billedItems: setBilledItems(bill),
     billTotal: convertToCurrency(Number(bill.totalAmount ?? 0)),
-    billingPrice: '--',
-    status: bill.status,
   }));
 
   const handleSearch = useCallback(

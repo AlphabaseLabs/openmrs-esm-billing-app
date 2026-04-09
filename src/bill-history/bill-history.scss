@@ -39,6 +39,10 @@
   white-space: nowrap;
 }
 
+.billedItemsColumn {
+  inline-size: 40%;
+}
+
 .cumulativeBillTotal {
   @include type.type-style('legal-01');
   color: $text-02;
@@ -52,19 +56,19 @@
   border-top: 1px solid $ui-03;
 }
 
-.billingActionContainer {
-  display: flex;
-  align-items: center;
-}
+.invoiceLinkButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: $interactive-01;
+  text-decoration: none;
 
-.billingActionButton {
-  inline-size: 9rem;
-  justify-content: space-between;
-}
-
-.printMenuTrigger {
-  :global(.cds--overflow-menu) {
-    background: transparent;
+  &:hover,
+  &:focus {
+    text-decoration: underline;
   }
 }
 

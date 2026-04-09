@@ -48,6 +48,7 @@ function BillingDashboard() {
     getBillingActionFromPath(location.pathname),
   );
   const showInvoiceOverview = isInvoiceRoute(location.pathname);
+  const showHomeDateFilter = !showInvoiceOverview && selectedAction === 'overview';
 
   const getPageTitle = (action: BillingActionKey) => {
     switch (action) {
@@ -168,7 +169,10 @@ function BillingDashboard() {
   return (
     <SelectedDateContext.Provider value={{ selectedDate, setSelectedDate }}>
       <main className={styles.container}>
-        <BillingHeader title={selectedActionTitle ?? getPageTitle(selectedAction)} />
+        <BillingHeader
+          title={selectedActionTitle ?? getPageTitle(selectedAction)}
+          showDateFilter={showHomeDateFilter}
+        />
         {showInvoiceOverview ? (
           <section className={styles.embeddedPageContainer}>
             <div className={styles.embeddedPageContent}>

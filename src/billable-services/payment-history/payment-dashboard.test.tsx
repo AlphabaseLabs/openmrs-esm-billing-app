@@ -39,13 +39,13 @@ beforeAll(() => {
   });
 });
 
-test('renders payment metrics above filters and filters above the table content', () => {
+test('renders filters above payment metrics and metrics above the table content', () => {
   render(<PaymentDashboard />);
 
   const metrics = screen.getByTestId('payment-metrics');
   const filters = screen.getByTestId('payment-filters');
   const historyTable = screen.getByTestId('payment-history-table');
 
-  expect(metrics.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(filters.compareDocumentPosition(historyTable) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(filters.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(metrics.compareDocumentPosition(historyTable) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

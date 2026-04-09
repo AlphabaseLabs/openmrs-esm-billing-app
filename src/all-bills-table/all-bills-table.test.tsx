@@ -85,7 +85,7 @@ describe('AllBillsTable', () => {
     jest.clearAllMocks();
   });
 
-  test('navigates to the billing page when a row is clicked', async () => {
+  test('navigates to the billing page when a row is clicked outside the patient name', async () => {
     const user = userEvent.setup();
 
     render(
@@ -96,10 +96,43 @@ describe('AllBillsTable', () => {
 
     const row = screen.getByText('Jane Doe').closest('tr');
     expect(row).not.toBeNull();
-    await user.click(row as HTMLElement);
+    await user.click(screen.getByText('PENDING'));
 
     expect(mockNavigate).toHaveBeenCalledWith({
       to: '/home/billing/patient/patient-uuid/bill-uuid',
     });
+  });
+
+  test('navigates to the patient chart when the patient name is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Jane Doe' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/patient/patient-uuid/chart',
+    });
+  });
+
+  test('renders the bill list columns in the new order without the identifier column', () => {
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Bill date',
+      'Name',
+      'Status',
+      'Billed items',
+      'Bill total',
+    ]);
+    expect(screen.queryByText('Patient identifier')).not.toBeInTheDocument();
   });
 });

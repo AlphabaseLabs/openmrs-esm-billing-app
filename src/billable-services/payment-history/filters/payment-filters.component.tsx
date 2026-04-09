@@ -1,11 +1,14 @@
-import { Dropdown, MultiSelect, Search, Select, SelectItem, SkeletonIcon } from '@carbon/react';
 import {
-  type FetchResponse,
-  OpenmrsDateRangePicker,
-  openmrsFetch,
-  restBaseUrl,
-  useDebounce,
-} from '@openmrs/esm-framework';
+  DatePicker,
+  DatePickerInput,
+  Dropdown,
+  MultiSelect,
+  Search,
+  Select,
+  SelectItem,
+  SkeletonIcon,
+} from '@carbon/react';
+import { type FetchResponse, openmrsFetch, restBaseUrl, useDebounce } from '@openmrs/esm-framework';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
@@ -21,6 +24,8 @@ type FilterOption = {
   text: string;
   isSelectAll?: boolean;
 };
+
+type DateRange = [Date, Date];
 
 type PatientSearchResult = {
   uuid: string;
@@ -43,6 +48,7 @@ type PatientSearchResult = {
 };
 
 const fiscalYearStartMonth = 6;
+const compactControlSize = 'sm';
 const patientSearchRepresentation = encodeURIComponent(
   'custom:(uuid,display,identifiers:(identifier,preferred),patientIdentifier:(identifier),person:(personName))',
 );
@@ -73,7 +79,7 @@ const getFiscalQuarterRange = (date: Date) => {
   return { start: quarterStart, end: quarterEnd };
 };
 
-const getDateRangeForPreset = (preset: string, today: Date): [Date, Date] | null => {
+const getDateRangeForPreset = (preset: string, today: Date): DateRange | null => {
   switch (preset) {
     case 'all':
       return [new Date(0), endOfDay(today)];
@@ -117,7 +123,7 @@ const getDateRangeForPreset = (preset: string, today: Date): [Date, Date] | null
   }
 };
 
-const areSameRange = (firstRange: [Date, Date], secondRange: [Date, Date]) =>
+const areSameRange = (firstRange: DateRange, secondRange: DateRange) =>
   firstRange[0].getTime() === secondRange[0].getTime() && firstRange[1].getTime() === secondRange[1].getTime();
 
 const itemToString = (item: FilterOption | null | undefined) => item?.text ?? '';
@@ -154,7 +160,7 @@ export const PaymentFilters = () => {
   const { dateRange, setDateRange, filters, setFilters, appliedTimesheet, setAppliedTimesheet, setAppliedFilters } =
     usePaymentFilterContext();
   const todayRef = React.useRef(new Date());
-  const paymentMethods = React.useMemo(() => filters.paymentMethods ?? [], [filters.paymentMethods]);
+  const paymentMethods = filters.paymentMethods ?? [];
   const cashiers = React.useMemo(() => filters.cashiers ?? [], [filters.cashiers]);
   const [selectedPatient, setSelectedPatient] = React.useState<{ uuid: string; label: string } | null>(null);
   const [patientSearchTerm, setPatientSearchTerm] = React.useState('');
@@ -180,7 +186,7 @@ export const PaymentFilters = () => {
   );
 
   const resolvePresetFromRange = React.useCallback(
-    (range: [Date, Date]) => {
+    (range: DateRange) => {
       const matchingPreset = dateOptions.find((option) => {
         if (option.id === 'custom') {
           return false;
@@ -205,29 +211,38 @@ export const PaymentFilters = () => {
     setSelectedDatePreset(resolvePresetFromRange(dateRange));
   }, [dateRange, resolvePresetFromRange]);
 
+  const updateFilters = React.useCallback(
+    (nextValues: Partial<typeof filters>) => {
+      setFilters({
+        ...filters,
+        ...nextValues,
+      });
+    },
+    [filters, setFilters],
+  );
+
   const handleDatePresetChange = ({ selectedItem }: { selectedItem?: FilterOption }) => {
     const preset = selectedItem?.id ?? 'custom';
     setSelectedDatePreset(preset);
 
-    const nextDateRange = getDateRangeForPreset(preset, new Date());
+    const nextDateRange = getDateRangeForPreset(preset, todayRef.current);
     if (nextDateRange) {
       setDateRange(nextDateRange);
     }
   };
 
-  const handleDateRangeChange = (dates: Array<Date>) => {
+  const handleDateRangeChange = (dates: Array<Date | undefined>) => {
     const [startDate, endDate] = dates ?? [];
-    if (!startDate) {
+    if (!startDate && !endDate) {
       return;
     }
 
-    setDateRange([startOfDay(startDate), endDate ? endOfDay(endDate) : endOfDay(startDate)]);
+    setDateRange([startDate ? startOfDay(startDate) : dateRange[0], endDate ? endOfDay(endDate) : dateRange[1]]);
     setSelectedDatePreset('custom');
   };
 
   const handleBillStatusChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters({
-      ...filters,
+    updateFilters({
       billStatus: event.target.value,
     });
   };
@@ -322,8 +337,7 @@ export const PaymentFilters = () => {
       : selectedItems.filter((item) => item.id !== 'select-all').map((item) => item.text);
 
     setAppliedFilters(nextPaymentTypes);
-    setFilters({
-      ...filters,
+    updateFilters({
       paymentMethods: nextPaymentTypes,
     });
   };
@@ -333,8 +347,7 @@ export const PaymentFilters = () => {
       ? cashierOptions.filter((item) => item.id !== 'select-all').map((item) => item.id)
       : selectedItems.filter((item) => item.id !== 'select-all').map((item) => item.id);
 
-    setFilters({
-      ...filters,
+    updateFilters({
       cashiers: nextCashiers,
     });
   };
@@ -350,8 +363,7 @@ export const PaymentFilters = () => {
     setSelectedPatient(null);
 
     if (filters.patientUuid) {
-      setFilters({
-        ...filters,
+      updateFilters({
         patientUuid: '',
       });
     }
@@ -364,8 +376,7 @@ export const PaymentFilters = () => {
       return;
     }
 
-    setFilters({
-      ...filters,
+    updateFilters({
       patientUuid: '',
     });
   };
@@ -380,8 +391,7 @@ export const PaymentFilters = () => {
       label: patientLabel,
     });
     setPatientSearchTerm(patientLabel);
-    setFilters({
-      ...filters,
+    updateFilters({
       patientUuid: patient.uuid,
     });
   };
@@ -389,146 +399,157 @@ export const PaymentFilters = () => {
   const showTimesheetFilter = selectedCashiersTimesheets.length > 0;
 
   return (
-    // KEY FIX: apply rootWithTimesheet when timesheet column is visible so grid expands to 7 columns
-    <div className={`${styles.root} ${showTimesheetFilter ? styles.rootWithTimesheet : ''}`}>
-      {/* Column 1 — Date preset dropdown */}
-      <Dropdown
-        id="payment-history-date-filter"
-        titleText={t('date', 'Date')}
-        label={selectedDateItem.text}
-        items={dateOptions}
-        itemToString={itemToString}
-        selectedItem={selectedDateItem}
-        onChange={handleDatePresetChange}
-        size="md"
-      />
-
-      {/* Column 2 — Date range picker */}
-      <OpenmrsDateRangePicker
-        className={styles.dateRangePicker}
-        value={dateRange[0] && dateRange[1] ? [dateRange[0], dateRange[1]] : null}
-        onChange={handleDateRangeChange}
-        startName="start"
-        endName="end"
-        id="payment-history-date-range-picker"
-        data-testid="payment-history-date-range-picker"
-        labelText={t('dateRange', 'Set date range')}
-        isRequired
-      />
-
-      {/* Column 3 — Bill status */}
-      <Select
-        id="bill-status-filter"
-        labelText={t('billStatus', 'Bill Status')}
-        value={filters.billStatus ?? PaymentStatus.PAID}
-        onChange={handleBillStatusChange}>
-        <SelectItem value="" text={t('all', 'All')} />
-        <SelectItem value={PaymentStatus.PAID} text={t('paid', 'Paid')} />
-        <SelectItem value={PaymentStatus.PENDING} text={t('pending', 'Pending')} />
-        <SelectItem value={PaymentStatus.CANCELLED} text={t('cancelled', 'Cancelled')} />
-        <SelectItem value={PaymentStatus.CREDITED} text={t('credited', 'Credited')} />
-        <SelectItem value={PaymentStatus.ADJUSTED} text={t('adjusted', 'Adjusted')} />
-        <SelectItem value={PaymentStatus.EXEMPTED} text={t('exempted', 'Exempted')} />
-        <SelectItem value={PaymentStatus.POSTED} text={t('posted', 'Posted')} />
-      </Select>
-
-      {/* Column 4 — Patient search (wider column) */}
-      <div className={styles.patientSearchWrapper}>
-        <Search
-          id="patient-filter"
-          className={styles.patientSearchInput}
-          labelText={t('patient', 'Patient')}
-          closeButtonLabelText={t('clearSearch', 'Clear')}
-          placeholder={t('searchForPatient', 'Search patient by name or identifier')}
-          value={patientSearchTerm}
-          onChange={handlePatientSearchChange}
-          onClear={handlePatientSearchClear}
-          size="md"
-        />
-        {showPatientSearchResults ? (
-          <div className={styles.patientSearchResults} role="listbox" aria-label={t('patient', 'Patient')}>
-            {isLoadingPatients ? (
-              <div className={styles.patientSearchState}>{t('searchingPatients', 'Searching patients...')}</div>
-            ) : patientSearchError ? (
-              <div className={styles.patientSearchState}>
-                {t('patientSearchError', 'Unable to load patient search results')}
-              </div>
-            ) : patientSearchResults.length ? (
-              patientSearchResults.map((patient) => {
-                const patientName = extractPatientName(patient);
-                const patientIdentifier = extractPatientIdentifier(patient);
-
-                return (
-                  <button
-                    type="button"
-                    key={patient.uuid}
-                    className={styles.patientSearchResultButton}
-                    onClick={() => handlePatientSelect(patient)}>
-                    <span className={styles.patientSearchResultName}>{patientName}</span>
-                    {patientIdentifier ? (
-                      <span className={styles.patientSearchResultMeta}>{patientIdentifier}</span>
-                    ) : null}
-                  </button>
-                );
-              })
-            ) : (
-              <div className={styles.patientSearchState}>{t('noMatchingPatients', 'No matching patients')}</div>
-            )}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Column 5 — Payment type multiselect */}
-      <div className={styles.control}>
-        {isLoadingPaymentModes ? (
-          <SkeletonIcon className={styles.filterSkeleton} />
-        ) : (
-          <MultiSelect
-            id="payment-type-filter"
-            label={t('paymentType', 'Payment Type')}
-            titleText={t('paymentType', 'Payment Type')}
-            items={paymentTypeOptions}
-            selectedItems={selectedPaymentTypeItems}
+    <div className={styles.root}>
+      <div className={styles.primaryRow}>
+        <div className={styles.filterControl}>
+          <Dropdown
+            id="payment-history-date-filter"
+            titleText={t('date', 'Date')}
+            label={selectedDateItem.text}
+            items={dateOptions}
             itemToString={itemToString}
-            selectionFeedback="top-after-reopen"
-            onChange={handlePaymentTypeChange}
+            selectedItem={selectedDateItem}
+            onChange={handleDatePresetChange}
+            size={compactControlSize}
           />
-        )}
-      </div>
+        </div>
 
-      {/* Column 6 — Cashier multiselect */}
-      <div className={styles.control}>
-        <MultiSelect
-          id="cashier-filter"
-          label={t('cashier', 'Cashier')}
-          titleText={t('cashier', 'Cashier')}
-          items={cashierOptions}
-          selectedItems={selectedCashierItems}
-          itemToString={itemToString}
-          selectionFeedback="top-after-reopen"
-          onChange={handleCashierChange}
-        />
-      </div>
+        <div className={styles.dateRangeControl}>
+          <DatePicker
+            className={styles.dateRangePicker}
+            datePickerType="range"
+            maxDate={new Date()}
+            value={[...dateRange]}
+            onChange={handleDateRangeChange}>
+            <DatePickerInput
+              id="payment-history-start-date"
+              placeholder="mm/dd/yyyy"
+              labelText={t('startDate', 'Start date')}
+              size={compactControlSize}
+            />
+            <DatePickerInput
+              id="payment-history-end-date"
+              placeholder="mm/dd/yyyy"
+              labelText={t('endDate', 'End date')}
+              size={compactControlSize}
+            />
+          </DatePicker>
+        </div>
 
-      {/* Column 7 (optional) — Timesheet */}
-      {showTimesheetFilter ? (
-        <div className={styles.control}>
+        <div className={styles.filterControl}>
           <Select
-            id="timesheet-filter"
-            labelText={t('timesheet', 'Timesheet')}
-            value={appliedTimesheet?.uuid ?? ''}
-            onChange={handleTimesheetChange}>
-            <SelectItem value="" text={t('allTimesheets', 'All Timesheets')} />
-            {selectedCashiersTimesheets.map((sheet) => (
-              <SelectItem
-                key={sheet.uuid}
-                value={sheet.uuid}
-                text={`${sheet.display} ${selectedCashierIds.size > 1 ? `(${sheet.cashier.display})` : ''}`}
-              />
-            ))}
+            id="bill-status-filter"
+            labelText={t('billStatus', 'Bill Status')}
+            value={filters.billStatus ?? PaymentStatus.PAID}
+            onChange={handleBillStatusChange}
+            size={compactControlSize}>
+            <SelectItem value="" text={t('all', 'All')} />
+            <SelectItem value={PaymentStatus.PAID} text={t('paid', 'Paid')} />
+            <SelectItem value={PaymentStatus.PENDING} text={t('pending', 'Pending')} />
+            <SelectItem value={PaymentStatus.CANCELLED} text={t('cancelled', 'Cancelled')} />
+            <SelectItem value={PaymentStatus.CREDITED} text={t('credited', 'Credited')} />
+            <SelectItem value={PaymentStatus.ADJUSTED} text={t('adjusted', 'Adjusted')} />
+            <SelectItem value={PaymentStatus.EXEMPTED} text={t('exempted', 'Exempted')} />
+            <SelectItem value={PaymentStatus.POSTED} text={t('posted', 'Posted')} />
           </Select>
         </div>
-      ) : null}
+
+        <div className={styles.filterControl}>
+          {isLoadingPaymentModes ? (
+            <SkeletonIcon className={styles.filterSkeleton} />
+          ) : (
+            <MultiSelect
+              id="payment-type-filter"
+              label={t('paymentType', 'Payment Type')}
+              titleText={t('paymentType', 'Payment Type')}
+              items={paymentTypeOptions}
+              selectedItems={selectedPaymentTypeItems}
+              itemToString={itemToString}
+              selectionFeedback="top-after-reopen"
+              onChange={handlePaymentTypeChange}
+              size={compactControlSize}
+            />
+          )}
+        </div>
+
+        <div className={styles.filterControl}>
+          <MultiSelect
+            id="cashier-filter"
+            label={t('cashier', 'Cashier')}
+            titleText={t('cashier', 'Cashier')}
+            items={cashierOptions}
+            selectedItems={selectedCashierItems}
+            itemToString={itemToString}
+            selectionFeedback="top-after-reopen"
+            onChange={handleCashierChange}
+            size={compactControlSize}
+          />
+        </div>
+
+        {showTimesheetFilter ? (
+          <div className={styles.filterControl}>
+            <Select
+              id="timesheet-filter"
+              labelText={t('timesheet', 'Timesheet')}
+              value={appliedTimesheet?.uuid ?? ''}
+              onChange={handleTimesheetChange}
+              size={compactControlSize}>
+              <SelectItem value="" text={t('allTimesheets', 'All Timesheets')} />
+              {selectedCashiersTimesheets.map((sheet) => (
+                <SelectItem
+                  key={sheet.uuid}
+                  value={sheet.uuid}
+                  text={`${sheet.display} ${selectedCashierIds.size > 1 ? `(${sheet.cashier.display})` : ''}`}
+                />
+              ))}
+            </Select>
+          </div>
+        ) : null}
+
+        <div className={styles.patientSearchWrapper}>
+          <Search
+            id="patient-filter"
+            labelText={t('patient', 'Patient')}
+            closeButtonLabelText={t('clearSearch', 'Clear')}
+            placeholder={t('searchForPatient', 'Search patient by name or identifier')}
+            value={patientSearchTerm}
+            onChange={handlePatientSearchChange}
+            onClear={handlePatientSearchClear}
+            size={compactControlSize}
+          />
+          {showPatientSearchResults ? (
+            <div className={styles.patientSearchResults} role="listbox" aria-label={t('patient', 'Patient')}>
+              {isLoadingPatients ? (
+                <div className={styles.patientSearchState}>{t('searchingPatients', 'Searching patients...')}</div>
+              ) : patientSearchError ? (
+                <div className={styles.patientSearchState}>
+                  {t('patientSearchError', 'Unable to load patient search results')}
+                </div>
+              ) : patientSearchResults.length ? (
+                patientSearchResults.map((patient) => {
+                  const patientName = extractPatientName(patient);
+                  const patientIdentifier = extractPatientIdentifier(patient);
+
+                  return (
+                    <button
+                      type="button"
+                      key={patient.uuid}
+                      className={styles.patientSearchResultButton}
+                      onClick={() => handlePatientSelect(patient)}>
+                      <span className={styles.patientSearchResultName}>{patientName}</span>
+                      {patientIdentifier ? (
+                        <span className={styles.patientSearchResultMeta}>{patientIdentifier}</span>
+                      ) : null}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className={styles.patientSearchState}>{t('noMatchingPatients', 'No matching patients')}</div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 };

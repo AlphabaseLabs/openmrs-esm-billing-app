@@ -13,19 +13,9 @@ import {
   Pagination,
   Button,
   InlineLoading,
-  OverflowMenu,
-  OverflowMenuItem,
 } from '@carbon/react';
 import { Add, TaskComplete } from '@carbon/react/icons';
-import {
-  ConfigurableLink,
-  isDesktop,
-  restBaseUrl,
-  showModal,
-  useLayoutType,
-  usePagination,
-  useConfig,
-} from '@openmrs/esm-framework';
+import { isDesktop, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
 import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useBill, useBills } from '../billing.resource';
 import BillDetails from '../invoice/bill-details.component';
@@ -33,12 +23,16 @@ import { convertToCurrency } from '../helpers';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
-import { type MappedBill, PaymentStatus } from '../types';
+import { PaymentStatus } from '../types';
 import { launchBillingWorkspace, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 interface BillHistoryProps {
   patientUuid: string;
 }
+
+const getColumnClassName = (columnKey: string) => {
+  return columnKey === 'billedItems' ? styles.billedItemsColumn : undefined;
+};
 
 const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
@@ -78,6 +72,10 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     setSelectedBillUuid(null);
   }, [mutate]);
 
+  const handleShowBillDetails = React.useCallback((billUuid: string) => {
+    setSelectedBillUuid(billUuid);
+  }, []);
+
   const headerData = [
     {
       header: t('billDate', 'Bill date'),
@@ -99,10 +97,6 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       header: t('status', 'Status'),
       key: 'status',
     },
-    {
-      header: t('print', 'Print'),
-      key: 'print',
-    },
   ];
 
   const setBilledItems = (bill) =>
@@ -110,40 +104,39 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
       (acc, item) => acc + (acc ? ' & ' : '') + (item.billableService?.split(':')[1] || item.item?.split(':')[1] || ''),
       '',
     );
-  const billingUrl = '${openmrsSpaBase}/home/billing/patient/${patientUuid}/${billUuid}';
+  const renderBillDetailsTrigger = React.useCallback(
+    (label: string, billUuid: string, invoiceNumber: string) => (
+      <button
+        type="button"
+        className={styles.invoiceLinkButton}
+        onClick={() => handleShowBillDetails(billUuid)}
+        aria-label={t('viewBillDetailsFromInvoiceNumber', 'View bill details from invoice number {{invoiceNumber}}', {
+          invoiceNumber,
+        })}>
+        {label}
+      </button>
+    ),
+    [handleShowBillDetails, t],
+  );
 
   const rowData = results?.map((bill) => ({
     id: bill.uuid,
     billTotal: bill.totalAmount,
     billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
-    invoiceNumber: (
-      <ConfigurableLink
-        style={{ textDecoration: 'none' }}
-        to={billingUrl}
-        templateParams={{ patientUuid, billUuid: bill.uuid }}>
-        {bill.receiptNumber ?? '--'}
-      </ConfigurableLink>
-    ),
+    invoiceNumber: renderBillDetailsTrigger(bill.receiptNumber ?? '--', bill.uuid, bill.receiptNumber ?? bill.uuid),
     billedItems: setBilledItems(bill),
-    status:
-      bill.status === PaymentStatus.PENDING || bill.status === PaymentStatus.POSTED ? (
-        <div className={styles.billingActionContainer}>
-          <Button
-            className={styles.billingActionButton}
-            kind="tertiary"
-            size="sm"
-            renderIcon={TaskComplete}
-            onClick={() => setSelectedBillUuid(bill.uuid)}
-            aria-label={t('viewBillStatusForInvoice', 'View bill details for invoice {{invoiceNumber}}', {
-              invoiceNumber: bill.receiptNumber ?? bill.uuid,
-            })}>
-            {bill.status}
-          </Button>
-        </div>
-      ) : (
-        bill.status
-      ),
-    print: <BillHistoryPrintActions bill={bill} />,
+    status: (
+      <Button
+        kind={bill.status === PaymentStatus.PENDING ? 'tertiary' : 'ghost'}
+        size="sm"
+        renderIcon={bill.status === PaymentStatus.PENDING ? TaskComplete : undefined}
+        onClick={() => handleShowBillDetails(bill.uuid)}
+        aria-label={t('viewBillDetailsFromStatus', 'View bill details from status for invoice {{invoiceNumber}}', {
+          invoiceNumber: bill.receiptNumber ?? bill.uuid,
+        })}>
+        {bill.status}
+      </Button>
+    ),
   }));
 
   if (isLoading) {
@@ -188,13 +181,14 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
           <>
             <DataTable isSortable rows={rowData} headers={headerData} size={responsiveSize} useZebraStyles>
               {({ rows, headers, getTableProps, getTableContainerProps, getHeaderProps, getRowProps }) => (
-                <TableContainer {...getTableContainerProps}>
+                <TableContainer {...getTableContainerProps()}>
                   <Table {...getTableProps()} aria-label="Bill list">
                     <TableHead>
                       <TableRow>
                         {headers.map((header, i) => (
                           <TableHeader
                             key={i}
+                            className={getColumnClassName(header.key)}
                             {...getHeaderProps({
                               header,
                             })}>
@@ -207,7 +201,9 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
                       {rows.map((row) => (
                         <TableRow key={row.id} {...getRowProps({ row })}>
                           {row.cells.map((cell) => (
-                            <TableCell key={cell.id}>{cell.value}</TableCell>
+                            <TableCell key={cell.id} className={getColumnClassName(cell.info.header)}>
+                              {cell.value}
+                            </TableCell>
                           ))}
                         </TableRow>
                       ))}
@@ -236,7 +232,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
             ) : null}
             <div className={styles.cumulativeBillTotalSummary}>
               <div className={styles.cumulativeBillTotal}>
-                {t('cumulativeBillTotal', 'Cumulative total: {{total}}', {
+                {t('allBillsTotal', 'All bills total: {{total}}', {
                   total: convertToCurrency(cumulativeBillTotal),
                 })}
               </div>
@@ -245,57 +241,6 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
         )}
       </div>
     </div>
-  );
-};
-
-const BillHistoryPrintActions: React.FC<{ bill: MappedBill }> = ({ bill }) => {
-  const { t } = useTranslation();
-  const canPrintReceipt = bill?.status === PaymentStatus.PAID || Number(bill?.tenderedAmount ?? 0) > 0;
-
-  const openPrintPreview = (documentUrl: string, title: string) => {
-    const dispose = showModal('print-preview-modal', {
-      onClose: () => dispose(),
-      title,
-      documentUrl,
-    });
-  };
-
-  return (
-    <OverflowMenu
-      aria-label={t('print', 'Print')}
-      iconDescription={t('print', 'Print')}
-      className={styles.printMenuTrigger}
-      flipped
-      size="sm">
-      <OverflowMenuItem
-        itemText={t('printBill', 'Print bill')}
-        onClick={() =>
-          openPrintPreview(
-            `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${bill?.id}`,
-            `${t('invoice', 'Invoice')} ${bill?.receiptNumber ?? ''}`.trim(),
-          )
-        }
-      />
-      <OverflowMenuItem
-        itemText={t('printReceipt', 'Print receipt')}
-        disabled={!canPrintReceipt}
-        onClick={() =>
-          openPrintPreview(
-            `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
-            `${t('receipt', 'Receipt')} ${bill?.receiptNumber ?? ''}`.trim(),
-          )
-        }
-      />
-      <OverflowMenuItem
-        itemText={t('printStatement', 'Print Statement')}
-        onClick={() =>
-          openPrintPreview(
-            `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${bill?.id}`,
-            `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber ?? ''}`.trim(),
-          )
-        }
-      />
-    </OverflowMenu>
   );
 };
 
