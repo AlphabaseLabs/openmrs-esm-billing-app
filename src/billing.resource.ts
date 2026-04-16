@@ -84,6 +84,7 @@ export const useBills = (
   billStatus: PaymentStatus.PENDING | '' | string = '',
   startingDate?: Date,
   endDate?: Date,
+  enabled: boolean = true,
 ) => {
   const startingDateISO = startingDate?.toISOString();
   const endDateISO = endDate?.toISOString();
@@ -93,10 +94,11 @@ export const useBills = (
   const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))${dateParams}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<PatientInvoice> } }>(
-    patientUuid ? `${url}&patientUuid=${patientUuid}` : url,
+    enabled ? (patientUuid ? `${url}&patientUuid=${patientUuid}` : url) : null,
     openmrsFetch,
     {
       errorRetryCount: 2,
+      keepPreviousData: true,
     },
   );
 
@@ -364,6 +366,7 @@ export const useBillsPaginated = ({
     };
   }>(enabled ? url : null, openmrsFetch, {
     errorRetryCount: 2,
+    keepPreviousData: true,
   });
 
   const sortBills = sortBy(data?.data?.results ?? [], ['dateCreated']).reverse();

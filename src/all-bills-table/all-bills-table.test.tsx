@@ -2,12 +2,13 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { navigate } from '@openmrs/esm-framework';
-import { useBillsPaginated } from '../billing.resource';
+import { useBills, useBillsPaginated } from '../billing.resource';
 import { getInvoiceUrl, getPatientChartUrl } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import AllBillsTable from './all-bills-table.component';
 
 jest.mock('../billing.resource', () => ({
+  useBills: jest.fn(),
   useBillsPaginated: jest.fn(),
 }));
 
@@ -29,6 +30,7 @@ jest.mock('@openmrs/esm-patient-common-lib', () => ({
 }));
 
 const mockUseBillsPaginated = useBillsPaginated as jest.Mock;
+const mockUseBills = useBills as jest.Mock;
 const mockNavigate = navigate as jest.Mock;
 
 const buildBillsResponse = (bills = []) => ({
@@ -45,6 +47,7 @@ const testBill = {
   patientUuid: 'patient-uuid',
   patientName: 'Jane Doe',
   identifier: 'PAT-001',
+  receiptNumber: 'INV-001',
   dateCreated: '08-Apr-2026, 10:00 AM',
   dateCreatedUnformatted: '2026-04-08T10:00:00.000Z',
   status: 'PENDING',
@@ -57,9 +60,37 @@ const testBill = {
   ],
 } as any;
 
+const secondTestBill = {
+  ...testBill,
+  uuid: 'bill-uuid-2',
+  patientUuid: 'patient-uuid-2',
+  patientName: 'John Smith',
+  identifier: 'PAT-002',
+  receiptNumber: 'INV-002',
+} as any;
+
 describe('AllBillsTable', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockUseBills.mockImplementation((_patientUuid, _billStatus, _startingDate, _endDate, enabled) => {
+      if (!enabled) {
+        return {
+          bills: [],
+          error: null,
+          isLoading: false,
+          isValidating: false,
+          mutate: jest.fn(),
+        };
+      }
+
+      return {
+        bills: [testBill],
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: jest.fn(),
+      };
+    });
     mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
       if (!enabled) {
         return buildBillsResponse();
@@ -130,5 +161,88 @@ describe('AllBillsTable', () => {
       'Bill total',
     ]);
     expect(screen.queryByText('Patient identifier')).not.toBeInTheDocument();
+  });
+
+  test('filters bills by invoice number', async () => {
+    const user = userEvent.setup();
+    const hiddenBill = {
+      ...secondTestBill,
+      patientName: 'Invoice Match',
+      receiptNumber: 'INV-999',
+    } as any;
+
+    mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
+      if (!enabled) {
+        return buildBillsResponse();
+      }
+
+      if (billStatus === 'PENDING') {
+        return buildBillsResponse([testBill]);
+      }
+
+      if (billStatus === 'POSTED') {
+        return buildBillsResponse();
+      }
+
+      return buildBillsResponse();
+    });
+    mockUseBills.mockImplementation((_patientUuid, billStatus, _startingDate, _endDate, enabled) => {
+      if (!enabled) {
+        return {
+          bills: [],
+          error: null,
+          isLoading: false,
+          isValidating: false,
+          mutate: jest.fn(),
+        };
+      }
+
+      if (billStatus === 'PENDING') {
+        return {
+          bills: [testBill, hiddenBill],
+          error: null,
+          isLoading: false,
+          isValidating: false,
+          mutate: jest.fn(),
+        };
+      }
+
+      return {
+        bills: [],
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: jest.fn(),
+      };
+    });
+
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    expect(screen.queryByText('Invoice Match')).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole('searchbox'), 'INV-999');
+
+    expect(screen.getByText('Invoice Match')).toBeInTheDocument();
+    expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+  });
+
+  test('keeps the search controls visible when a search has no matching bills', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    await user.type(screen.getByRole('searchbox'), 'does-not-exist');
+
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.getByText('No matching bills to display')).toBeInTheDocument();
+    expect(screen.queryByText('There are no bills to display.')).not.toBeInTheDocument();
   });
 });
