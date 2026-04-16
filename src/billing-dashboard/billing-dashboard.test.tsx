@@ -28,7 +28,9 @@ jest.mock('../billable-services/bill-manager/bill-manager.component', () => () =
 jest.mock('../billable-services/dashboard/dashboard.component', () => ({
   ChargeItemsDashboard: () => <div>Charge Items</div>,
 }));
-jest.mock('../invoice/invoice.component', () => () => <div>Invoice Overview</div>);
+jest.mock('../invoice/invoice.component', () => ({ showPatientHeader = true }) => (
+  <div>Invoice Overview {showPatientHeader ? 'with patient header' : 'without patient header'}</div>
+));
 jest.mock('@openmrs/esm-framework', () => {
   const originalModule = jest.requireActual('@openmrs/esm-framework');
   return {
@@ -92,11 +94,12 @@ test('renders the selected billing action inline without route navigation', asyn
   expect(screen.getAllByText('Payment History')).toHaveLength(2);
 });
 
-test('renders the invoice overview inside the billing home shell for patient bill routes', () => {
+test('renders the invoice overview with the patient header for patient bill routes', () => {
   renderBillingDashboard('/patient/patient-uuid/bill-uuid');
 
-  expect(screen.getByText('Invoice Overview')).toBeInTheDocument();
-  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
+  expect(screen.getByText('Invoice Overview with patient header')).toBeInTheDocument();
+  expect(screen.queryByTestId('billing-header-title')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('billing-header-date-filter')).not.toBeInTheDocument();
   expect(screen.queryByText('All Bills Table')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /back/i })).not.toBeInTheDocument();
 });

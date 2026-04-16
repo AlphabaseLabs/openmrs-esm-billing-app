@@ -169,16 +169,14 @@ function BillingDashboard() {
   return (
     <SelectedDateContext.Provider value={{ selectedDate, setSelectedDate }}>
       <main className={styles.container}>
-        <BillingHeader
-          title={selectedActionTitle ?? getPageTitle(selectedAction)}
-          showDateFilter={showHomeDateFilter}
-        />
+        {!showInvoiceOverview ? (
+          <BillingHeader
+            title={selectedActionTitle ?? getPageTitle(selectedAction)}
+            showDateFilter={showHomeDateFilter}
+          />
+        ) : null}
         {showInvoiceOverview ? (
-          <section className={styles.embeddedPageContainer}>
-            <div className={styles.embeddedPageContent}>
-              <Invoice showPatientHeader={false} />
-            </div>
-          </section>
+          <Invoice />
         ) : selectedAction !== 'overview' ? (
           <section className={styles.embeddedPageContainer}>
             <Button
