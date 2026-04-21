@@ -235,7 +235,11 @@ export const useBillableItems = () => {
   const { data, isLoading, error } = useSWR<{ data: { results: Array<OpenmrsResource> } }>(url, openmrsFetch);
   const [searchTerm, setSearchTerm] = useState('');
   const filteredItems =
-    data?.data?.results?.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())) ?? [];
+    data?.data?.results?.filter((item) =>
+      [item.name, (item as OpenmrsResource & { shortName?: string }).shortName].some((value) =>
+        `${value ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    ) ?? [];
   return {
     lineItems: filteredItems,
     isLoading,

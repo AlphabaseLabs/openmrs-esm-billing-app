@@ -191,7 +191,7 @@ const BillingCheckInForm: React.FC<BillingCheckInFormProps> = ({ patientUuid, se
               id="billing-service"
               titleText={t('searchServices', 'Search services')}
               items={lineItems ?? []}
-              itemToString={(item) => (item ? item?.name : '')}
+              itemToString={(item) => (item ? [item?.name, item?.shortName].filter(Boolean).join(' ') : '')}
               itemToElement={billableServiceItemToElement}
               onChange={({ selectedItems }) => setSelectedBillableServices(selectedItems ?? [])}
               selectedItems={selectedBillableServices}

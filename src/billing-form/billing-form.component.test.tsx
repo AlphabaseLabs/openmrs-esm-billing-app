@@ -1,9 +1,38 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import BillingForm from './billing-form.component';
 import useBillableServices from '../hooks/useBillableServices';
 
 jest.mock('../hooks/useBillableServices');
+jest.mock('../autosuggest/autosuggest.component', () => ({
+  Autosuggest: ({ labelText, value, onClear, getSearchResults, getDisplayValue }: any) => {
+    const [suggestions, setSuggestions] = React.useState([]);
+
+    return (
+      <div>
+        <label htmlFor="autosuggest-mock">{labelText}</label>
+        <input
+          id="autosuggest-mock"
+          role="searchbox"
+          value={value}
+          onChange={async (event) => {
+            const nextSuggestions = await getSearchResults(event.target.value);
+            setSuggestions(nextSuggestions);
+          }}
+        />
+        <button type="button" onClick={onClear}>
+          Clear
+        </button>
+        <ul>
+          {suggestions.map((suggestion) => (
+            <li key={suggestion.uuid}>{getDisplayValue(suggestion)}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  },
+}));
 
 jest.mock('@openmrs/esm-framework', () => {
   const originalModule = jest.requireActual('@openmrs/esm-framework');
@@ -75,5 +104,30 @@ describe('BillingForm', () => {
     renderBillingForm({ patientUuid: 'patient-uuid', workspaceTitle: 'Create Bill', showPatientHeader: true });
 
     expect(screen.getByTestId('extension-slot')).toHaveTextContent('patient-header-slot:patient-uuid');
+  });
+
+  it('searches billable services by short name', async () => {
+    const user = userEvent.setup();
+
+    mockUseBillableServices.mockReturnValue({
+      billableServices: [
+        {
+          uuid: 'service-uuid',
+          name: 'General Consultation',
+          shortName: 'GCON',
+          serviceStatus: 'ENABLED',
+          serviceType: { display: 'Consultation' },
+          servicePrices: [],
+        },
+      ],
+      error: null,
+      isLoading: false,
+    } as ReturnType<typeof useBillableServices>);
+
+    renderBillingForm({ patientUuid: 'patient-uuid', workspaceTitle: 'Create Bill' });
+
+    await user.type(screen.getByRole('searchbox', { name: /search/i }), 'GCON');
+
+    expect(screen.getByText('General Consultation')).toBeInTheDocument();
   });
 });

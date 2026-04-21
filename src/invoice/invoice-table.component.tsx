@@ -24,6 +24,7 @@ import { isDesktop, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-fr
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
+import useBillableServices from '../hooks/useBillableServices';
 import { launchBillingWorkspace } from '../workspaces';
 import { formatBillAmount } from '../helpers';
 
@@ -38,11 +39,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
   const { t } = useTranslation();
   const { lineItems } = bill;
   const paidLineItems = lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
+  const { billableServices } = useBillableServices();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [selectedLineItems, setSelectedLineItems] = useState(paidLineItems ?? []);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm);
+  const shortNamesByServiceUuid = useMemo(
+    () => new Map(billableServices.map((service) => [service.uuid, `${service.shortName ?? ''}`.trim()])),
+    [billableServices],
+  );
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
       return lineItems;
@@ -50,12 +56,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
 
     return fuzzy
       .filter(debouncedSearchTerm, lineItems, {
-        extract: (lineItem: LineItem) =>
-          `${lineItem.billableService || ''} ${lineItem.item || ''} ${lineItem.dateCreated || lineItem.auditInfo?.dateCreated || ''}`,
+        extract: (lineItem: LineItem) => {
+          const serviceUuid = lineItem.billableService?.split(':')[0];
+          const shortName = (serviceUuid && shortNamesByServiceUuid.get(serviceUuid)) || '';
+          return `${lineItem.billableService || ''} ${lineItem.item || ''} ${shortName} ${
+            lineItem.dateCreated || lineItem.auditInfo?.dateCreated || ''
+          }`;
+        },
       })
       .sort((r1, r2) => r1.score - r2.score)
       .map((result) => result.original);
-  }, [debouncedSearchTerm, lineItems]);
+  }, [debouncedSearchTerm, lineItems, shortNamesByServiceUuid]);
 
   const tableHeaders = useMemo(() => {
     const headers = [

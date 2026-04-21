@@ -53,6 +53,11 @@ type BillingFormProps = {
 type FormType = z.infer<typeof billingFormSchema>;
 type BillingServicePrice = BillingService['servicePrices'][number];
 
+const matchesBillableServiceSearch = (service: BillingService, searchText: string) => {
+  const normalizedSearchText = searchText.trim().toLocaleLowerCase();
+  return [service.name, service.shortName].some((value) => value?.toLocaleLowerCase().includes(normalizedSearchText));
+};
+
 const resolveDefaultServicePrice = (
   service: BillingService | undefined,
   defaultPaymentMethodName?: string,
@@ -132,7 +137,7 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
     setSearchTermValue(searchText);
     return billableServices.filter(
       (service) =>
-        service?.name.toLocaleLowerCase().includes(searchText.toLocaleLowerCase()) &&
+        matchesBillableServiceSearch(service, searchText) &&
         lineItemsToWatch.findIndex((item) => item.billableService === service?.uuid) === -1,
     );
   };
