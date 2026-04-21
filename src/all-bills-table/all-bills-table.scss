@@ -72,22 +72,8 @@
   white-space: nowrap;
 }
 
-.patientChartLink {
-  color: inherit;
-  text-decoration: inherit;
-
-  &:hover {
-    color: $text-02;
-  }
-}
-
 .clickableRow {
   cursor: pointer;
-
-  &:hover td {
-    text-decoration: underline;
-    text-decoration-color: currentColor;
-  }
 }
 
 .backgroundDataFetchingIndicator {
@@ -113,10 +99,6 @@
 
 .tableContainer section {
   position: relative;
-}
-
-.tableContainer a {
-  text-decoration: none;
 }
 
 .pagination {

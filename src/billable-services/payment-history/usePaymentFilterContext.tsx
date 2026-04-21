@@ -20,10 +20,7 @@ interface PaymentFilterContextType {
   setFilters: (filters: Filter) => void;
 }
 
-const defaultDateRange: [Date, Date] = [
-  dayjs().subtract(7, 'days').startOf('day').toDate(),
-  dayjs().endOf('day').toDate(),
-];
+const defaultDateRange: [Date, Date] = [new Date(0), dayjs().endOf('day').toDate()];
 
 export const PaymentFilterContext = createContext<PaymentFilterContextType>({
   dateRange: defaultDateRange,

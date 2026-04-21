@@ -33,22 +33,26 @@ jest.mock('../../../payment-points/payment-points.resource', () => ({
 jest.mock('swr', () => jest.fn());
 
 jest.mock('@carbon/react', () => ({
-  DatePicker: ({ children, onChange }: any) => (
-    <div>
-      <button
-        type="button"
-        onClick={() => onChange([new Date('2026-04-02T00:00:00.000Z'), new Date('2026-04-09T00:00:00.000Z')])}>
-        Set mock date range
-      </button>
-      <button type="button" onClick={() => onChange([new Date('2026-04-04T00:00:00.000Z')])}>
-        Set mock start date only
-      </button>
-      <button type="button" onClick={() => onChange([undefined, new Date('2026-04-10T00:00:00.000Z')])}>
-        Set mock end date only
-      </button>
-      {children}
-    </div>
-  ),
+  DatePicker: ({ children, onChange, value }: any) => {
+    const firstChild = React.Children.toArray(children)[0] as React.ReactElement<{ id?: string }>;
+    const inputId = firstChild?.props?.id;
+
+    return (
+      <div data-testid={`${inputId}-picker`} data-value={value instanceof Date ? value.toISOString() : ''}>
+        {inputId === 'payment-history-start-date' ? (
+          <button type="button" onClick={() => onChange([new Date('2026-04-04T00:00:00.000Z')])}>
+            Set mock start date
+          </button>
+        ) : null}
+        {inputId === 'payment-history-end-date' ? (
+          <button type="button" onClick={() => onChange([new Date('2026-04-10T00:00:00.000Z')])}>
+            Set mock end date
+          </button>
+        ) : null}
+        {children}
+      </div>
+    );
+  },
   DatePickerInput: ({ id, labelText, placeholder }: any) => (
     <label htmlFor={id}>
       {labelText}
@@ -211,6 +215,33 @@ describe('PaymentFilters', () => {
     expect(screen.getByLabelText('Date')).toHaveValue('custom');
   });
 
+  it('keeps the start date field empty when the all preset is selected', () => {
+    mockUsePaymentFilterContext.mockReturnValue({
+      dateRange: [new Date(0), new Date('2026-04-08T23:59:59.999Z')],
+      setDateRange: mockSetDateRange,
+      filters: {
+        paymentMethods: [],
+        cashiers: [],
+        serviceTypes: [],
+        billStatus: PaymentStatus.PAID,
+        patientUuid: '',
+      },
+      setFilters: mockSetFilters,
+      appliedTimesheet: undefined,
+      setAppliedTimesheet: mockSetAppliedTimesheet,
+      setAppliedFilters: mockSetAppliedFilters,
+    });
+
+    render(<PaymentFilters />);
+
+    expect(screen.getByLabelText('Date')).toHaveValue('all');
+    expect(screen.getByTestId('payment-history-start-date-picker')).toHaveAttribute('data-value', '');
+    expect(screen.getByTestId('payment-history-end-date-picker')).toHaveAttribute(
+      'data-value',
+      '2026-04-08T23:59:59.999Z',
+    );
+  });
+
   it('applies the last month preset like the accounting app', () => {
     render(<PaymentFilters />);
 
@@ -222,21 +253,10 @@ describe('PaymentFilters', () => {
     ]);
   });
 
-  it('applies a custom range from the recurring appointment picker', () => {
-    render(<PaymentFilters />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Set mock date range' }));
-
-    expect(mockSetDateRange).toHaveBeenCalledWith([
-      new Date('2026-04-02T00:00:00.000Z'),
-      new Date('2026-04-09T23:59:59.999Z'),
-    ]);
-  });
-
   it('keeps the existing end date when only the start date changes', () => {
     render(<PaymentFilters />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set mock start date only' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set mock start date' }));
 
     expect(mockSetDateRange).toHaveBeenCalledWith([
       new Date('2026-04-04T00:00:00.000Z'),
@@ -247,7 +267,7 @@ describe('PaymentFilters', () => {
   it('keeps the existing start date when only the end date changes', () => {
     render(<PaymentFilters />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set mock end date only' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set mock end date' }));
 
     expect(mockSetDateRange).toHaveBeenCalledWith([
       new Date('2026-04-01T00:00:00.000Z'),

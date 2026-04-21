@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { navigate } from '@openmrs/esm-framework';
 import { useBills, useBillsPaginated } from '../billing.resource';
-import { getInvoiceUrl, getPatientChartUrl } from '../helpers';
+import { getInvoiceUrl } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import AllBillsTable from './all-bills-table.component';
 
@@ -69,6 +69,30 @@ const secondTestBill = {
   receiptNumber: 'INV-002',
 } as any;
 
+const postedBill = {
+  ...testBill,
+  uuid: 'bill-uuid-3',
+  patientUuid: 'patient-uuid-3',
+  patientName: 'Posted Patient',
+  identifier: 'PAT-003',
+  receiptNumber: 'INV-003',
+  status: 'POSTED',
+  dateCreated: '09-Apr-2026, 09:00 AM',
+  dateCreatedUnformatted: '2026-04-09T09:00:00.000Z',
+} as any;
+
+const paidBill = {
+  ...testBill,
+  uuid: 'bill-uuid-4',
+  patientUuid: 'patient-uuid-4',
+  patientName: 'Paid Patient',
+  identifier: 'PAT-004',
+  receiptNumber: 'INV-004',
+  status: 'PAID',
+  dateCreated: '10-Apr-2026, 08:00 AM',
+  dateCreatedUnformatted: '2026-04-10T08:00:00.000Z',
+} as any;
+
 describe('AllBillsTable', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
@@ -101,7 +125,11 @@ describe('AllBillsTable', () => {
       }
 
       if (billStatus === 'POSTED') {
-        return buildBillsResponse();
+        return buildBillsResponse([postedBill]);
+      }
+
+      if (billStatus === 'PAID') {
+        return buildBillsResponse([paidBill]);
       }
 
       return buildBillsResponse();
@@ -135,15 +163,15 @@ describe('AllBillsTable', () => {
     });
   });
 
-  test('patient name links to the patient chart', () => {
+  test('renders patient name as plain text instead of a patient chart link', () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
         <AllBillsTable />
       </SelectedDateContext.Provider>,
     );
 
-    const link = screen.getByRole('link', { name: 'Jane Doe' });
-    expect(link).toHaveAttribute('href', getPatientChartUrl('patient-uuid'));
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Jane Doe' })).not.toBeInTheDocument();
   });
 
   test('renders the bill list columns in the new order without the identifier column', () => {
@@ -161,6 +189,26 @@ describe('AllBillsTable', () => {
       'Bill total',
     ]);
     expect(screen.queryByText('Patient identifier')).not.toBeInTheDocument();
+  });
+
+  test('defaults to all bills and sorts pending, posted, and paid bills by date', () => {
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    expect(screen.getByText('All bills')).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual([
+      expect.stringContaining('Paid Patient'),
+      expect.stringContaining('Posted Patient'),
+      expect.stringContaining('Jane Doe'),
+    ]);
   });
 
   test('filters bills by invoice number', async () => {

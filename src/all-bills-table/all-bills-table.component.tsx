@@ -26,7 +26,7 @@ import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
 import { useBills, useBillsPaginated } from '../billing.resource';
 import SelectedDateContext from '../hooks/selectedDateContext';
-import { convertToCurrency, getInvoiceUrl, getPatientChartUrl } from '../helpers';
+import { convertToCurrency, getInvoiceUrl } from '../helpers';
 import type { MappedBill } from '../types';
 import styles from './all-bills-table.scss';
 
@@ -76,6 +76,8 @@ interface DisplayTableState {
   hasResolvedData: boolean;
 }
 
+const mergedHomeBillStatuses = ['PENDING', 'POSTED', 'PAID'] as const;
+
 const getBillLineItemLabel = (value?: string) => {
   if (!value) {
     return '';
@@ -108,6 +110,11 @@ const paginateBills = (bills: Array<MappedBill>, currentPage: number, pageSize: 
   return bills.slice(startIndex, startIndex + pageSize);
 };
 
+const combineTotalCounts = (...counts: Array<number | null>) =>
+  counts.some((count) => count === null) ? null : counts.reduce((sum, count) => sum + (count ?? 0), 0);
+
+const hasActiveRequest = (...states: Array<boolean>) => states.some(Boolean);
+
 const matchesSearch = (bill: MappedBill, searchTerm: string) =>
   [bill.patientName, bill.identifier, bill.receiptNumber].some((value) => value?.toLowerCase().includes(searchTerm));
 
@@ -119,8 +126,8 @@ function useBillTableData({
   startDate,
   endDate,
 }: BillTableDataParams): BillTableDataResult {
-  const isPendingFilter = billStatus === 'PENDING';
-  const pendingBrowsePageSize = currentPage * pageSize;
+  const isAllBillsFilter = billStatus === '';
+  const mergedBrowsePageSize = currentPage * pageSize;
 
   const pendingBrowseBills = useBillsPaginated({
     patientUuid: '',
@@ -128,8 +135,8 @@ function useBillTableData({
     startingDate: startDate,
     endDate: endDate,
     page: 1,
-    pageSize: pendingBrowsePageSize,
-    enabled: isPendingFilter && !hasSearch,
+    pageSize: mergedBrowsePageSize,
+    enabled: isAllBillsFilter && !hasSearch,
   });
 
   const postedBrowseBills = useBillsPaginated({
@@ -138,8 +145,18 @@ function useBillTableData({
     startingDate: startDate,
     endDate: endDate,
     page: 1,
-    pageSize: pendingBrowsePageSize,
-    enabled: isPendingFilter && !hasSearch,
+    pageSize: mergedBrowsePageSize,
+    enabled: isAllBillsFilter && !hasSearch,
+  });
+
+  const paidBrowseBills = useBillsPaginated({
+    patientUuid: '',
+    billStatus: 'PAID',
+    startingDate: startDate,
+    endDate: endDate,
+    page: 1,
+    pageSize: mergedBrowsePageSize,
+    enabled: isAllBillsFilter && !hasSearch,
   });
 
   const filteredBrowseBills = useBillsPaginated({
@@ -149,22 +166,30 @@ function useBillTableData({
     endDate: endDate,
     page: currentPage,
     pageSize,
-    enabled: !isPendingFilter && !hasSearch,
+    enabled: !isAllBillsFilter && !hasSearch,
   });
 
-  const pendingSearchBills = useBills('', 'PENDING', startDate, endDate, isPendingFilter && hasSearch);
-  const postedSearchBills = useBills('', 'POSTED', startDate, endDate, isPendingFilter && hasSearch);
-  const filteredSearchBills = useBills('', billStatus, startDate, endDate, !isPendingFilter && hasSearch);
+  const pendingSearchBills = useBills('', mergedHomeBillStatuses[0], startDate, endDate, isAllBillsFilter && hasSearch);
+  const postedSearchBills = useBills('', mergedHomeBillStatuses[1], startDate, endDate, isAllBillsFilter && hasSearch);
+  const paidSearchBills = useBills('', mergedHomeBillStatuses[2], startDate, endDate, isAllBillsFilter && hasSearch);
+  const filteredSearchBills = useBills('', billStatus, startDate, endDate, !isAllBillsFilter && hasSearch);
+
+  const mergedBrowseBills = useMemo(
+    () => mergeBillsByDate(pendingBrowseBills.bills, postedBrowseBills.bills, paidBrowseBills.bills),
+    [paidBrowseBills.bills, pendingBrowseBills.bills, postedBrowseBills.bills],
+  );
+  const mergedSearchBills = useMemo(
+    () => mergeBillsByDate(pendingSearchBills.bills, postedSearchBills.bills, paidSearchBills.bills),
+    [paidSearchBills.bills, pendingSearchBills.bills, postedSearchBills.bills],
+  );
 
   const bills = useMemo(() => {
     if (hasSearch) {
-      return isPendingFilter
-        ? mergeBillsByDate(pendingSearchBills.bills, postedSearchBills.bills)
-        : (filteredSearchBills.bills ?? []);
+      return isAllBillsFilter ? mergedSearchBills : (filteredSearchBills.bills ?? []);
     }
 
-    if (isPendingFilter) {
-      return paginateBills(mergeBillsByDate(pendingBrowseBills.bills, postedBrowseBills.bills), currentPage, pageSize);
+    if (isAllBillsFilter) {
+      return paginateBills(mergedBrowseBills, currentPage, pageSize);
     }
 
     return filteredBrowseBills.bills ?? [];
@@ -173,12 +198,10 @@ function useBillTableData({
     filteredBrowseBills.bills,
     filteredSearchBills.bills,
     hasSearch,
-    isPendingFilter,
+    isAllBillsFilter,
+    mergedBrowseBills,
+    mergedSearchBills,
     pageSize,
-    pendingBrowseBills.bills,
-    pendingSearchBills.bills,
-    postedBrowseBills.bills,
-    postedSearchBills.bills,
   ]);
 
   const totalItems = useMemo(() => {
@@ -186,51 +209,52 @@ function useBillTableData({
       return null;
     }
 
-    if (isPendingFilter) {
-      if (pendingBrowseBills.totalCount === null || postedBrowseBills.totalCount === null) {
-        return null;
-      }
-
-      return pendingBrowseBills.totalCount + postedBrowseBills.totalCount;
+    if (isAllBillsFilter) {
+      return combineTotalCounts(
+        pendingBrowseBills.totalCount,
+        postedBrowseBills.totalCount,
+        paidBrowseBills.totalCount,
+      );
     }
 
     return filteredBrowseBills.totalCount;
   }, [
     filteredBrowseBills.totalCount,
     hasSearch,
-    isPendingFilter,
+    isAllBillsFilter,
     pendingBrowseBills.totalCount,
+    paidBrowseBills.totalCount,
     postedBrowseBills.totalCount,
   ]);
 
   const isLoading = hasSearch
-    ? isPendingFilter
-      ? pendingSearchBills.isLoading || postedSearchBills.isLoading
+    ? isAllBillsFilter
+      ? hasActiveRequest(pendingSearchBills.isLoading, postedSearchBills.isLoading, paidSearchBills.isLoading)
       : filteredSearchBills.isLoading
-    : isPendingFilter
-      ? pendingBrowseBills.isLoading || postedBrowseBills.isLoading
+    : isAllBillsFilter
+      ? hasActiveRequest(pendingBrowseBills.isLoading, postedBrowseBills.isLoading, paidBrowseBills.isLoading)
       : filteredBrowseBills.isLoading;
 
   const isValidating = hasSearch
-    ? isPendingFilter
-      ? pendingSearchBills.isValidating || postedSearchBills.isValidating
+    ? isAllBillsFilter
+      ? hasActiveRequest(pendingSearchBills.isValidating, postedSearchBills.isValidating, paidSearchBills.isValidating)
       : filteredSearchBills.isValidating
-    : isPendingFilter
-      ? pendingBrowseBills.isValidating || postedBrowseBills.isValidating
+    : isAllBillsFilter
+      ? hasActiveRequest(pendingBrowseBills.isValidating, postedBrowseBills.isValidating, paidBrowseBills.isValidating)
       : filteredBrowseBills.isValidating;
 
   const error = hasSearch
-    ? isPendingFilter
-      ? (pendingSearchBills.error ?? postedSearchBills.error)
+    ? isAllBillsFilter
+      ? (pendingSearchBills.error ?? postedSearchBills.error ?? paidSearchBills.error)
       : filteredSearchBills.error
-    : isPendingFilter
-      ? (pendingBrowseBills.error ?? postedBrowseBills.error)
+    : isAllBillsFilter
+      ? (pendingBrowseBills.error ?? postedBrowseBills.error ?? paidBrowseBills.error)
       : filteredBrowseBills.error;
 
   const refresh = useCallback(() => {
     if (hasSearch) {
-      if (isPendingFilter) {
-        void Promise.all([pendingSearchBills.mutate(), postedSearchBills.mutate()]);
+      if (isAllBillsFilter) {
+        void Promise.all([pendingSearchBills.mutate(), postedSearchBills.mutate(), paidSearchBills.mutate()]);
         return;
       }
 
@@ -238,8 +262,8 @@ function useBillTableData({
       return;
     }
 
-    if (isPendingFilter) {
-      void Promise.all([pendingBrowseBills.mutate(), postedBrowseBills.mutate()]);
+    if (isAllBillsFilter) {
+      void Promise.all([pendingBrowseBills.mutate(), postedBrowseBills.mutate(), paidBrowseBills.mutate()]);
       return;
     }
 
@@ -248,9 +272,11 @@ function useBillTableData({
     filteredBrowseBills,
     filteredSearchBills,
     hasSearch,
-    isPendingFilter,
+    isAllBillsFilter,
     pendingBrowseBills,
     pendingSearchBills,
+    paidBrowseBills,
+    paidSearchBills,
     postedBrowseBills,
     postedSearchBills,
   ]);
@@ -318,7 +344,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
   const config = useConfig();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [billStatus, setBillStatus] = useState<BillStatusFilter>('PENDING');
+  const [billStatus, setBillStatus] = useState<BillStatusFilter>('');
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchString, setSearchString] = useState('');
@@ -395,14 +421,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
         id: bill.uuid,
         uuid: bill.uuid,
         patientUuid: bill.patientUuid,
-        patientName: (
-          <a
-            href={getPatientChartUrl(bill.patientUuid)}
-            className={styles.patientChartLink}
-            onClick={(event) => event.stopPropagation()}>
-            {bill.patientName}
-          </a>
-        ),
+        patientName: bill.patientName,
         billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
         status: bill.status,
         billedItems: getBilledItems(bill),

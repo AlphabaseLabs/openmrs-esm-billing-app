@@ -1,7 +1,6 @@
 @use '@carbon/layout';
 
 $single-control-basis: 11rem;
-$range-control-basis: 22rem;
 $search-control-basis: 20rem;
 $compact-control-height: 2rem;
 
@@ -38,11 +37,6 @@ $compact-control-height: 2rem;
   flex: 1 1 $single-control-basis;
 }
 
-.dateRangeControl {
-  flex: 2 1 $range-control-basis;
-  min-width: 0;
-}
-
 .patientSearchWrapper {
   position: relative;
   flex: 999 1 $search-control-basis;
@@ -51,7 +45,6 @@ $compact-control-height: 2rem;
 }
 
 .filterControl,
-.dateRangeControl,
 .patientSearchWrapper {
   min-width: 0;
 }
@@ -69,8 +62,22 @@ $compact-control-height: 2rem;
   :global(.cds--select),
   :global(.cds--select-input),
   :global(.cds--search),
-  :global(.cds--search-input) {
+  :global(.cds--search-input),
+  :global(.cds--date-picker-container),
+  :global(.cds--date-picker-input__wrapper),
+  :global(.cds--date-picker__input) {
     @include full-width-field;
+  }
+
+  :global(.cds--date-picker__input--sm) {
+    @include compact-control-height;
+  }
+
+  :global(.cds--list-box--sm),
+  :global(.cds--list-box--sm .cds--list-box__field),
+  :global(.cds--search--sm .cds--search-input),
+  :global(.cds--search--sm .cds--search-close) {
+    @include compact-control-height;
   }
 }
 
@@ -129,52 +136,13 @@ $compact-control-height: 2rem;
   padding: layout.$spacing-04;
 }
 
-.dateRangePicker {
-  :global(.cds--date-picker--range) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: layout.$spacing-04;
-    width: 100%;
-    inline-size: 100%;
-  }
-
-  :global(.cds--date-picker--range > .cds--date-picker-container:first-child) {
-    margin-inline-end: 0;
-  }
-
-  :global(.cds--date-picker-container),
-  :global(.cds--date-picker-input__wrapper),
-  :global(.cds--date-picker__input) {
-    @include full-width-field;
-  }
-
-  :global(.cds--date-picker__input--sm) {
-    @include compact-control-height;
-  }
-}
-
-.root {
-  :global(.cds--list-box--sm),
-  :global(.cds--list-box--sm .cds--list-box__field),
-  :global(.cds--search--sm .cds--search-input),
-  :global(.cds--search--sm .cds--search-close) {
-    @include compact-control-height;
-  }
-}
-
 .filterSkeleton {
   width: 100%;
   height: 2.5rem;
 }
 
 @media (max-width: 640px) {
-  .dateRangeControl {
+  .filterControl {
     flex-basis: 100%;
-  }
-
-  .dateRangePicker {
-    :global(.cds--date-picker--range) {
-      grid-template-columns: 1fr;
-    }
   }
 }

@@ -231,13 +231,23 @@ export const PaymentFilters = () => {
     }
   };
 
-  const handleDateRangeChange = (dates: Array<Date | undefined>) => {
-    const [startDate, endDate] = dates ?? [];
-    if (!startDate && !endDate) {
+  const handleStartDateChange = (dates: Array<Date>) => {
+    const date = dates?.[0];
+    if (!date) {
       return;
     }
 
-    setDateRange([startDate ? startOfDay(startDate) : dateRange[0], endDate ? endOfDay(endDate) : dateRange[1]]);
+    setDateRange([startOfDay(date), dateRange[1]]);
+    setSelectedDatePreset('custom');
+  };
+
+  const handleEndDateChange = (dates: Array<Date>) => {
+    const date = dates?.[0];
+    if (!date) {
+      return;
+    }
+
+    setDateRange([dateRange[0], endOfDay(date)]);
     setSelectedDatePreset('custom');
   };
 
@@ -414,19 +424,23 @@ export const PaymentFilters = () => {
           />
         </div>
 
-        <div className={styles.dateRangeControl}>
+        <div className={styles.filterControl}>
           <DatePicker
-            className={styles.dateRangePicker}
-            datePickerType="range"
+            datePickerType="single"
             maxDate={new Date()}
-            value={[...dateRange]}
-            onChange={handleDateRangeChange}>
+            value={selectedDatePreset === 'all' ? undefined : dateRange[0]}
+            onChange={handleStartDateChange}>
             <DatePickerInput
               id="payment-history-start-date"
               placeholder="mm/dd/yyyy"
               labelText={t('startDate', 'Start date')}
               size={compactControlSize}
             />
+          </DatePicker>
+        </div>
+
+        <div className={styles.filterControl}>
+          <DatePicker datePickerType="single" maxDate={new Date()} value={dateRange[1]} onChange={handleEndDateChange}>
             <DatePickerInput
               id="payment-history-end-date"
               placeholder="mm/dd/yyyy"
