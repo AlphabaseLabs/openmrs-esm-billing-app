@@ -329,6 +329,7 @@ describe('BillHistory', () => {
     render(<BillHistory {...testProps} />);
     await user.click(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i }));
 
+    expect(mockUseBill).toHaveBeenLastCalledWith('1', { syncStatusWhenZeroBalance: true });
     expect(screen.getByText('Bill details')).toBeInTheDocument();
     expect(screen.queryByText('Patient billing history')).not.toBeInTheDocument();
     expect(screen.queryByText('Invoice number')).not.toBeInTheDocument();
@@ -363,6 +364,7 @@ describe('BillHistory', () => {
     render(<BillHistory {...testProps} />);
     await user.click(screen.getByRole('button', { name: /view bill details from status for invoice inv-002/i }));
 
+    expect(mockUseBill).toHaveBeenLastCalledWith('2', { syncStatusWhenZeroBalance: true });
     expect(screen.getByText('Bill details')).toBeInTheDocument();
   });
 

@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs';
 import isEmpty from 'lodash-es/isEmpty';
 import sortBy from 'lodash-es/sortBy';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
@@ -117,7 +117,7 @@ export const useBills = (
   };
 };
 
-export const useBill = (billUuid: string) => {
+export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?: boolean }) => {
   const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false&v=full`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: PatientInvoice }>(
     billUuid ? url : null,
@@ -134,6 +134,41 @@ export const useBill = (billUuid: string) => {
   const formattedBill = data?.data
     ? mapBillProperties({ ...data?.data, lineItems: filteredLineItems })
     : ({} as MappedBill);
+  const hasSyncedStatusRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const shouldSyncStatus =
+      options?.syncStatusWhenZeroBalance &&
+      !isLoading &&
+      formattedBill?.uuid &&
+      formattedBill?.status !== 'PAID' &&
+      Number(formattedBill?.balance ?? 0) === 0 &&
+      hasSyncedStatusRef.current !== formattedBill.uuid;
+
+    if (!shouldSyncStatus) {
+      return;
+    }
+
+    hasSyncedStatusRef.current = formattedBill.uuid;
+    syncBillStatus(formattedBill.uuid)
+      .then((response) => {
+        if (response?.ok) {
+          mutate();
+        } else {
+          hasSyncedStatusRef.current = null;
+        }
+      })
+      .catch(() => {
+        hasSyncedStatusRef.current = null;
+      });
+  }, [
+    options?.syncStatusWhenZeroBalance,
+    isLoading,
+    formattedBill?.uuid,
+    formattedBill?.status,
+    formattedBill?.balance,
+    mutate,
+  ]);
 
   return {
     bill: formattedBill,
@@ -142,6 +177,16 @@ export const useBill = (billUuid: string) => {
     isValidating,
     mutate,
   };
+};
+
+export const syncBillStatus = (billUuid: string) => {
+  const url = `${restBaseUrl}/cashier/bill/sync-status/${billUuid}`;
+  return openmrsFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 };
 
 export const processBillPayment = (payload, billUuid: string) => {

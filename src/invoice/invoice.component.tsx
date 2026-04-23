@@ -19,7 +19,13 @@ const Invoice: React.FC<InvoiceProps> = ({ showPatientHeader = true, showDiscard
   const location = useLocation();
   const { billUuid, patientUuid } = useParams();
   const { patient, isLoading: isLoadingPatient, error: patientError } = usePatient(patientUuid);
-  const { bill, isLoading: isLoadingBill, error: billingError } = useBill(billUuid);
+  const {
+    bill,
+    isLoading: isLoadingBill,
+    error: billingError,
+  } = useBill(billUuid, {
+    syncStatusWhenZeroBalance: true,
+  });
   const isLoadingInvoice = isLoadingBill || (showPatientHeader && isLoadingPatient);
   const invoiceError = billingError ?? (showPatientHeader ? patientError : undefined);
   const discardDestination = getInvoiceDiscardDestinationFromSearch(location.search);

@@ -253,7 +253,7 @@ const BillHistorySelectedBill: React.FC<{ billUuid: string; onDiscard: () => voi
   onDiscard,
 }) => {
   const { t } = useTranslation();
-  const { bill, isLoading, error } = useBill(billUuid);
+  const { bill, isLoading, error } = useBill(billUuid, { syncStatusWhenZeroBalance: true });
 
   if (isLoading) {
     return (
