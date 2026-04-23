@@ -8,6 +8,7 @@ export type BillableServicePayload = {
   shortName: string;
   serviceType: number | string;
   servicePrices: Array<{
+    uuid?: string;
     paymentMode: string;
     price: string | number;
     name: string;
@@ -28,6 +29,7 @@ export const formatBillableServicePayloadForSubmission = (
     shortName: formData.shortName,
     serviceType: formData.serviceType.uuid,
     servicePrices: formData.servicePrices.map((servicePrice) => ({
+      ...(servicePrice.uuid ? { uuid: servicePrice.uuid } : {}),
       paymentMode: servicePrice.paymentMode.uuid,
       price: servicePrice.price,
       name: servicePrice.paymentMode.name,
@@ -43,6 +45,7 @@ export const formatBillableServicePayloadForSubmission = (
 
 export function mapInputToPayloadSchema(service): BillableFormSchema {
   const servicePrices: Array<ServicePriceSchema> = service.servicePrices.map((price: any) => ({
+    uuid: price.uuid,
     price: price.price,
     paymentMode: {
       uuid: price.paymentMode?.uuid,
