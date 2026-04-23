@@ -5,18 +5,18 @@ import { useReactToPrint } from 'react-to-print';
 import { showSnackbar } from '@openmrs/esm-framework';
 import { mockBillData, mockPayments, mockBill } from '../../__mocks__/bill.mock';
 import { PaymentStatus } from '../types';
-import { useBill, processBillPayment, usePaymentModes } from '../billing.resource';
+import { useBill, addPaymentToBill, usePaymentModes } from '../billing.resource';
 
 import Invoice from './invoice.component';
 
 const mockedBill = jest.mocked(useBill);
-const mockedProcessBillPayment = jest.mocked(processBillPayment);
+const mockedAddPaymentToBill = jest.mocked(addPaymentToBill);
 const mockedUsePaymentModes = jest.mocked(usePaymentModes);
 const mockedUseReactToPrint = jest.mocked(useReactToPrint);
 
 jest.mock('../billing.resource', () => ({
   useBill: jest.fn(),
-  processBillPayment: jest.fn(),
+  addPaymentToBill: jest.fn(),
   useDefaultFacility: jest.fn().mockReturnValue({ uuid: '54065383-b4d4-42d2-af4d-d250a1fd2590', display: 'MTRH' }),
 }));
 
@@ -170,22 +170,18 @@ xdescribe('Invoice', () => {
     expect(addPaymentOptionButton).toBeDisabled();
 
     // should process payment
-    mockedProcessBillPayment.mockResolvedValueOnce(Promise.resolve({} as any));
+    mockedAddPaymentToBill.mockResolvedValueOnce(Promise.resolve({} as any));
     const processPaymentButton = screen.getByRole('button', { name: /Process Payment/i });
     expect(processPaymentButton).toBeInTheDocument();
     await user.click(processPaymentButton);
 
-    expect(processBillPayment).toHaveBeenCalledTimes(1);
-    expect(processBillPayment).toHaveBeenCalledWith(
-      {
-        cashPoint: '54065383-b4d4-42d2-af4d-d250a1fd2590',
-        cashier: 'fe00dd43-4c39-4ce9-9832-bc3620c80c6c',
-        patient: 'b2fcf02b-7ee3-4d16-a48f-576be2b103aa',
-        payments: [{ amount: 100, amountTendered: 100, attributes: [], instanceType: 'uuid' }],
-        status: PaymentStatus.PAID,
-      },
-      '6eb8d678-514d-46ad-9554-51e48d96d567',
-    );
+    expect(addPaymentToBill).toHaveBeenCalledTimes(1);
+    expect(addPaymentToBill).toHaveBeenCalledWith('6eb8d678-514d-46ad-9554-51e48d96d567', {
+      amount: 100,
+      amountTendered: 100,
+      attributes: [],
+      instanceType: 'uuid',
+    });
     expect(showSnackbar).toHaveBeenCalled();
     expect(showSnackbar).toHaveBeenCalledWith({
       kind: 'success',

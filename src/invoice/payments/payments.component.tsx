@@ -1,25 +1,21 @@
 import React from 'react';
 import { Button, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
+import { navigate, showSnackbar } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { mutate } from 'swr';
 import { z } from 'zod';
-import { processBillPayment } from '../../billing.resource';
-import { processPaymentMethodTaxExpenses } from '../../accounting.resource';
+import { addPaymentToBill } from '../../billing.resource';
 import { convertToCurrency } from '../../helpers';
-import { useClockInStatus } from '../../payment-points/use-clock-in-status';
 import { type LineItem, type PaymentFormValue, PaymentStatus, type MappedBill } from '../../types';
 import { extractErrorMessagesFromResponse } from '../../utils';
 import { InvoiceBreakDown } from './invoice-breakdown/invoice-breakdown.component';
 import PaymentForm from './payment-form/payment-form.component';
 import PaymentHistory from './payment-history/payment-history.component';
 import styles from './payments.scss';
-import { createPaymentPayload } from './utils';
 import { usePaymentSchema } from '../../hooks/usePaymentSchema';
-import { type BillingConfig } from '../../config-schema';
 
 type PaymentProps = {
   bill: MappedBill;
@@ -37,9 +33,7 @@ const Payments: React.FC<PaymentProps> = ({
   onDiscard,
 }) => {
   const { t } = useTranslation();
-  const { paymentMethodTaxes } = useConfig<BillingConfig>();
   const paymentSchema = usePaymentSchema(bill);
-  const { globalActiveSheet } = useClockInStatus();
 
   const methods = useForm<PaymentFormValue>({
     mode: 'onChange',
@@ -79,17 +73,30 @@ const Payments: React.FC<PaymentProps> = ({
         });
 
   const handleProcessPayment = async () => {
-    const paymentPayload = createPaymentPayload(
-      bill,
-      bill.patientUuid,
-      formValues,
-      amountDue,
-      selectedLineItems,
-      globalActiveSheet,
-    );
+    const currentPayment = formValues?.[0];
+    if (!currentPayment?.method || !currentPayment.amount) {
+      return;
+    }
+
+    const paymentPayload = {
+      amount: Number(bill.totalAmount ?? bill.balance ?? currentPayment.amount),
+      amountTendered: Number(currentPayment.amount),
+      attributes:
+        currentPayment.method.attributeTypes?.flatMap((attribute) =>
+          attribute.uuid
+            ? [
+                {
+                  attributeType: attribute.uuid,
+                  value: currentPayment.referenceCode ?? '',
+                },
+              ]
+            : [],
+        ) ?? [],
+      instanceType: currentPayment.method.uuid,
+    };
 
     try {
-      const resp = await processBillPayment(paymentPayload, bill.uuid);
+      await addPaymentToBill(bill.uuid, paymentPayload);
 
       showSnackbar({
         title: t('billPayment', 'Bill payment'),
@@ -97,27 +104,6 @@ const Payments: React.FC<PaymentProps> = ({
         kind: 'success',
         timeoutInMs: 3000,
       });
-
-      const updatedBill = resp?.data;
-      if (paymentMethodTaxes?.enabled && updatedBill?.payments) {
-        processPaymentMethodTaxExpenses({
-          previousBill: { uuid: bill.uuid, id: bill.id, payments: bill.payments ?? [] },
-          updatedBill: { uuid: bill.uuid, id: updatedBill?.id ?? bill.id, payments: updatedBill?.payments ?? [] },
-          paymentMethodTaxes,
-        }).catch((err) => {
-          showSnackbar({
-            title: t('paymentTaxAccountingWarning', 'Payment tax accounting warning'),
-            kind: 'warning',
-            subtitle:
-              err?.message ??
-              t(
-                'paymentTaxAccountingWarningSubtitle',
-                'Payment completed, but an error occurred while posting payment tax expenses.',
-              ),
-            timeoutInMs: 5000,
-          });
-        });
-      }
 
       const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
       await mutate((key) => typeof key === 'string' && key.startsWith(url));

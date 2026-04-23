@@ -325,8 +325,6 @@
   "payments": "Payments",
   "paymentSaved": "Payment saved",
   "paymentSavedSuccessfully": "Payment saved successfully",
-  "paymentTaxAccountingWarning": "Payment tax accounting warning",
-  "paymentTaxAccountingWarningSubtitle": "Payment completed, but an error occurred while posting payment tax expenses.",
   "paymentType": "Payment Type",
   "pending": "Pending",
   "pendingBills": "Pending Bills",
