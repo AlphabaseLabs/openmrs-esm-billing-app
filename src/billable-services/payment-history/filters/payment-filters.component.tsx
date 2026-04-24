@@ -55,6 +55,10 @@ const patientSearchRepresentation = encodeURIComponent(
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+const startOfWeek = (date: Date) =>
+  startOfDay(new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay()));
+const endOfWeek = (date: Date) =>
+  endOfDay(new Date(date.getFullYear(), date.getMonth(), date.getDate() + (6 - date.getDay())));
 const startOfMonth = (date: Date) => startOfDay(new Date(date.getFullYear(), date.getMonth(), 1));
 const endOfMonth = (date: Date) => endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0));
 const startOfYear = (date: Date) => startOfDay(new Date(date.getFullYear(), 0, 1));
@@ -83,6 +87,14 @@ const getDateRangeForPreset = (preset: string, today: Date): DateRange | null =>
   switch (preset) {
     case 'all':
       return [new Date(0), endOfDay(today)];
+    case 'today':
+      return [startOfDay(today), endOfDay(today)];
+    case 'yesterday': {
+      const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      return [startOfDay(yesterday), endOfDay(yesterday)];
+    }
+    case 'thisWeek':
+      return [startOfWeek(today), endOfWeek(today)];
     case 'thisMonth':
       return [startOfMonth(today), endOfMonth(today)];
     case 'lastMonth': {
@@ -127,6 +139,8 @@ const areSameRange = (firstRange: DateRange, secondRange: DateRange) =>
   firstRange[0].getTime() === secondRange[0].getTime() && firstRange[1].getTime() === secondRange[1].getTime();
 
 const itemToString = (item: FilterOption | null | undefined) => item?.text ?? '';
+const getDisplayDateValue = (date: Date | null | undefined, shouldShow = true) =>
+  shouldShow && date && date.getTime() !== 0 ? date : undefined;
 
 const extractPatientName = (patient: PatientSearchResult) => {
   const personName = patient.person?.personName;
@@ -169,6 +183,9 @@ export const PaymentFilters = () => {
   const dateOptions = React.useMemo<Array<FilterOption>>(
     () => [
       { id: 'all', text: t('all', 'All') },
+      { id: 'today', text: t('today', 'Today') },
+      { id: 'yesterday', text: t('yesterday', 'Yesterday') },
+      { id: 'thisWeek', text: t('thisWeek', 'This Week') },
       { id: 'thisMonth', text: t('thisMonth', 'This Month') },
       { id: 'lastMonth', text: t('lastMonth', 'Last Month') },
       { id: 'last3Months', text: t('last3Months', 'Last 3 Months') },
@@ -228,7 +245,10 @@ export const PaymentFilters = () => {
     const nextDateRange = getDateRangeForPreset(preset, todayRef.current);
     if (nextDateRange) {
       setDateRange(nextDateRange);
+      return;
     }
+
+    setDateRange([startOfDay(todayRef.current), endOfDay(todayRef.current)]);
   };
 
   const handleStartDateChange = (dates: Array<Date>) => {
@@ -427,8 +447,8 @@ export const PaymentFilters = () => {
         <div className={styles.filterControl}>
           <DatePicker
             datePickerType="single"
-            maxDate={new Date()}
-            value={selectedDatePreset === 'all' ? undefined : dateRange[0]}
+            // maxDate={new Date()}
+            value={getDisplayDateValue(dateRange[0], selectedDatePreset !== 'all')}
             onChange={handleStartDateChange}>
             <DatePickerInput
               id="payment-history-start-date"
@@ -440,7 +460,10 @@ export const PaymentFilters = () => {
         </div>
 
         <div className={styles.filterControl}>
-          <DatePicker datePickerType="single" maxDate={new Date()} value={dateRange[1]} onChange={handleEndDateChange}>
+          <DatePicker
+            datePickerType="single" // maxDate={new Date()}
+            value={getDisplayDateValue(dateRange[1])}
+            onChange={handleEndDateChange}>
             <DatePickerInput
               id="payment-history-end-date"
               placeholder="mm/dd/yyyy"
@@ -454,7 +477,7 @@ export const PaymentFilters = () => {
           <Select
             id="bill-status-filter"
             labelText={t('billStatus', 'Bill Status')}
-            value={filters.billStatus ?? PaymentStatus.PAID}
+            value={filters.billStatus ?? ''}
             onChange={handleBillStatusChange}
             size={compactControlSize}>
             <SelectItem value="" text={t('all', 'All')} />

@@ -38,6 +38,8 @@ export const PaymentHistoryTable = ({
   const responsiveSize = layout !== 'tablet' ? 'sm' : 'md';
   const [searchString, setSearchString] = useState('');
   const debouncedSearchString = useDebounce(searchString, 1000);
+  const getColumnStyle = (columnKey: string) =>
+    columnKey === 'dateCreated' ? ({ inlineSize: '12rem', whiteSpace: 'nowrap' } as const) : undefined;
 
   const searchResults = useMemo(() => {
     if (rows !== undefined && rows.length > 0) {
@@ -174,7 +176,8 @@ export const PaymentHistoryTable = ({
                       key={header.key}
                       {...getHeaderProps({
                         header,
-                      })}>
+                      })}
+                      style={getColumnStyle(header.key)}>
                       {header.header}
                     </TableHeader>
                   ))}
@@ -192,7 +195,9 @@ export const PaymentHistoryTable = ({
                       onClick={() => handleRowClick(billData?.uuid, billData?.patientUuid)}
                       style={{ cursor: 'pointer' }}>
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id}>{cell.value}</TableCell>
+                        <TableCell key={cell.id} style={getColumnStyle(cell.info.header)}>
+                          {cell.value}
+                        </TableCell>
                       ))}
                     </TableRow>
                   );

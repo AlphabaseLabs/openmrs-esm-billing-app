@@ -445,7 +445,9 @@
   "thisFiscalQuarter": "This Fiscal Quarter",
   "thisFiscalYear": "This Fiscal Year",
   "thisMonth": "This Month",
+  "thisWeek": "This Week",
   "timesheet": "Timesheet",
+  "today": "Today",
   "total": "Total",
   "totalAmount": "Total amount",
   "totalBills": "Total Bills",
@@ -484,5 +486,6 @@
   "waiverReasonLabel": "Waiver reason",
   "waiverReasonRequired": "Waiver reason is required",
   "yearToDate": "Year to Date",
-  "yes": "Yes"
+  "yes": "Yes",
+  "yesterday": "Yesterday"
 }

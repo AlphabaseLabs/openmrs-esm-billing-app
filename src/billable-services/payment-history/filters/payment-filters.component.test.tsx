@@ -179,7 +179,7 @@ describe('PaymentFilters', () => {
         paymentMethods: [],
         cashiers: [],
         serviceTypes: [],
-        billStatus: PaymentStatus.PAID,
+        billStatus: '',
         patientUuid: '',
       },
       setFilters: mockSetFilters,
@@ -223,7 +223,7 @@ describe('PaymentFilters', () => {
         paymentMethods: [],
         cashiers: [],
         serviceTypes: [],
-        billStatus: PaymentStatus.PAID,
+        billStatus: '',
         patientUuid: '',
       },
       setFilters: mockSetFilters,
@@ -242,6 +242,33 @@ describe('PaymentFilters', () => {
     );
   });
 
+  it('keeps the start date field empty when the current custom range still starts at unix epoch', () => {
+    mockUsePaymentFilterContext.mockReturnValue({
+      dateRange: [new Date(0), new Date('2026-04-10T23:59:59.999Z')],
+      setDateRange: mockSetDateRange,
+      filters: {
+        paymentMethods: [],
+        cashiers: [],
+        serviceTypes: [],
+        billStatus: '',
+        patientUuid: '',
+      },
+      setFilters: mockSetFilters,
+      appliedTimesheet: undefined,
+      setAppliedTimesheet: mockSetAppliedTimesheet,
+      setAppliedFilters: mockSetAppliedFilters,
+    });
+
+    render(<PaymentFilters />);
+
+    expect(screen.getByLabelText('Date')).toHaveValue('custom');
+    expect(screen.getByTestId('payment-history-start-date-picker')).toHaveAttribute('data-value', '');
+    expect(screen.getByTestId('payment-history-end-date-picker')).toHaveAttribute(
+      'data-value',
+      '2026-04-10T23:59:59.999Z',
+    );
+  });
+
   it('applies the last month preset like the accounting app', () => {
     render(<PaymentFilters />);
 
@@ -250,6 +277,66 @@ describe('PaymentFilters', () => {
     expect(mockSetDateRange).toHaveBeenCalledWith([
       new Date('2026-03-01T00:00:00.000Z'),
       new Date('2026-03-31T23:59:59.999Z'),
+    ]);
+  });
+
+  it('applies the today preset', () => {
+    render(<PaymentFilters />);
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'today' } });
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-08T00:00:00.000Z'),
+      new Date('2026-04-08T23:59:59.999Z'),
+    ]);
+  });
+
+  it('applies the yesterday preset', () => {
+    render(<PaymentFilters />);
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'yesterday' } });
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-07T00:00:00.000Z'),
+      new Date('2026-04-07T23:59:59.999Z'),
+    ]);
+  });
+
+  it('applies the this week preset', () => {
+    render(<PaymentFilters />);
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'thisWeek' } });
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-05T00:00:00.000Z'),
+      new Date('2026-04-11T23:59:59.999Z'),
+    ]);
+  });
+
+  it('uses the current date when custom date is selected from the preset dropdown', () => {
+    mockUsePaymentFilterContext.mockReturnValue({
+      dateRange: [new Date(0), new Date('2026-04-08T23:59:59.999Z')],
+      setDateRange: mockSetDateRange,
+      filters: {
+        paymentMethods: [],
+        cashiers: [],
+        serviceTypes: [],
+        billStatus: '',
+        patientUuid: '',
+      },
+      setFilters: mockSetFilters,
+      appliedTimesheet: undefined,
+      setAppliedTimesheet: mockSetAppliedTimesheet,
+      setAppliedFilters: mockSetAppliedFilters,
+    });
+
+    render(<PaymentFilters />);
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'custom' } });
+
+    expect(mockSetDateRange).toHaveBeenCalledWith([
+      new Date('2026-04-08T00:00:00.000Z'),
+      new Date('2026-04-08T23:59:59.999Z'),
     ]);
   });
 
@@ -285,8 +372,14 @@ describe('PaymentFilters', () => {
       paymentMethods: [],
       cashiers: [],
       serviceTypes: [],
-      billStatus: PaymentStatus.PAID,
+      billStatus: '',
       patientUuid: 'patient-uuid',
     });
+  });
+
+  it('defaults the bill status filter to all', () => {
+    render(<PaymentFilters />);
+
+    expect(screen.getByLabelText('Bill Status')).toHaveValue('');
   });
 });

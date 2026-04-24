@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
 import dayjs from 'dayjs';
-import { type MappedBill, PaymentStatus, type Timesheet, type Filter } from '../../types';
+import { type MappedBill, type Timesheet, type Filter } from '../../types';
 import { useBills } from '../../billing.resource';
 
 interface PaymentFilterContextType {
@@ -44,7 +44,7 @@ export const PaymentFilterContext = createContext<PaymentFilterContextType>({
     paymentMethods: [],
     cashiers: [],
     serviceTypes: [],
-    billStatus: PaymentStatus.PAID,
+    billStatus: '',
     patientUuid: '',
   },
   setFilters: () => {},
@@ -62,17 +62,12 @@ export const PaymentFilterProvider = ({ children }: PaymentFilterProviderProps) 
     paymentMethods: [],
     cashiers: [],
     serviceTypes: [],
-    billStatus: PaymentStatus.PAID,
+    billStatus: '',
     patientUuid: '',
   };
   const [filters, setFilters] = useState<Filter>(defaultFilters);
 
-  const billsResponse = useBills(
-    filters.patientUuid ?? '',
-    filters.billStatus || PaymentStatus.PAID,
-    dateRange[0],
-    dateRange[1],
-  );
+  const billsResponse = useBills(filters.patientUuid ?? '', filters.billStatus ?? '', dateRange[0], dateRange[1]);
   const { bills, isLoading, error } = billsResponse;
 
   const resetFilters = () => {

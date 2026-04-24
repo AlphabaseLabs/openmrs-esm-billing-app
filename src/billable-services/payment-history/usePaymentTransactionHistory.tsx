@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { useBills } from '../../billing.resource';
-import { PaymentStatus, type Filter } from '../../types';
+import { type Filter } from '../../types';
 import { filterBills } from './filters/bill-filter';
 import { usePaymentFilterContext } from './usePaymentFilterContext';
 
@@ -17,7 +17,7 @@ export const usePaymentTransactionHistory = (filters: Filter) => {
   const { dateRange } = usePaymentFilterContext();
   const { bills, isLoading, isValidating, error } = useBills(
     filters.patientUuid ?? '',
-    filters.billStatus || PaymentStatus.PAID,
+    filters.billStatus ?? '',
     dayjs(dateRange[0]).startOf('day').toDate(),
     dayjs(dateRange[1]).endOf('day').toDate(),
   );
