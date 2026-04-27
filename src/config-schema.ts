@@ -1,6 +1,7 @@
 import { type ConfigSchema, Type } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
+  chargeServiceFormUseClinicalServiceConcepts: boolean;
   enforceBillPayment: boolean;
   /**
    * Whether billing UI flows should require an active visit before allowing users to add/edit bills.
@@ -35,6 +36,7 @@ export interface BillingConfig {
   insurancePaymentMethod: string;
   mobileMoneyPaymentModeUUID: string;
   concepts: {
+    chargeServiceConceptClassUuid: string;
     emergencyPriorityConceptUuid: string;
     serviceConceptSetUuid: string;
     salesTaxConceptSetUuid: string;
@@ -52,6 +54,12 @@ export interface BillingConfig {
 }
 
 export const configSchema: ConfigSchema = {
+  chargeServiceFormUseClinicalServiceConcepts: {
+    _type: Type.Boolean,
+    _default: false,
+    _description:
+      'Whether the charge service form should source services from the configured OpenMRS concept class search and derive name/short name from the selected concept.',
+  },
   enforceBillPayment: {
     _type: Type.Boolean,
     _default: false,
@@ -215,6 +223,12 @@ export const configSchema: ConfigSchema = {
     _default: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
   },
   concepts: {
+    chargeServiceConceptClassUuid: {
+      _type: Type.String,
+      _description:
+        'The concept class uuid used to search selectable charge services for the configurable charge service form',
+      _default: '0dcf23d4-3008-4d8e-b12c-4ec95d1cfd99',
+    },
     emergencyPriorityConceptUuid: {
       _type: Type.String,
       _description: 'The concept uuid for emergency priority',

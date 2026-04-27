@@ -1,4 +1,4 @@
-import { type Concept, OpenmrsResource, openmrsFetch, useConfig } from '@openmrs/esm-framework';
+import { type Concept, openmrsFetch, useConfig } from '@openmrs/esm-framework';
 import useSWR from 'swr';
 import { type ServiceConcept, type ServiceTypesResponse } from '../types';
 import { type ChargeAble } from './billables/charge-summary.resource';
@@ -71,17 +71,36 @@ export const deleteBillableService = (uuid: string) => {
   });
 };
 
-export function useConceptsSearch(conceptToLookup: string) {
-  const conditionsSearchUrl = `/ws/rest/v1/conceptsearch?q=${conceptToLookup}`;
+interface UseConceptsSearchOptions {
+  conceptClassUuid?: string;
+}
 
+const conceptSearchRepresentation =
+  'custom:(display,concept:(uuid,display,conceptClass:(uuid,display),name:(uuid,display,name,conceptNameType),names:(uuid,display,name,conceptNameType)),conceptName:(uuid,display,name,conceptNameType))';
+
+export function useConceptsSearch(conceptToLookup: string, options: UseConceptsSearchOptions = {}) {
+  const searchParams = new URLSearchParams({
+    v: conceptSearchRepresentation,
+  });
+
+  if (options.conceptClassUuid) {
+    searchParams.set('conceptClasses', options.conceptClassUuid);
+  }
+
+  if (conceptToLookup.trim()) {
+    searchParams.set('q', conceptToLookup);
+  }
+
+  const shouldSearch = Boolean(conceptToLookup.trim() || options.conceptClassUuid);
+  const conditionsSearchUrl = `/ws/rest/v1/conceptsearch?${searchParams.toString()}`;
   const { data, error, isLoading } = useSWR<{ data: { results: Array<ServiceConcept> } }, Error>(
-    conceptToLookup ? conditionsSearchUrl : null,
+    shouldSearch ? conditionsSearchUrl : null,
     openmrsFetch,
   );
 
   return {
     searchResults: data?.data?.results ?? [],
-    error: error,
+    error,
     isSearching: isLoading,
   };
 }

@@ -187,13 +187,33 @@ export interface FacilityDetail {
   display: string;
 }
 
+export type ConceptNameType =
+  | {
+      uuid?: string;
+      display?: string;
+    }
+  | string;
+
+export type ConceptNameReference = {
+  uuid?: string;
+  display?: string;
+  name?: string;
+  conceptNameType?: ConceptNameType;
+};
+
 export type ServiceConcept = {
-  uuid: any;
+  uuid?: string;
   concept: {
     uuid: string;
     display: string;
+    conceptClass?: {
+      uuid?: string;
+      display?: string;
+    };
+    names?: Array<ConceptNameReference>;
+    name?: ConceptNameReference;
   };
-  conceptName: {
+  conceptName: ConceptNameReference & {
     uuid: string;
     display: string;
   };
