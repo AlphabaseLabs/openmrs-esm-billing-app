@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useTranslation } from 'react-i18next';
-import { useLayoutType, usePagination, showModal, type LayoutType } from '@openmrs/esm-framework';
+import { showModal, useLayoutType, usePagination, type LayoutType } from '@openmrs/esm-framework';
 import ChargeSummaryTable from './charge-summary-table.component';
 import { useChargeSummaries, type ChargeAble } from './charge-summary.resource';
 import { downloadExcelTemplateFile } from './form-helper';
@@ -63,6 +63,7 @@ describe('ChargeSummaryTable', () => {
   const mockUseChargeSummaries = useChargeSummaries as jest.MockedFunction<typeof useChargeSummaries>;
 
   beforeEach(() => {
+    mockLaunchWorkspace.mockReset();
     mockUseLayoutType.mockReturnValue('desktop' as LayoutType);
     mockUsePagination.mockReturnValue({
       results: mockChargeSummaryItems,
@@ -161,26 +162,23 @@ describe('ChargeSummaryTable', () => {
 
     const overflowMenu = screen.getAllByRole('img', { name: 'Options' })[0];
     await user.click(overflowMenu);
-
-    const editButton = screen.getByText('Edit charge item');
-    await user.click(editButton);
-
-    expect(mockLaunchWorkspace).toHaveBeenCalledWith('billable-service-form', {
-      initialValues: mockChargeSummaryItems[0],
-    });
+    expect(screen.queryByText('Edit charge item')).not.toBeInTheDocument();
+    expect(mockLaunchWorkspace).not.toHaveBeenCalled();
   });
 
   test('handles edit commodity action', async () => {
     const user = userEvent.setup();
     render(<ChargeSummaryTable />);
 
-    const overflowMenu = screen.getAllByRole('img', { name: 'Options' })[0];
+    const overflowMenu = screen.getAllByRole('img', { name: 'Options' })[1];
     await user.click(overflowMenu);
 
     const editButton = screen.getByText('Edit charge item');
     await user.click(editButton);
 
-    expect(mockLaunchWorkspace).toHaveBeenCalled();
+    expect(mockLaunchWorkspace).toHaveBeenCalledWith('commodity-form', {
+      initialValues: mockChargeSummaryItems[1],
+    });
   });
 
   test('handles delete action', async () => {

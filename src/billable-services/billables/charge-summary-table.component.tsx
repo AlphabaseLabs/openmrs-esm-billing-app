@@ -18,7 +18,7 @@ import {
   TableToolbarContent,
   TableToolbarSearch,
 } from '@carbon/react';
-import { CategoryAdd, Download, Upload, WatsonHealthScalpelSelect } from '@carbon/react/icons';
+import { Download, Upload, WatsonHealthScalpelSelect } from '@carbon/react/icons';
 import { ErrorState, showModal, useLayoutType, usePagination } from '@openmrs/esm-framework';
 import { EmptyState, usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import React, { type ChangeEvent, useMemo, useState } from 'react';
@@ -90,16 +90,10 @@ const ChargeSummaryTable: React.FC = () => {
     });
   };
 
-  const handleEdit = (service) => {
-    if (service?.serviceType?.display) {
-      launchBillingWorkspace('billable-service-form', {
-        initialValues: service,
-      });
-    } else {
-      launchBillingWorkspace('commodity-form', {
-        initialValues: service,
-      });
-    }
+  const handleEdit = (service: ChargeAble) => {
+    launchBillingWorkspace('commodity-form', {
+      initialValues: service,
+    });
   };
 
   const openBulkUploadModal = () => {
@@ -144,11 +138,6 @@ const ChargeSummaryTable: React.FC = () => {
                 )}
                 <ComboButton tooltipAlignment="left" label={t('actions', 'Action')}>
                   <MenuItem
-                    renderIcon={CategoryAdd}
-                    onClick={() => launchBillingWorkspace('billable-service-form')}
-                    label={t('addServiceChargeItem', 'Add charge service')}
-                  />
-                  <MenuItem
                     renderIcon={WatsonHealthScalpelSelect}
                     onClick={() => launchBillingWorkspace('commodity-form')}
                     label={t('addCommodityChargeItem', 'Add charge item')}
@@ -189,12 +178,14 @@ const ChargeSummaryTable: React.FC = () => {
                     ))}
                     <TableCell className="cds--table-column-menu">
                       <OverflowMenu size={size} flipped>
+                        {results[index]?.stockItem?.uuid ? (
+                          <OverflowMenuItem
+                            itemText={t('editChargeItem', 'Edit charge item')}
+                            onClick={() => handleEdit(results[index])}
+                          />
+                        ) : null}
                         <OverflowMenuItem
-                          itemText={t('editChargeItem', 'Edit charge item')}
-                          onClick={() => handleEdit(results[index])}
-                        />
-                        <OverflowMenuItem
-                          hasDivider
+                          hasDivider={Boolean(results[index]?.stockItem?.uuid)}
                           isDelete
                           itemText={t('deleteChargeItem', 'Delete charge item')}
                           onClick={() => handleDelete(results[index])}
