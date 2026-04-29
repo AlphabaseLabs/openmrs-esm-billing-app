@@ -26,9 +26,7 @@ export const billableFormSchema = z.object({
   serviceType: z.object({ uuid: z.string(), display: z.string() }),
   servicePrices: z.array(servicePriceSchema).min(1, 'At least one price is required'),
   serviceStatus: z.enum(['ENABLED', 'DISABLED']),
-  concept: ServiceConceptSchema.nullable().refine((value) => value !== null, {
-    message: 'Service concept is required',
-  }),
+  concept: ServiceConceptSchema,
   serviceTax: z.object({ uuid: z.string(), display: z.string() }).nullable().optional(),
   stockItem: z.string().nullable().optional(),
 });

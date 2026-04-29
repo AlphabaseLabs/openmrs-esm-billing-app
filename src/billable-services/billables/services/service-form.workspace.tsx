@@ -22,7 +22,6 @@ import {
   type Workspace2DefinitionProps,
   showSnackbar,
   restBaseUrl,
-  useConfig,
 } from '@openmrs/esm-framework';
 
 import {
@@ -39,81 +38,10 @@ import styles from './service-form.scss';
 import { formatBillableServicePayloadForSubmission, mapInputToPayloadSchema } from '../form-helper';
 import ConceptSearch from './concept-search.component';
 import { handleMutate } from '../../utils';
-import useBillableServices from '../../../hooks/useBillableServices';
-import type { BillingConfig } from '../../../config-schema';
-import type { ConceptNameType, ServiceConcept } from '../../../types';
 
 interface AddServiceFormProps {
   initialValues?: BillableFormSchema;
 }
-
-type ServiceConceptInput = {
-  uuid?: string;
-  display?: string;
-  concept?: Partial<ServiceConcept['concept']>;
-  conceptName?: Partial<ServiceConcept['conceptName']>;
-};
-
-const normalizeServiceConcept = (concept?: ServiceConceptInput | null): ServiceConcept | null => {
-  const conceptUuid = concept?.concept?.uuid ?? concept?.conceptName?.uuid ?? concept?.uuid;
-  const conceptDisplay = concept?.concept?.display ?? concept?.conceptName?.display ?? concept?.display ?? '';
-
-  if (!conceptUuid || !conceptDisplay) {
-    return null;
-  }
-
-  return {
-    uuid: concept?.uuid ?? conceptUuid,
-    concept: {
-      uuid: conceptUuid,
-      display: conceptDisplay,
-      conceptClass: concept?.concept?.conceptClass,
-      names: concept?.concept?.names,
-    },
-    conceptName: {
-      uuid: concept?.conceptName?.uuid ?? conceptUuid,
-      display: concept?.conceptName?.display ?? conceptDisplay,
-      name: concept?.conceptName?.name,
-      conceptNameType: concept?.conceptName?.conceptNameType,
-    },
-    display: concept?.display ?? conceptDisplay,
-  };
-};
-
-const getConceptDisplay = (concept?: ServiceConceptInput | null) =>
-  concept?.concept?.display ?? concept?.conceptName?.display ?? concept?.display ?? '';
-
-const getConceptNameTypeDisplay = (conceptNameType?: ConceptNameType) =>
-  typeof conceptNameType === 'string' ? conceptNameType : (conceptNameType?.display ?? '');
-
-const getConceptShortName = (concept?: ServiceConceptInput | null) =>
-  concept?.concept?.names?.find((name) =>
-    getConceptNameTypeDisplay(name?.conceptNameType).toLowerCase().includes('short'),
-  )?.name ??
-  concept?.concept?.names?.find((name) =>
-    getConceptNameTypeDisplay(name?.conceptNameType).toLowerCase().includes('short'),
-  )?.display ??
-  getConceptDisplay(concept);
-
-const getSubmissionErrorMessage = (error: any, fallbackMessage: string) => {
-  const responseErrorMessage = error?.responseBody?.error?.message;
-
-  if (typeof responseErrorMessage === 'string' && responseErrorMessage.trim()) {
-    return responseErrorMessage.trim();
-  }
-
-  if (typeof error?.message === 'string' && error.message.trim()) {
-    return error.message.trim();
-  }
-
-  return fallbackMessage;
-};
-
-const isDuplicateServiceNameError = (errorMessage: string) => {
-  const normalizedMessage = errorMessage.toLowerCase();
-
-  return normalizedMessage.includes('another service with name') || normalizedMessage.includes('already exists');
-};
 
 const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> = ({
   closeWorkspace,
@@ -121,20 +49,15 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
 }) => {
   const { t } = useTranslation();
   const { initialValues } = workspaceProps ?? {};
-  const { chargeServiceFormUseClinicalServiceConcepts: isClinicalServiceConceptMode, concepts: billingConcepts } =
-    useConfig<BillingConfig>();
   const isTablet = useLayoutType() === 'tablet';
   const [conceptToLookup, setConceptLookupValue] = useState('');
   const debouncedConceptToLookup = useDebounce(conceptToLookup, 500);
-  const [selectedConcept, setSelectedConcept] = useState<ServiceConcept | null>(null);
+  const [selectedConcept, setSelectedConcept] = useState<any>(null);
   const inEditMode = !!initialValues;
 
   const { isLoading: isLoadingServiceTypes, serviceTypes } = useServiceTypes();
   const { isLoading: isLoadingSalesTaxes, salesTaxes } = useSalesTaxes();
-  const { billableServices, isLoading: isLoadingBillableServices } = useBillableServices();
-  const { isSearching, searchResults: concepts } = useConceptsSearch(debouncedConceptToLookup, {
-    conceptClassUuid: isClinicalServiceConceptMode ? billingConcepts.chargeServiceConceptClassUuid : undefined,
-  });
+  const { isSearching, searchResults: concepts } = useConceptsSearch(debouncedConceptToLookup);
   const formMethods = useForm<BillableFormSchema>({
     resolver: zodResolver(billableFormSchema),
     defaultValues: initialValues
@@ -152,9 +75,6 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
 
   const {
     setValue,
-    watch,
-    setError,
-    clearErrors,
     control,
     handleSubmit,
     trigger,
@@ -163,14 +83,10 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
   } = formMethods;
 
   useEffect(() => {
-    if (!initialValues) {
-      return;
+    if (initialValues) {
+      setConceptLookupValue(initialValues.concept?.concept?.display ?? '');
+      trigger();
     }
-
-    const initialConcept = normalizeServiceConcept(initialValues.concept);
-    setSelectedConcept(initialConcept);
-    setConceptLookupValue(getConceptDisplay(initialConcept));
-    trigger();
   }, [initialValues, trigger]);
 
   // When editing: resolve sales tax label from concept set once options have loaded
@@ -192,56 +108,11 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
     name: 'servicePrices',
   });
 
-  const serviceName = watch('name');
-  const duplicateServiceNameMessage = useMemo(() => {
-    const normalizedServiceName = serviceName?.trim().toLowerCase();
-
-    if (!normalizedServiceName || isLoadingBillableServices) {
-      return '';
-    }
-
-    const duplicateServiceExists = billableServices.some(
-      (service) =>
-        service.uuid !== initialValues?.['uuid'] && service.name?.trim().toLowerCase() === normalizedServiceName,
-    );
-
-    return duplicateServiceExists ? t('duplicateServiceNameError', 'A service with this name already exists.') : '';
-  }, [billableServices, initialValues, isLoadingBillableServices, serviceName, t]);
-
-  const syncDerivedConceptFields = useCallback(
-    (
-      concept: ServiceConcept | null,
-      {
-        shouldValidate,
-        shouldDirty,
-        syncServiceName = !inEditMode,
-      }: { shouldValidate: boolean; shouldDirty: boolean; syncServiceName?: boolean },
-    ) => {
-      if (!isClinicalServiceConceptMode) {
-        return;
-      }
-
-      if (concept && syncServiceName) {
-        setValue('name', getConceptDisplay(concept), { shouldDirty, shouldValidate });
-      }
-
-      setValue('shortName', concept ? getConceptShortName(concept) : '', { shouldDirty, shouldValidate: false });
-    },
-    [inEditMode, isClinicalServiceConceptMode, setValue],
-  );
-
-  const handleSelectConcept = useCallback(
-    (concept: ServiceConcept | null) => {
-      const conceptDisplay = getConceptDisplay(concept);
-      const shouldValidate = Boolean(concept);
-
-      setSelectedConcept(concept);
-      setValue('concept', concept, { shouldDirty: true, shouldValidate });
-      setConceptLookupValue(conceptDisplay);
-      syncDerivedConceptFields(concept, { shouldValidate, shouldDirty: true });
-    },
-    [setValue, syncDerivedConceptFields],
-  );
+  const handleSelectConcept = (concept) => {
+    setSelectedConcept(concept);
+    setValue('concept', concept);
+    setConceptLookupValue(concept?.concept?.display ?? '');
+  };
 
   /**
    * Same API as pre-migration `setConceptToLookup`, but clears the picked concept when the user
@@ -251,61 +122,17 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
     (value: string) => {
       setConceptLookupValue(value);
       if (selectedConcept) {
-        const display = getConceptDisplay(selectedConcept);
+        const display = selectedConcept?.concept?.display ?? '';
         if (value !== display) {
           setSelectedConcept(null);
-          setValue('concept', null, { shouldDirty: true, shouldValidate: false });
-          syncDerivedConceptFields(null, { shouldValidate: false, shouldDirty: true });
+          setValue('concept', null, { shouldDirty: true, shouldValidate: true });
         }
       }
     },
-    [selectedConcept, setValue, syncDerivedConceptFields],
+    [selectedConcept, setValue],
   );
 
-  useEffect(() => {
-    if (!isClinicalServiceConceptMode || !selectedConcept?.concept?.uuid || !concepts?.length) {
-      return;
-    }
-
-    const matchingConcept = concepts.find((concept) => concept.concept.uuid === selectedConcept.concept.uuid);
-    if (!matchingConcept) {
-      return;
-    }
-
-    const selectedConceptShortName = getConceptShortName(selectedConcept);
-    const matchingConceptShortName = getConceptShortName(matchingConcept);
-    const hasEquivalentConceptData =
-      selectedConceptShortName === matchingConceptShortName &&
-      selectedConcept.concept.display === matchingConcept.concept.display;
-
-    if (hasEquivalentConceptData) {
-      return;
-    }
-
-    setSelectedConcept(matchingConcept);
-    setValue('concept', matchingConcept, { shouldDirty: false, shouldValidate: false });
-    syncDerivedConceptFields(matchingConcept, {
-      shouldValidate: false,
-      shouldDirty: false,
-      syncServiceName: false,
-    });
-  }, [concepts, isClinicalServiceConceptMode, selectedConcept, setValue, syncDerivedConceptFields]);
-
-  useEffect(() => {
-    if (!duplicateServiceNameMessage && errors.name?.type === 'duplicate') {
-      clearErrors('name');
-    }
-  }, [clearErrors, duplicateServiceNameMessage, errors.name?.type]);
-
   const onSubmit = async (data: BillableFormSchema) => {
-    if (duplicateServiceNameMessage) {
-      setError('name', {
-        type: 'duplicate',
-        message: duplicateServiceNameMessage,
-      });
-      return;
-    }
-
     const formPayload = formatBillableServicePayloadForSubmission(data, initialValues?.['uuid']);
     try {
       const response = await createBillableService(formPayload, initialValues?.['uuid']);
@@ -326,10 +153,8 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
         closeWorkspace({ discardUnsavedChanges: true });
       }
     } catch (e) {
-      const backendErrorMessage = getSubmissionErrorMessage(e, t('unknownError', 'Unknown error occurred'));
-      const errorMessage = isDuplicateServiceNameError(backendErrorMessage)
-        ? t('duplicateServiceNameError', 'A service with this name already exists.')
-        : backendErrorMessage;
+      const formSchemaError = JSON.stringify(e, null, 2);
+      const errorMessage = e?.servicePrices?.root?.message || 'Unknown error occurred';
       showSnackbar({
         title: t('serviceCreationFailed', 'Service creation failed'),
         subtitle: t('serviceCreationFailedSubtitle', 'The service creation failed: {{errorMessage}}', {
@@ -390,25 +215,9 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
                 <InlineNotification
                   kind="error"
                   title={t('conceptMissing', 'Concept missing')}
-                  subtitle={t('conceptMissingSubtitle', 'Please select a service concept')}
+                  subtitle={t('conceptMissingSubtitle', 'Please select a stock item')}
                 />
               )}
-              {isClinicalServiceConceptMode ? (
-                <ResponsiveWrapper>
-                  <ComboBox
-                    id="serviceConcept"
-                    titleText={t('serviceConcept', 'Service concept')}
-                    items={concepts ?? []}
-                    itemToString={(item: ServiceConcept | null) => getConceptDisplay(item)}
-                    selectedItem={selectedConcept}
-                    onInputChange={(value) => setConceptToLookup(value ?? '')}
-                    onChange={({ selectedItem }) => handleSelectConcept((selectedItem as ServiceConcept) ?? null)}
-                    placeholder={t('selectChargeService', 'Search for service')}
-                    invalid={!!errors.concept}
-                    invalidText={errors?.concept?.message}
-                  />
-                </ResponsiveWrapper>
-              ) : null}
               <ResponsiveWrapper>
                 <Controller
                   name="name"
@@ -419,8 +228,8 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
                       {...field}
                       type="text"
                       labelText={t('serviceName', 'Service name')}
-                      invalid={!!errors.name || !!duplicateServiceNameMessage}
-                      invalidText={duplicateServiceNameMessage || errors?.name?.message}
+                      invalid={!!errors.name}
+                      invalidText={errors?.name?.message}
                     />
                   )}
                 />
@@ -435,7 +244,6 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
                       {...field}
                       type="text"
                       labelText={t('serviceShortName', 'Service short name')}
-                      readOnly={isClinicalServiceConceptMode}
                       invalid={!!errors.shortName}
                       invalidText={errors?.shortName?.message}
                     />
@@ -443,17 +251,15 @@ const AddServiceForm: React.FC<Workspace2DefinitionProps<AddServiceFormProps>> =
                 />
               </ResponsiveWrapper>
 
-              {!isClinicalServiceConceptMode ? (
-                <ConceptSearch
-                  setConceptToLookup={setConceptToLookup}
-                  conceptToLookup={conceptToLookup}
-                  defaultValues={defaultValues}
-                  errors={errors}
-                  isSearching={isSearching}
-                  concepts={concepts}
-                  handleSelectConcept={handleSelectConcept}
-                />
-              ) : null}
+              <ConceptSearch
+                setConceptToLookup={setConceptToLookup}
+                conceptToLookup={conceptToLookup}
+                defaultValues={defaultValues}
+                errors={errors}
+                isSearching={isSearching}
+                concepts={concepts}
+                handleSelectConcept={handleSelectConcept}
+              />
 
               <ResponsiveWrapper>
                 <Controller
