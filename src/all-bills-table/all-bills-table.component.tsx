@@ -116,7 +116,9 @@ const combineTotalCounts = (...counts: Array<number | null>) =>
 const hasActiveRequest = (...states: Array<boolean>) => states.some(Boolean);
 
 const matchesSearch = (bill: MappedBill, searchTerm: string) =>
-  [bill.patientName, bill.identifier, bill.receiptNumber].some((value) => value?.toLowerCase().includes(searchTerm));
+  [bill.patientName, bill.identifier, bill.receiptNumber, getBilledItems(bill)].some((value) =>
+    value?.toLowerCase().includes(searchTerm),
+  );
 
 function useBillTableData({
   billStatus,
@@ -638,7 +640,7 @@ function FilterableTableHeader({
           labelText=""
           placeholder={t(
             'filterBillsByPatientNameIdentifierOrInvoiceNumber',
-            'Filter bills by patient name, identifier, or invoice number',
+            'Filter bills by patient name, identifier, invoice number, or billed items',
           )}
           onChange={handleSearch}
           onClear={handleClearSearch}

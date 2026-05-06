@@ -14,11 +14,11 @@ import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.c
 import Invoice from '../invoice/invoice.component';
 import { launchCreateBillWorkspace } from '../workspaces';
 
-type BillingActionKey = 'overview' | 'payment-history' | 'bill-manager' | 'charge-items';
+type BillingActionKey = 'overview' | 'billing-history' | 'bill-manager' | 'charge-items';
 
 function getBillingActionFromPath(pathname: string): BillingActionKey {
-  if (pathname.endsWith('/payment-history')) {
-    return 'payment-history';
+  if (pathname.endsWith('/billing-history') || pathname.endsWith('/payment-history')) {
+    return 'billing-history';
   }
 
   if (pathname.endsWith('/bill-manager')) {
@@ -52,8 +52,8 @@ function BillingDashboard() {
 
   const getPageTitle = (action: BillingActionKey) => {
     switch (action) {
-      case 'payment-history':
-        return t('paymentHistory', 'Payment History');
+      case 'billing-history':
+        return t('billingHistory', 'Billing History');
       case 'bill-manager':
         return t('billManager', 'Bill Manager');
       case 'charge-items':
@@ -93,8 +93,8 @@ function BillingDashboard() {
       setSelectedActionTitle(title ?? null);
 
       switch (nextAction) {
-        case 'payment-history':
-          navigate('/payment-history');
+        case 'billing-history':
+          navigate('/billing-history');
           break;
         case 'bill-manager':
           navigate('/bill-manager');
@@ -125,7 +125,7 @@ function BillingDashboard() {
 
   const renderInlinePage = () => {
     switch (selectedAction) {
-      case 'payment-history':
+      case 'billing-history':
         return <PaymentHistory showHeader={false} />;
       case 'bill-manager':
         return <BillManager showHeader={false} />;

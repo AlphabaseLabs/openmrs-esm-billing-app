@@ -113,8 +113,8 @@
       "order": 0
     },
     {
-      "component": "paymentHistoryLink",
-      "name": "payment-history-link",
+      "component": "billingHistoryLink",
+      "name": "billing-history-link",
       "slot": "billing-dashboard-actions-slot"
     },
     {

@@ -19,6 +19,7 @@ const RootComponent: React.FC = () => {
     <BrowserRouter basename={baseName}>
       <Routes>
         <Route path="/" element={<BillingDashboard />} />
+        <Route path="/billing-history" element={<BillingDashboard />} />
         <Route path="/payment-history" element={<BillingDashboard />} />
         <Route path="/bill-manager" element={<BillingDashboard />} />
         <Route path="/charge-items" element={<BillingDashboard />} />

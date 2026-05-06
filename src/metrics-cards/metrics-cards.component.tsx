@@ -20,8 +20,10 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     pendingBills,
     paidBills,
     exemptedBills,
+    totalDiscount,
     waivedBills,
     exemptedAmount,
+    waivedAmount,
     taxCollection,
     taxCollectionAmount,
   } = useBillMetrics(bills);
@@ -29,10 +31,14 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
   const cards = useMemo(() => {
     const allCards = [
       { title: t('totalBills', 'Total Bills'), count: totalBills },
-      { title: t('pendingBills', 'Pending Bills'), count: pendingBills },
+      { title: t('totalDue', 'Total Due'), count: pendingBills },
       { title: t('paidBills', 'Collection'), count: paidBills },
-      { title: t('waivedBills', 'Waived/Discounts Bills'), count: waivedBills },
+      { title: t('totalDiscount', 'Total Discount'), count: totalDiscount },
     ];
+
+    if (waivedAmount > 0) {
+      allCards.push({ title: t('waivedBills', 'Waived Bills'), count: waivedBills });
+    }
 
     // Only show exempted bills if the amount is greater than 0
     if (exemptedAmount > 0) {
@@ -55,9 +61,11 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     totalBills,
     paidBills,
     pendingBills,
+    totalDiscount,
     waivedBills,
     exemptedBills,
     exemptedAmount,
+    waivedAmount,
     taxCollection,
     taxCollectionAmount,
     t,

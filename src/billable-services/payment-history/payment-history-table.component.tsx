@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DataTable,
   Table,
@@ -14,7 +14,7 @@ import {
 } from '@carbon/react';
 import { Download } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
-import { useDebounce, useLayoutType, usePagination, navigate } from '@openmrs/esm-framework';
+import { useDebounce, useLayoutType, navigate } from '@openmrs/esm-framework';
 import { usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import { convertToCurrency } from '../../helpers/functions';
 import { type MappedBill } from '../../types';
@@ -33,13 +33,33 @@ export const PaymentHistoryTable = ({
 }) => {
   const { t } = useTranslation();
   const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const layout = useLayoutType();
   const controlSize = 'sm';
   const responsiveSize = layout !== 'tablet' ? 'sm' : 'md';
   const [searchString, setSearchString] = useState('');
   const debouncedSearchString = useDebounce(searchString, 1000);
-  const getColumnStyle = (columnKey: string) =>
-    columnKey === 'dateCreated' ? ({ inlineSize: '12rem', whiteSpace: 'nowrap' } as const) : undefined;
+  const getColumnStyle = (columnKey: string) => {
+    switch (columnKey) {
+      case 'dateCreated':
+        return { inlineSize: '12rem', whiteSpace: 'nowrap' } as const;
+      case 'receiptNumber':
+        return { inlineSize: '9rem', whiteSpace: 'nowrap' } as const;
+      case 'billingService':
+        return { inlineSize: '16rem' } as const;
+      default:
+        return undefined;
+    }
+  };
+
+  const getReferenceCodes = (row: MappedBill) =>
+    row.payments
+      .flatMap((payment) =>
+        payment.attributes
+          .filter(({ value }) => value?.trim())
+          .map(({ value }) => `${payment.instanceType?.name}: ${value}`),
+      )
+      .join(', ') || '--';
 
   const searchResults = useMemo(() => {
     if (rows !== undefined && rows.length > 0) {
@@ -59,30 +79,93 @@ export const PaymentHistoryTable = ({
     return rows;
   }, [debouncedSearchString, rows]);
 
-  const { currentPage, goTo, results } = usePagination(searchResults, pageSize);
-  const { pageSizes } = usePaginationInfo(pageSize, rows.length, currentPage, results.length);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchString]);
 
-  const transformedRows = results.map((row) => {
-    const totalPaid = row.payments
-      .filter((payment) => payment.instanceType?.name !== 'Waiver')
-      .reduce((acc, payment) => acc + payment.amountTendered, 0);
-    const totalWaived = row.totalWaived ?? 0;
+  const transformedRows = useMemo(
+    () =>
+      searchResults.map((row) => {
+        const totalAmount = Number(row.totalAmount ?? 0);
+        const totalPaid = row.payments
+          .filter((payment) => payment.instanceType?.name !== 'Waiver')
+          .reduce((acc, payment) => acc + payment.amountTendered, 0);
+        const totalDiscount = Number(row.billLineItemDiscounts ?? 0);
+        const amountDue = row.balance ?? totalAmount - totalPaid;
+        const serviceText = row.lineItems.map((item) => item.billableService).join(', ');
+        const trimmedServiceText =
+          serviceText.length > 60 ? `${serviceText.slice(0, 57).trimEnd()}...` : serviceText || '--';
 
-    return {
-      ...row,
-      id: `${row.id}`,
-      billingService: row.lineItems.map((item) => item.billableService).join(', '),
-      totalAmount: convertToCurrency(
-        row.totalAmount ?? row.payments.reduce((acc, payment) => acc + payment.amountTendered, 0),
-      ),
-      totalPaid: convertToCurrency(totalPaid),
-      totalWaived: convertToCurrency(totalWaived),
-      referenceCodes: row.payments
-        .map(({ attributes }) => attributes.map(({ value }) => value).join(', '))
-        .filter((code) => code !== '')
-        .join(', '),
-    };
-  });
+        return {
+          ...row,
+          id: `${row.id}`,
+          receiptNumber: row.receiptNumber ?? '--',
+          totalAmount: convertToCurrency(totalAmount),
+          totalDiscount: convertToCurrency(totalDiscount),
+          totalPaid: convertToCurrency(totalPaid),
+          amountDue: convertToCurrency(amountDue),
+          billingService: <span title={serviceText}>{trimmedServiceText}</span>,
+          referenceCodes: getReferenceCodes(row),
+        };
+      }),
+    [searchResults],
+  );
+
+  const pageStart = (currentPage - 1) * pageSize;
+  const currentItemsCount = Math.max(0, Math.min(pageSize, transformedRows.length - pageStart));
+  const { pageSizes } = usePaginationInfo(pageSize, transformedRows.length, currentPage, currentItemsCount);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(transformedRows.length / pageSize));
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, pageSize, transformedRows.length]);
+
+  const getCellText = (value: unknown) => {
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value);
+    }
+
+    if (React.isValidElement<{ children?: React.ReactNode }>(value)) {
+      const children = value.props.children;
+      if (typeof children === 'string' || typeof children === 'number') {
+        return String(children);
+      }
+      if (Array.isArray(children)) {
+        return children.join('');
+      }
+    }
+
+    return String(value ?? '');
+  };
+
+  const parseCurrencyValue = (value: unknown) => {
+    const normalizedValue = getCellText(value).replace(/[^0-9.-]/g, '');
+    return Number(normalizedValue || 0);
+  };
+
+  const parseDateValue = (value: unknown) => {
+    const parsedDate = dayjs(getCellText(value), 'DD-MMM-YYYY, hh:mm A', true);
+    return parsedDate.isValid() ? parsedDate.valueOf() : 0;
+  };
+
+  const sortRow = (cellA, cellB, { key, sortDirection, sortStates, compare }) => {
+    const compareValues = (firstValue: number, secondValue: number) =>
+      sortDirection === sortStates.ASC ? firstValue - secondValue : secondValue - firstValue;
+
+    switch (key) {
+      case 'dateCreated':
+        return compareValues(parseDateValue(cellA), parseDateValue(cellB));
+      case 'totalAmount':
+      case 'totalDiscount':
+      case 'totalPaid':
+      case 'amountDue':
+        return compareValues(parseCurrencyValue(cellA), parseCurrencyValue(cellB));
+      default:
+        return sortDirection === sortStates.ASC ? compare(cellA, cellB) : compare(cellB, cellA);
+    }
+  };
 
   const handleRowClick = (billUuid: string, patientUuid: string) => {
     const billingUrl = `${window.getOpenmrsSpaBase()}home/billing/patient/${patientUuid}/${billUuid}`;
@@ -112,40 +195,31 @@ export const PaymentHistoryTable = ({
 
     const data = rows.map((row) => {
       const summary = summarizeLineItems(row);
-      const baseAmount = row.totalAmountWithoutTaxAndDiscount ?? summary.base;
-      const discountAmount = row.totalDiscounts ?? row.billLineItemDiscounts ?? summary.discount;
-      const taxAmount = row.totalTax ?? summary.tax;
+      const discountAmount = row.billLineItemDiscounts ?? summary.discount;
       const totalAmount = row.totalAmount ?? summary.total;
       const totalPaid = row.payments
         .filter((payment) => payment.instanceType?.name !== 'Waiver')
         .reduce((acc, payment) => acc + payment.amountTendered, 0);
-      const totalWaived = row.totalWaived ?? 0;
+      const amountDue = row.balance ?? totalAmount - totalPaid;
 
       return {
-        'Receipt Number': row.receiptNumber,
-        'Patient ID': row.identifier,
-        'Patient Name': row.patientName,
-        'Base Amount': round2(baseAmount),
-        'Discount Amount': round2(discountAmount),
-        'Tax Amount': round2(taxAmount),
-        'Total Amount': round2(totalAmount),
-        'Total Paid': round2(totalPaid),
-        'Total Waived': round2(totalWaived),
-        'Date of Payment': row.payments[0]?.dateCreated ? dayjs(row.payments[0].dateCreated).format('DD-MM-YYYY') : '',
-        'Mode of Payment': row.payments
-          .map((payment: (typeof row.payments)[0]) => payment.instanceType?.name)
-          .filter(Boolean)
-          .join(', '),
-        'Reason/Reference': row.payments
-          .map(({ attributes }) => attributes.map(({ value }) => value).join(' '))
-          .filter((code) => code !== '')
-          .join(', '),
+        'Bill date': row.dateCreated,
+        'Invoice #': row.receiptNumber,
+        'Patient name': row.patientName,
+        Identifier: row.identifier,
+        'Total amount': round2(totalAmount),
+        'Total discount': round2(discountAmount),
+        'Total paid': round2(totalPaid),
+        'Amount due': round2(amountDue),
+        Status: row.status,
+        'Billed items': row.lineItems.map((item) => item.billableService).join(', '),
+        'Reference codes': getReferenceCodes(row),
       };
     });
 
     exportToExcel(data, {
-      fileName: `Transaction History - ${dayjs().format('DDD-MMM-YYYY:HH-mm-ss')}`,
-      sheetName: t('paymentHistory', 'Payment History'),
+      fileName: `Billing History - ${dayjs().format('DDD-MMM-YYYY:HH-mm-ss')}`,
+      sheetName: t('billingHistory', 'Billing History'),
     });
   };
 
@@ -154,8 +228,8 @@ export const PaymentHistoryTable = ({
       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
         <Search
           size={controlSize}
-          placeholder={t('searchTransactions', 'Search transactions table')}
-          labelText={t('searchTransactions', 'Search transactions table')}
+          placeholder={t('searchBillingHistory', 'Search billing history table')}
+          labelText={t('searchBillingHistory', 'Search billing history table')}
           closeButtonLabelText={t('clearSearch', 'Clear search input')}
           id="search-transactions"
           onChange={(event) => setSearchString(event.target.value)}
@@ -165,7 +239,7 @@ export const PaymentHistoryTable = ({
           {t('download', 'Download')}
         </Button>
       </div>
-      <DataTable useZebraStyles size="sm" rows={transformedRows} headers={headers}>
+      <DataTable useZebraStyles isSortable size="sm" rows={transformedRows} headers={headers} sortRow={sortRow}>
         {({ rows, headers, getHeaderProps, getRowProps, getTableProps, getTableContainerProps }) => (
           <TableContainer {...getTableContainerProps()}>
             <Table {...getTableProps()} size="sm" aria-label="sample table">
@@ -184,7 +258,7 @@ export const PaymentHistoryTable = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((row) => {
+                {rows.slice(pageStart, pageStart + pageSize).map((row) => {
                   const billData = transformedRows.find((tr) => tr.id === row.id);
                   return (
                     <TableRow
@@ -217,9 +291,7 @@ export const PaymentHistoryTable = ({
           totalItems={searchResults.length ?? 0}
           size={responsiveSize}
           onChange={({ page: newPage, pageSize }) => {
-            if (newPage !== currentPage) {
-              goTo(newPage);
-            }
+            setCurrentPage(newPage);
             setPageSize(pageSize);
           }}
         />

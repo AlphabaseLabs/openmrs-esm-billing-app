@@ -278,6 +278,78 @@ describe('AllBillsTable', () => {
     expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
   });
 
+  test('filters bills by billed items', async () => {
+    const user = userEvent.setup();
+    const hiddenBill = {
+      ...secondTestBill,
+      patientName: 'Service Match',
+      lineItems: [
+        {
+          billableService: 'service-uuid:Teeth Whitening',
+          item: 'service-uuid:Teeth Whitening',
+        },
+      ],
+    } as any;
+
+    mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
+      if (!enabled) {
+        return buildBillsResponse();
+      }
+
+      if (billStatus === 'PENDING') {
+        return buildBillsResponse([testBill]);
+      }
+
+      if (billStatus === 'POSTED') {
+        return buildBillsResponse();
+      }
+
+      return buildBillsResponse();
+    });
+    mockUseBills.mockImplementation((_patientUuid, billStatus, _startingDate, _endDate, enabled) => {
+      if (!enabled) {
+        return {
+          bills: [],
+          error: null,
+          isLoading: false,
+          isValidating: false,
+          mutate: jest.fn(),
+        };
+      }
+
+      if (billStatus === 'PENDING') {
+        return {
+          bills: [testBill, hiddenBill],
+          error: null,
+          isLoading: false,
+          isValidating: false,
+          mutate: jest.fn(),
+        };
+      }
+
+      return {
+        bills: [],
+        error: null,
+        isLoading: false,
+        isValidating: false,
+        mutate: jest.fn(),
+      };
+    });
+
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    expect(screen.queryByText('Service Match')).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole('searchbox'), 'teeth whitening');
+
+    expect(screen.getByText('Service Match')).toBeInTheDocument();
+    expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+  });
+
   test('keeps the search controls visible when a search has no matching bills', async () => {
     const user = userEvent.setup();
 

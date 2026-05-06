@@ -22,10 +22,10 @@ const PaymentDashboardContent = () => {
       <Layer className={styles.paymentDashboard}>
         <Tabs>
           <TabList
-            aria-label={t('listOfTabs', 'List of tabs on transactions')}
+            aria-label={t('listOfTabs', 'List of tabs on billing history')}
             className={styles.compactTabList}
             contained>
-            <Tab renderIcon={Dashboard}>{t('transactionHistory', 'Transaction History')}</Tab>
+            <Tab renderIcon={Dashboard}>{t('billingHistory', 'Billing History')}</Tab>
             <Tab renderIcon={CloudMonitoring}>{t('paymentModeSummary', 'Payment Mode Summary')}</Tab>
           </TabList>
           <TabPanels>

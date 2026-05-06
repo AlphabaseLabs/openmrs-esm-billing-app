@@ -109,11 +109,11 @@ export const billDepositDashboardLink = getSyncLifecycle(
   options,
 );
 
-// t('Payment History', 'Payment History')
-export const paymentHistoryLink = getSyncLifecycle(
+// t('Billing History', 'Billing History')
+export const billingHistoryLink = getSyncLifecycle(
   createBillingActionItem({
-    actionKey: 'payment-history',
-    title: 'Payment History',
+    actionKey: 'billing-history',
+    title: 'Billing History',
   }),
   options,
 );

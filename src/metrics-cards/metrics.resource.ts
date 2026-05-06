@@ -18,20 +18,26 @@ export const useBillMetrics = (
   pendingBills: string;
   paidBills: string;
   exemptedBills: string;
+  totalDiscount: string;
   waivedBills: string;
   exemptedAmount: number;
+  totalDiscountAmount: number;
+  waivedAmount: number;
   taxCollection: string;
   taxCollectionAmount: number;
 } => {
-  const { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, waivedTotal, taxTotal } =
+  const { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, discountTotal, waivedTotal, taxTotal } =
     calculateBillTotals(bills);
   return {
     totalBills: convertToCurrency(cumulativeTotal),
     pendingBills: convertToCurrency(pendingTotal),
     paidBills: convertToCurrency(paidTotal),
     exemptedBills: convertToCurrency(exemptedTotal),
+    totalDiscount: convertToCurrency(discountTotal),
     waivedBills: convertToCurrency(waivedTotal),
     exemptedAmount: exemptedTotal,
+    totalDiscountAmount: discountTotal,
+    waivedAmount: waivedTotal,
     taxCollection: convertToCurrency(taxTotal),
     taxCollectionAmount: taxTotal,
   };
@@ -42,36 +48,36 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
   let pendingTotal = 0;
   let cumulativeTotal = 0;
   let exemptedTotal = 0;
+  let discountTotal = 0;
   let waivedTotal = 0;
   let taxTotal = 0;
 
   bills.forEach((bill) => {
     const amount = Number(bill.totalAmount ?? 0);
+    const discountAmount = Number(bill.billLineItemDiscounts ?? 0);
     const waivedAmount = Number(bill.totalWaived ?? 0);
-    const actualPayments =
-      bill.payments?.length
-        ? bill.payments
-            .filter((payment) => payment.instanceType?.name !== 'Waiver')
-            .reduce((sum, payment) => sum + (Number(payment.amountTendered) || 0), 0)
-        : Number(bill.totalActualPayments ?? 0);
-    const balanceDue = Number(bill.balance ?? Math.max(0, amount - actualPayments));
+    const actualPayments = bill.payments?.length
+      ? bill.payments
+          .filter((payment) => payment.instanceType?.name !== 'Waiver')
+          .reduce((sum, payment) => sum + (Number(payment.amountTendered) || 0), 0)
+      : Number(bill.totalActualPayments ?? 0);
+    const pendingAmount = Math.max(0, amount - actualPayments - waivedAmount);
 
     // Collection: sum of all payments received (partial or full)
     paidTotal += actualPayments;
 
     if (bill.status === PaymentStatus.PAID) {
       taxTotal += Number(bill.totalTax ?? 0);
-    } else if (bill.status === PaymentStatus.PENDING) {
-      // Pending: amount still owed, not the full bill amount
-      pendingTotal += balanceDue;
     } else if (bill.status === PaymentStatus.EXEMPTED) {
       exemptedTotal += amount;
     }
+    pendingTotal += pendingAmount;
     cumulativeTotal += amount;
+    discountTotal += discountAmount;
     waivedTotal += waivedAmount;
   });
 
-  return { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, waivedTotal, taxTotal };
+  return { paidTotal, pendingTotal, cumulativeTotal, exemptedTotal, discountTotal, waivedTotal, taxTotal };
 };
 
 export default calculateBillTotals;

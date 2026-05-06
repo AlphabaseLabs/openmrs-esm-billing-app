@@ -483,10 +483,6 @@ export const PaymentFilters = () => {
             <SelectItem value="" text={t('all', 'All')} />
             <SelectItem value={PaymentStatus.PAID} text={t('paid', 'Paid')} />
             <SelectItem value={PaymentStatus.PENDING} text={t('pending', 'Pending')} />
-            <SelectItem value={PaymentStatus.CANCELLED} text={t('cancelled', 'Cancelled')} />
-            <SelectItem value={PaymentStatus.CREDITED} text={t('credited', 'Credited')} />
-            <SelectItem value={PaymentStatus.ADJUSTED} text={t('adjusted', 'Adjusted')} />
-            <SelectItem value={PaymentStatus.EXEMPTED} text={t('exempted', 'Exempted')} />
             <SelectItem value={PaymentStatus.POSTED} text={t('posted', 'Posted')} />
           </Select>
         </div>

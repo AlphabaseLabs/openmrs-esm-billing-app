@@ -36,7 +36,7 @@ export const filterBills = (bills: Array<MappedBill>, filters: Filter): Array<Ma
     (bill: MappedBill) => !cashiers.length || cashiers.includes(bill.cashier.uuid),
     (bill: MappedBill) => !status || bill.status === status,
     (bill: MappedBill) => !patientUuid || bill.patientUuid === patientUuid,
-    (bill: MappedBill) => bill.payments.length > 0,
+    (bill: MappedBill) => !paymentMethods.length || bill.payments.length > 0,
   ];
 
   return billsWithFilteredPayments.filter((bill) => otherFilters.every((filterFn) => filterFn(bill)));

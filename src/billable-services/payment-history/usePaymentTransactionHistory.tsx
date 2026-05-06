@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { useBills } from '../../billing.resource';
-import { type Filter } from '../../types';
+import { type Filter, type MappedBill } from '../../types';
 import { filterBills } from './filters/bill-filter';
 import { usePaymentFilterContext } from './usePaymentFilterContext';
 
@@ -13,6 +13,16 @@ function extractServiceName(billableService: string): string {
   return parts[0].trim().match(uuidPattern) ? parts[1].trim() : parts[0].trim();
 }
 
+function getLatestPaymentTimestamp(bill: MappedBill) {
+  const paymentTimestamps =
+    bill.payments
+      ?.filter((payment) => !payment.voided && payment.dateCreated)
+      .map((payment) => dayjs(payment.dateCreated).valueOf()) ?? [];
+  const fallbackTimestamp = dayjs(bill.dateCreatedUnformatted ?? bill.dateCreated).valueOf();
+
+  return paymentTimestamps.length ? Math.max(...paymentTimestamps) : fallbackTimestamp;
+}
+
 export const usePaymentTransactionHistory = (filters: Filter) => {
   const { dateRange } = usePaymentFilterContext();
   const { bills, isLoading, isValidating, error } = useBills(
@@ -22,7 +32,7 @@ export const usePaymentTransactionHistory = (filters: Filter) => {
     dayjs(dateRange[1]).endOf('day').toDate(),
   );
 
-  const filteredBills = filterBills(bills ?? [], filters).map((bill) => ({
+  const normalizedBills = (bills ?? []).map((bill) => ({
     ...bill,
     lineItems: bill.lineItems.map((item) => ({
       ...item,
@@ -30,5 +40,10 @@ export const usePaymentTransactionHistory = (filters: Filter) => {
     })),
   }));
 
-  return { bills: filteredBills, isLoading, isValidating, error };
+  const filteredBills = filterBills(normalizedBills, filters);
+  const sortedBills = filteredBills
+    .slice()
+    .sort((leftBill, rightBill) => getLatestPaymentTimestamp(rightBill) - getLatestPaymentTimestamp(leftBill));
+
+  return { bills: sortedBills, isLoading, isValidating, error };
 };

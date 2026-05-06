@@ -12,7 +12,7 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ showHeader = tru
 
   return (
     <div>
-      {showHeader ? <BillingHeader title={t('paymentHistory', 'Payment History')} /> : null}
+      {showHeader ? <BillingHeader title={t('billingHistory', 'Billing History')} /> : null}
       <PaymentDashboard />
     </div>
   );

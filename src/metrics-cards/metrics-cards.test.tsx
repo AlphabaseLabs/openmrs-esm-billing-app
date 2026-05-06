@@ -40,6 +40,7 @@ describe('MetricsCards', () => {
               },
             ],
             totalAmount: 100,
+            billLineItemDiscounts: 15,
             totalWaived: 10,
             totalActualPayments: 100,
             totalTax: 5,
@@ -62,6 +63,7 @@ describe('MetricsCards', () => {
             billingService: 'Laboratory',
             payments: [],
             totalAmount: 50,
+            billLineItemDiscounts: 5,
             totalWaived: 0,
             totalActualPayments: 0,
             totalTax: 0,
@@ -72,15 +74,53 @@ describe('MetricsCards', () => {
     );
 
     expect(screen.getByText('Total Bills')).toBeInTheDocument();
-    expect(screen.getByText('Pending Bills')).toBeInTheDocument();
+    expect(screen.getByText('Total Due')).toBeInTheDocument();
     expect(screen.getByText('Collection')).toBeInTheDocument();
-    expect(screen.getByText('Waived/Discounts Bills')).toBeInTheDocument();
+    expect(screen.getByText('Total Discount')).toBeInTheDocument();
+    expect(screen.getByText('Waived Bills')).toBeInTheDocument();
     expect(screen.getByText('Tax Collection')).toBeInTheDocument();
     expect(screen.getByText('Total Bills').closest('.cds--tile')).toHaveTextContent('150.00');
-    expect(screen.getByText('Pending Bills').closest('.cds--tile')).toHaveTextContent('50.00');
+    expect(screen.getByText('Total Due').closest('.cds--tile')).toHaveTextContent('110.00');
     expect(screen.getByText('Collection').closest('.cds--tile')).toHaveTextContent('30.00');
-    expect(screen.getByText('Waived/Discounts Bills').closest('.cds--tile')).toHaveTextContent('10.00');
+    expect(screen.getByText('Total Discount').closest('.cds--tile')).toHaveTextContent('20.00');
+    expect(screen.getByText('Waived Bills').closest('.cds--tile')).toHaveTextContent('10.00');
     expect(screen.getByText('Tax Collection').closest('.cds--tile')).toHaveTextContent('5.00');
+  });
+
+  test('hides the waived bills metric when there is no waived amount', () => {
+    render(
+      <MetricsCards
+        bills={[
+          {
+            id: 1,
+            uuid: 'pending-bill',
+            patientUuid: 'patient-1',
+            patientName: 'Jane Doe',
+            cashPointUuid: 'cash-point',
+            cashPointName: 'Main Cash Point',
+            cashPointLocation: 'Main Facility',
+            cashier: { uuid: 'cashier-1', display: 'Cashier 1', links: [] },
+            receiptNumber: 'REC-001',
+            status: 'PENDING' as any,
+            identifier: 'PAT-001',
+            dateCreated: '01-Jan-2026, 08:00 AM',
+            dateCreatedUnformatted: '2026-01-01T08:00:00.000Z',
+            lineItems: [],
+            billingService: 'Consultation',
+            payments: [],
+            totalAmount: 100,
+            billLineItemDiscounts: 15,
+            totalWaived: 0,
+            totalActualPayments: 0,
+            totalTax: 0,
+            balance: 100,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText('Waived Bills')).not.toBeInTheDocument();
+    expect(screen.getByText('Total Discount')).toBeInTheDocument();
   });
 
   test('shows a loading state while metrics are being calculated', () => {

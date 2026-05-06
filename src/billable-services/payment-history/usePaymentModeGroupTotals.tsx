@@ -22,7 +22,7 @@ export const usePaymentModeGroupTotals = (bills: MappedBill[] = []) => {
     }
 
     const filteredRows = paymentModeFilters.length
-      ? bills.filter((row) => paymentModeFilters?.includes(row.payments[0].instanceType.name))
+      ? bills.filter((row) => row.payments.some((payment) => paymentModeFilters?.includes(payment.instanceType.name)))
       : bills;
 
     // Process all payments in a single reduce operation

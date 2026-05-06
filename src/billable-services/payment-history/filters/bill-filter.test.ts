@@ -132,4 +132,23 @@ describe('Bill Filter', () => {
     expect(result).toHaveLength(2);
     expect(result.find((bill) => bill.uuid === '3')).toBeUndefined();
   });
+
+  it('should include bills with no payments when no payment method filter is applied', () => {
+    const billsWithEmptyPayments = [
+      ...mockBills,
+      {
+        uuid: '3',
+        patientUuid: 'patient-3',
+        payments: [],
+        lineItems: [],
+        status: 'PENDING',
+        cashier: { uuid: 'cashier-3' },
+      } as MappedBill,
+    ];
+
+    const result = filterBills(billsWithEmptyPayments, {});
+
+    expect(result).toHaveLength(3);
+    expect(result.find((bill) => bill.uuid === '3')).toBeDefined();
+  });
 });
