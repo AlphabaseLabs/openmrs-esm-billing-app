@@ -18,7 +18,7 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
   const {
     totalBills,
     pendingBills,
-    paidBills,
+    totalPayments,
     exemptedBills,
     totalDiscount,
     waivedBills,
@@ -31,8 +31,8 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
   const cards = useMemo(() => {
     const allCards = [
       { title: t('totalBills', 'Total Bills'), count: totalBills },
+      { title: t('totalPayments', 'Total Payments'), count: totalPayments },
       { title: t('totalDue', 'Total Due'), count: pendingBills },
-      { title: t('paidBills', 'Collection'), count: paidBills },
       { title: t('totalDiscount', 'Total Discount'), count: totalDiscount },
     ];
 
@@ -59,7 +59,7 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     return allCards;
   }, [
     totalBills,
-    paidBills,
+    totalPayments,
     pendingBills,
     totalDiscount,
     waivedBills,

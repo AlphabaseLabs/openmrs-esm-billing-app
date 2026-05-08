@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import BillHistory from './bill-history.component';
 import { useBill, useBills } from '../billing.resource';
 import userEvent from '@testing-library/user-event';
@@ -194,6 +194,11 @@ jest.mock('@openmrs/esm-framework', () => ({
   },
 }));
 
+const renderBillHistory = (route = '/patient/some-uuid/chart/Billing%20History') => {
+  window.history.replaceState({}, '', route);
+  return render(<BillHistory {...testProps} />);
+};
+
 describe('BillHistory', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -214,7 +219,7 @@ describe('BillHistory', () => {
   test('should render loading datatable skeleton', () => {
     (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: true, isValidating: false, error: null, bills: [], mutate: jest.fn() });
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
     const loadingSkeleton = screen.getByRole('table');
     expect(loadingSkeleton).toBeInTheDocument();
     expect(loadingSkeleton).toHaveClass('cds--skeleton cds--data-table cds--data-table--zebra');
@@ -229,7 +234,7 @@ describe('BillHistory', () => {
       bills: [],
       mutate: jest.fn(),
     });
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
     const errorState = screen.getByText(/Sorry, there was a problem displaying this information./);
     expect(errorState).toBeInTheDocument();
   });
@@ -244,7 +249,7 @@ describe('BillHistory', () => {
       bills: mockBillsData as any,
       mutate: mockBillsMutate,
     });
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
     expect(screen.getByText('Bill date')).toBeInTheDocument();
     expect(screen.getByText('Invoice number')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
@@ -290,7 +295,7 @@ describe('BillHistory', () => {
       mutate: mockBillsMutate,
     });
 
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
 
     expect(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i })).toBeInTheDocument();
     expect(
@@ -326,10 +331,11 @@ describe('BillHistory', () => {
       mutate: jest.fn(),
     });
 
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
     await user.click(screen.getByRole('button', { name: /view bill details from invoice number inv-001/i }));
 
     expect(mockUseBill).toHaveBeenLastCalledWith('1', { syncStatusWhenZeroBalance: true });
+    expect(window.location.search).toBe('?billUuid=1');
     expect(screen.getByText('Bill details')).toBeInTheDocument();
     expect(screen.queryByText('Patient billing history')).not.toBeInTheDocument();
     expect(screen.queryByText('Invoice number')).not.toBeInTheDocument();
@@ -338,6 +344,7 @@ describe('BillHistory', () => {
     await user.click(screen.getByRole('button', { name: 'Discard' }));
 
     expect(mockBillsMutate).toHaveBeenCalledTimes(1);
+    expect(window.location.search).toBe('');
     expect(screen.queryByText('Bill details')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add bill item(s)' })).toBeInTheDocument();
     expect(screen.getByText('Invoice number')).toBeInTheDocument();
@@ -361,16 +368,49 @@ describe('BillHistory', () => {
       mutate: jest.fn(),
     });
 
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
     await user.click(screen.getByRole('button', { name: /view bill details from status for invoice inv-002/i }));
 
     expect(mockUseBill).toHaveBeenLastCalledWith('2', { syncStatusWhenZeroBalance: true });
     expect(screen.getByText('Bill details')).toBeInTheDocument();
   });
 
+  test('should return to the bills table when billing history is revisited without a bill uuid in the url', async () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
+    const user = userEvent.setup();
+    mockbills.mockReturnValueOnce({
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      bills: mockBillsData as any,
+      mutate: mockBillsMutate,
+    });
+    mockUseBill.mockReturnValueOnce({
+      bill: { uuid: '1', lineItems: [], payments: [], status: PaymentStatus.PENDING, closed: false } as any,
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    renderBillHistory('/patient/some-uuid/chart/Billing%20History?billUuid=1');
+
+    expect(mockUseBill).toHaveBeenLastCalledWith('1', { syncStatusWhenZeroBalance: true });
+    expect(screen.getByText('Bill details')).toBeInTheDocument();
+
+    act(() => {
+      window.history.pushState({}, '', '/patient/some-uuid/chart/Billing%20History');
+      window.dispatchEvent(new Event('single-spa:routing-event'));
+    });
+
+    expect(window.location.search).toBe('');
+    expect(screen.queryByText('Bill details')).not.toBeInTheDocument();
+    expect(screen.getByText('Invoice number')).toBeInTheDocument();
+  });
+
   test('should render empty state view when there are no bills', async () => {
     (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: false, isValidating: false, error: null, bills: [], mutate: jest.fn() });
-    render(<BillHistory {...testProps} />);
+    renderBillHistory();
   });
 });

@@ -16,7 +16,7 @@ export const useBillMetrics = (
 ): {
   totalBills: string;
   pendingBills: string;
-  paidBills: string;
+  totalPayments: string;
   exemptedBills: string;
   totalDiscount: string;
   waivedBills: string;
@@ -31,7 +31,7 @@ export const useBillMetrics = (
   return {
     totalBills: convertToCurrency(cumulativeTotal),
     pendingBills: convertToCurrency(pendingTotal),
-    paidBills: convertToCurrency(paidTotal),
+    totalPayments: convertToCurrency(paidTotal),
     exemptedBills: convertToCurrency(exemptedTotal),
     totalDiscount: convertToCurrency(discountTotal),
     waivedBills: convertToCurrency(waivedTotal),
@@ -63,7 +63,7 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
       : Number(bill.totalActualPayments ?? 0);
     const pendingAmount = Math.max(0, amount - actualPayments - waivedAmount);
 
-    // Collection: sum of all payments received (partial or full)
+    // Total payments: sum of all payments received (partial or full)
     paidTotal += actualPayments;
 
     if (bill.status === PaymentStatus.PAID) {

@@ -73,18 +73,27 @@ describe('MetricsCards', () => {
       />,
     );
 
+    const totalBillsCard = screen.getByText('Total Bills').closest('.cds--tile');
+    const totalPaymentsCard = screen.getByText('Total Payments').closest('.cds--tile');
+    const totalDueCard = screen.getByText('Total Due').closest('.cds--tile');
+
     expect(screen.getByText('Total Bills')).toBeInTheDocument();
+    expect(screen.getByText('Total Payments')).toBeInTheDocument();
     expect(screen.getByText('Total Due')).toBeInTheDocument();
-    expect(screen.getByText('Collection')).toBeInTheDocument();
     expect(screen.getByText('Total Discount')).toBeInTheDocument();
     expect(screen.getByText('Waived Bills')).toBeInTheDocument();
     expect(screen.getByText('Tax Collection')).toBeInTheDocument();
+    expect(totalBillsCard).not.toBeNull();
+    expect(totalPaymentsCard).not.toBeNull();
+    expect(totalDueCard).not.toBeNull();
     expect(screen.getByText('Total Bills').closest('.cds--tile')).toHaveTextContent('150.00');
+    expect(screen.getByText('Total Payments').closest('.cds--tile')).toHaveTextContent('30.00');
     expect(screen.getByText('Total Due').closest('.cds--tile')).toHaveTextContent('110.00');
-    expect(screen.getByText('Collection').closest('.cds--tile')).toHaveTextContent('30.00');
     expect(screen.getByText('Total Discount').closest('.cds--tile')).toHaveTextContent('20.00');
     expect(screen.getByText('Waived Bills').closest('.cds--tile')).toHaveTextContent('10.00');
     expect(screen.getByText('Tax Collection').closest('.cds--tile')).toHaveTextContent('5.00');
+    expect(totalBillsCard!.compareDocumentPosition(totalPaymentsCard!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(totalPaymentsCard!.compareDocumentPosition(totalDueCard!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test('hides the waived bills metric when there is no waived amount', () => {

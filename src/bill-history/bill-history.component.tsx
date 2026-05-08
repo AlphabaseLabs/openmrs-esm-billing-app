@@ -34,6 +34,9 @@ interface BillHistoryProps {
   patientUuid: string;
 }
 
+const BILL_HISTORY_SELECTED_BILL_PARAM = 'billUuid';
+const BILL_HISTORY_ROUTING_EVENT = 'single-spa:routing-event';
+
 const getColumnClassName = (columnKey: string) => {
   return columnKey === 'billedItems' ? styles.billedItemsColumn : undefined;
 };
@@ -51,14 +54,34 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit(patientUuid, 'billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
-  const [selectedBillUuid, setSelectedBillUuid] = React.useState<string | null>(null);
+  const [locationSearch, setLocationSearch] = React.useState(() =>
+    typeof window === 'undefined' ? '' : window.location.search,
+  );
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const { paginated, goTo, results, currentPage } = usePagination(bills, pageSize);
   const { pageSizes } = usePaginationInfo(pageSize, bills?.length, currentPage, results?.length);
+  const selectedBillUuid = React.useMemo(
+    () => new URLSearchParams(locationSearch).get(BILL_HISTORY_SELECTED_BILL_PARAM),
+    [locationSearch],
+  );
   const cumulativeBillTotal = React.useMemo(
     () => bills.reduce((sum, bill) => sum + Number(bill.totalAmount ?? 0), 0),
     [bills],
   );
+
+  React.useEffect(() => {
+    const syncLocationSearch = () => setLocationSearch(window.location.search);
+
+    window.addEventListener(BILL_HISTORY_ROUTING_EVENT, syncLocationSearch);
+    window.addEventListener('popstate', syncLocationSearch);
+    window.addEventListener('hashchange', syncLocationSearch);
+
+    return () => {
+      window.removeEventListener(BILL_HISTORY_ROUTING_EVENT, syncLocationSearch);
+      window.removeEventListener('popstate', syncLocationSearch);
+      window.removeEventListener('hashchange', syncLocationSearch);
+    };
+  }, []);
 
   const handleLaunchBillForm = () => {
     const props = mergePatientChartBillingFormProps({ patientUuid });
@@ -71,14 +94,32 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     launchBillingWorkspace('billing-form', props);
   };
 
+  const updateSelectedBillUuid = React.useCallback((billUuid: string | null, replace = false) => {
+    const nextUrl = new URL(window.location.href);
+
+    if (billUuid) {
+      nextUrl.searchParams.set(BILL_HISTORY_SELECTED_BILL_PARAM, billUuid);
+    } else {
+      nextUrl.searchParams.delete(BILL_HISTORY_SELECTED_BILL_PARAM);
+    }
+
+    const nextRelativeUrl = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+    const historyMethod = replace ? window.history.replaceState : window.history.pushState;
+    historyMethod.call(window.history, window.history.state, '', nextRelativeUrl);
+    setLocationSearch(nextUrl.search);
+  }, []);
+
   const handleDiscardSelectedBill = React.useCallback(async () => {
     await mutate();
-    setSelectedBillUuid(null);
-  }, [mutate]);
+    updateSelectedBillUuid(null, true);
+  }, [mutate, updateSelectedBillUuid]);
 
-  const handleShowBillDetails = React.useCallback((billUuid: string) => {
-    setSelectedBillUuid(billUuid);
-  }, []);
+  const handleShowBillDetails = React.useCallback(
+    (billUuid: string) => {
+      updateSelectedBillUuid(billUuid);
+    },
+    [updateSelectedBillUuid],
+  );
 
   const headerData = [
     {
