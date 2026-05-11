@@ -1,0 +1,23 @@
+@use '@carbon/layout';
+
+.tableToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: layout.$spacing-03;
+  width: 100%;
+  margin-block-end: layout.$spacing-05;
+}
+
+.tableSearch {
+  flex: 1 1 20rem;
+  min-inline-size: 0;
+}
+
+.toolbarAction {
+  flex-shrink: 0;
+}
+
+.clickableRow {
+  cursor: pointer;
+}

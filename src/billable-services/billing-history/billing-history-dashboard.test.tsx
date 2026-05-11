@@ -49,3 +49,10 @@ test('renders filters above payment metrics and metrics above the table content'
   expect(filters.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(metrics.compareDocumentPosition(historyTable) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
+
+test('does not show the payment history tab', () => {
+  render(<BillingHistoryDashboard />);
+
+  expect(screen.queryByRole('tab', { name: 'Payment History' })).not.toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Payment Mode Summary' })).toBeInTheDocument();
+});

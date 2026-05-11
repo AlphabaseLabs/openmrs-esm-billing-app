@@ -1,26 +1,37 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import dayjs from 'dayjs';
-import { type MappedBill, type Timesheet, type Filter } from '../../types';
-import { useBills } from '../../billing.resource';
+import { type Timesheet, type Filter } from '../../types';
 
 interface BillingHistoryFilterContextType {
   dateRange: [Date, Date];
-  setDateRange: (dates: [Date, Date]) => void;
+  setDateRange: Dispatch<SetStateAction<[Date, Date]>>;
   appliedFilters: string[];
-  setAppliedFilters: (filters: string[]) => void;
+  setAppliedFilters: Dispatch<SetStateAction<string[]>>;
   appliedTimesheet: Timesheet | undefined;
-  setAppliedTimesheet: (timesheet: Timesheet | undefined) => void;
+  setAppliedTimesheet: Dispatch<SetStateAction<Timesheet | undefined>>;
   resetFilters: () => void;
   getAllAppliedFilters: () => string[];
-  bills: Array<MappedBill>;
-  isLoading: boolean;
-  error: any;
-  paidBillsResponse: ReturnType<typeof useBills>;
   filters: Filter;
-  setFilters: (filters: Filter) => void;
+  setFilters: Dispatch<SetStateAction<Filter>>;
 }
 
 const defaultDateRange: [Date, Date] = [new Date(0), dayjs().endOf('day').toDate()];
+const defaultFilters: Filter = {
+  paymentMethods: [],
+  cashiers: [],
+  serviceTypes: [],
+  billStatus: '',
+  patientUuid: '',
+};
 
 export const BillingHistoryFilterContext = createContext<BillingHistoryFilterContextType>({
   dateRange: defaultDateRange,
@@ -31,22 +42,7 @@ export const BillingHistoryFilterContext = createContext<BillingHistoryFilterCon
   setAppliedTimesheet: () => {},
   resetFilters: () => {},
   getAllAppliedFilters: () => [],
-  bills: [],
-  isLoading: false,
-  error: null,
-  paidBillsResponse: {
-    bills: [],
-    isLoading: false,
-    error: null,
-    isValidating: false,
-  } as ReturnType<typeof useBills>,
-  filters: {
-    paymentMethods: [],
-    cashiers: [],
-    serviceTypes: [],
-    billStatus: '',
-    patientUuid: '',
-  },
+  filters: defaultFilters,
   setFilters: () => {},
 });
 
@@ -58,49 +54,38 @@ export const BillingHistoryFilterProvider = ({ children }: BillingHistoryFilterP
   const [dateRange, setDateRange] = useState<[Date, Date]>(defaultDateRange);
   const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
   const [appliedTimesheet, setAppliedTimesheet] = useState<Timesheet | undefined>();
-  const defaultFilters: Filter = {
-    paymentMethods: [],
-    cashiers: [],
-    serviceTypes: [],
-    billStatus: '',
-    patientUuid: '',
-  };
   const [filters, setFilters] = useState<Filter>(defaultFilters);
 
-  const billsResponse = useBills(filters.patientUuid ?? '', filters.billStatus ?? '', dateRange[0], dateRange[1]);
-  const { bills, isLoading, error } = billsResponse;
-
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setAppliedFilters([]);
     setAppliedTimesheet(undefined);
     setDateRange(defaultDateRange);
     setFilters(defaultFilters);
-  };
+  }, []);
 
-  const getAllAppliedFilters = (): string[] => {
+  const getAllAppliedFilters = useCallback((): string[] => {
     const allFilters = [...appliedFilters];
     if (appliedTimesheet) {
       allFilters.push(`${appliedTimesheet.display} (${appliedTimesheet.cashier.display})`);
     }
     return allFilters;
-  };
+  }, [appliedFilters, appliedTimesheet]);
 
-  const value = {
-    dateRange,
-    setDateRange,
-    appliedFilters,
-    setAppliedFilters,
-    appliedTimesheet,
-    setAppliedTimesheet,
-    resetFilters,
-    getAllAppliedFilters,
-    bills,
-    isLoading,
-    error,
-    paidBillsResponse: billsResponse,
-    filters,
-    setFilters,
-  };
+  const value = useMemo(
+    () => ({
+      dateRange,
+      setDateRange,
+      appliedFilters,
+      setAppliedFilters,
+      appliedTimesheet,
+      setAppliedTimesheet,
+      resetFilters,
+      getAllAppliedFilters,
+      filters,
+      setFilters,
+    }),
+    [appliedFilters, appliedTimesheet, dateRange, filters, getAllAppliedFilters, resetFilters],
+  );
 
   return <BillingHistoryFilterContext.Provider value={value}>{children}</BillingHistoryFilterContext.Provider>;
 };

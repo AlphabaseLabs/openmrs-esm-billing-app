@@ -169,7 +169,13 @@ const formatPatientLabel = (patientName: string, patientIdentifier: string) =>
 const getPatientSearchUrl = (query: string) =>
   `${restBaseUrl}/patient?q=${encodeURIComponent(query)}&v=${patientSearchRepresentation}&limit=10&totalCount=false`;
 
-export const BillingHistoryFilters = () => {
+const selectAllOptionId = 'select-all';
+
+interface BillingHistoryFiltersProps {
+  dateFilterSource?: 'bill' | 'payment';
+}
+
+export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHistoryFiltersProps) => {
   const { t } = useTranslation();
   const { dateRange, setDateRange, filters, setFilters, appliedTimesheet, setAppliedTimesheet, setAppliedFilters } =
     useBillingHistoryFilterContext();
@@ -219,8 +225,24 @@ export const BillingHistoryFilters = () => {
   );
 
   const [selectedDatePreset, setSelectedDatePreset] = React.useState(() => resolvePresetFromRange(dateRange));
-  const { bills: cashierBills } = useBillingHistoryBills({ ...filters, cashiers: [] });
-  const { bills: currentBills } = useBillingHistoryBills(filters);
+  const cashierFilterContext = React.useMemo(
+    () => ({
+      dateFilterSource,
+    }),
+    [dateFilterSource],
+  );
+  const filtersWithoutCashiers = React.useMemo(
+    () => ({
+      ...filters,
+      cashiers: [],
+    }),
+    [filters],
+  );
+  const { bills: cashierBills } = useBillingHistoryBills(filtersWithoutCashiers, cashierFilterContext);
+  const currentBills = React.useMemo(
+    () => (cashiers.length ? cashierBills.filter((bill) => cashiers.includes(bill.cashier.uuid)) : cashierBills),
+    [cashierBills, cashiers],
+  );
   const { paymentModes = [], isLoading: isLoadingPaymentModes } = usePaymentModes(false);
   const { timesheets = [] } = useTimeSheets();
 
@@ -230,12 +252,12 @@ export const BillingHistoryFilters = () => {
 
   const updateFilters = React.useCallback(
     (nextValues: Partial<typeof filters>) => {
-      setFilters({
-        ...filters,
+      setFilters((currentFilters) => ({
+        ...currentFilters,
         ...nextValues,
-      });
+      }));
     },
-    [filters, setFilters],
+    [setFilters],
   );
 
   const handleDatePresetChange = ({ selectedItem }: { selectedItem?: FilterOption }) => {
@@ -279,7 +301,7 @@ export const BillingHistoryFilters = () => {
 
   const paymentTypeOptions = React.useMemo<Array<FilterOption>>(
     () => [
-      { id: 'select-all', text: t('allPaymentModes', 'All Payment Modes'), isSelectAll: true },
+      { id: selectAllOptionId, text: t('allPaymentModes', 'All Payment Modes'), isSelectAll: true },
       ...paymentModes.map((mode) => ({
         id: mode.uuid ?? mode.name,
         text: mode.name,
@@ -290,7 +312,7 @@ export const BillingHistoryFilters = () => {
 
   const cashierOptions = React.useMemo<Array<FilterOption>>(
     () => [
-      { id: 'select-all', text: t('allCashiers', 'All Cashiers'), isSelectAll: true },
+      { id: selectAllOptionId, text: t('allCashiers', 'All Cashiers'), isSelectAll: true },
       ...Array.from(new Map(cashierBills.map((bill) => [bill.cashier.uuid, bill.cashier])).values())
         .sort((first, second) => first.display.localeCompare(second.display))
         .map((cashier) => ({
@@ -362,9 +384,9 @@ export const BillingHistoryFilters = () => {
   const selectedCashierItems = cashierOptions.filter((option) => cashiers.includes(option.id));
 
   const handlePaymentTypeChange = ({ selectedItems = [] }: { selectedItems?: Array<FilterOption> }) => {
-    const nextPaymentTypes = selectedItems.some((item) => item.id === 'select-all')
+    const nextPaymentTypes = selectedItems.some((item) => item.id === selectAllOptionId)
       ? paymentModes.map((mode) => mode.name)
-      : selectedItems.filter((item) => item.id !== 'select-all').map((item) => item.text);
+      : selectedItems.filter((item) => item.id !== selectAllOptionId).map((item) => item.text);
 
     setAppliedFilters(nextPaymentTypes);
     updateFilters({
@@ -373,9 +395,9 @@ export const BillingHistoryFilters = () => {
   };
 
   const handleCashierChange = ({ selectedItems = [] }: { selectedItems?: Array<FilterOption> }) => {
-    const nextCashiers = selectedItems.some((item) => item.id === 'select-all')
-      ? cashierOptions.filter((item) => item.id !== 'select-all').map((item) => item.id)
-      : selectedItems.filter((item) => item.id !== 'select-all').map((item) => item.id);
+    const nextCashiers = selectedItems.some((item) => item.id === selectAllOptionId)
+      ? cashierOptions.filter((item) => item.id !== selectAllOptionId).map((item) => item.id)
+      : selectedItems.filter((item) => item.id !== selectAllOptionId).map((item) => item.id);
 
     updateFilters({
       cashiers: nextCashiers,

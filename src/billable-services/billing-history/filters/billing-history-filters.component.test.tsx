@@ -368,7 +368,16 @@ describe('BillingHistoryFilters', () => {
     fireEvent.change(screen.getByLabelText('Patient'), { target: { value: 'Jane' } });
     fireEvent.click(screen.getByRole('button', { name: /Jane Doe/i }));
 
-    expect(mockSetFilters).toHaveBeenCalledWith({
+    expect(mockSetFilters).toHaveBeenCalledWith(expect.any(Function));
+    expect(
+      mockSetFilters.mock.calls[0][0]({
+        paymentMethods: [],
+        cashiers: [],
+        serviceTypes: [],
+        billStatus: '',
+        patientUuid: '',
+      }),
+    ).toEqual({
       paymentMethods: [],
       cashiers: [],
       serviceTypes: [],

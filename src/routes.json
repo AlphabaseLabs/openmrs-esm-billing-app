@@ -113,19 +113,28 @@
       "order": 0
     },
     {
+      "component": "paymentHistoryLink",
+      "name": "payment-history-link",
+      "slot": "billing-dashboard-actions-slot",
+      "order": 0
+    },
+    {
       "component": "billingHistoryLink",
       "name": "billing-history-link",
-      "slot": "billing-dashboard-actions-slot"
+      "slot": "billing-dashboard-actions-slot",
+      "order": 1
     },
     {
       "component": "billManagerLink",
       "name": "bill-manager-link",
-      "slot": "billing-dashboard-actions-slot"
+      "slot": "billing-dashboard-actions-slot",
+      "order": 2
     },
     {
       "component": "chargeableItemsLink",
       "name": "chargeable-items-link",
-      "slot": "billing-dashboard-actions-slot"
+      "slot": "billing-dashboard-actions-slot",
+      "order": 3
     },
     {
       "component": "waiveBillActionButton",

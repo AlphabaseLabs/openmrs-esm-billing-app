@@ -9,27 +9,27 @@ import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-dashboard.scss';
 import { ExtensionSlot } from '@openmrs/esm-framework';
 import { BillingHistory } from '../billable-services/billing-history/billing-history.component';
+import { PaymentHistory } from '../billable-services/payment-history/payment-history.component';
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
 import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.component';
 import Invoice from '../invoice/invoice.component';
 import { launchCreateBillWorkspace } from '../workspaces';
 
-type BillingActionKey = 'overview' | 'billing-history' | 'bill-manager' | 'charge-items';
+type BillingActionKey = 'overview' | 'payment-history' | 'billing-history' | 'bill-manager' | 'charge-items';
+type EmbeddedBillingActionKey = Exclude<BillingActionKey, 'overview'>;
+
+const billingActionRoutes: Record<EmbeddedBillingActionKey, string> = {
+  'payment-history': '/payment-history',
+  'billing-history': '/billing-history',
+  'bill-manager': '/bill-manager',
+  'charge-items': '/charge-items',
+};
 
 function getBillingActionFromPath(pathname: string): BillingActionKey {
-  if (pathname.endsWith('/billing-history')) {
-    return 'billing-history';
-  }
-
-  if (pathname.endsWith('/bill-manager')) {
-    return 'bill-manager';
-  }
-
-  if (pathname.endsWith('/charge-items')) {
-    return 'charge-items';
-  }
-
-  return 'overview';
+  return (
+    (Object.entries(billingActionRoutes).find(([, route]) => pathname.endsWith(route))?.[0] as BillingActionKey) ??
+    'overview'
+  );
 }
 
 function isInvoiceRoute(pathname: string) {
@@ -52,6 +52,8 @@ function BillingDashboard() {
 
   const getPageTitle = (action: BillingActionKey) => {
     switch (action) {
+      case 'payment-history':
+        return t('paymentHistory', 'Payment History');
       case 'billing-history':
         return t('billingHistory', 'Billing History');
       case 'bill-manager':
@@ -92,19 +94,7 @@ function BillingDashboard() {
       setSelectedAction(nextAction);
       setSelectedActionTitle(title ?? null);
 
-      switch (nextAction) {
-        case 'billing-history':
-          navigate('/billing-history');
-          break;
-        case 'bill-manager':
-          navigate('/bill-manager');
-          break;
-        case 'charge-items':
-          navigate('/charge-items');
-          break;
-        default:
-          navigate('/');
-      }
+      navigate(nextAction === 'overview' ? '/' : billingActionRoutes[nextAction]);
     },
     [navigate],
   );
@@ -124,16 +114,14 @@ function BillingDashboard() {
   };
 
   const renderInlinePage = () => {
-    switch (selectedAction) {
-      case 'billing-history':
-        return <BillingHistory showHeader={false} />;
-      case 'bill-manager':
-        return <BillManager showHeader={false} />;
-      case 'charge-items':
-        return <ChargeItemsDashboard showHeader={false} />;
-      default:
-        return null;
-    }
+    const embeddedPages: Record<EmbeddedBillingActionKey, React.ReactNode> = {
+      'payment-history': <PaymentHistory showHeader={false} />,
+      'billing-history': <BillingHistory showHeader={false} />,
+      'bill-manager': <BillManager showHeader={false} />,
+      'charge-items': <ChargeItemsDashboard showHeader={false} />,
+    };
+
+    return selectedAction === 'overview' ? null : embeddedPages[selectedAction];
   };
 
   const headerActions = (

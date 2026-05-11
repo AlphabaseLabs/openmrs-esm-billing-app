@@ -109,10 +109,21 @@ export const billDepositDashboardLink = getSyncLifecycle(
   options,
 );
 
+// t('Payment History', 'Payment History')
+export const paymentHistoryLink = getSyncLifecycle(
+  createBillingActionItem({
+    actionKey: 'payment-history',
+    route: '/payment-history',
+    title: 'Payment History',
+  }),
+  options,
+);
+
 // t('Billing History', 'Billing History')
 export const billingHistoryLink = getSyncLifecycle(
   createBillingActionItem({
     actionKey: 'billing-history',
+    route: '/billing-history',
     title: 'Billing History',
   }),
   options,
@@ -140,6 +151,7 @@ export const paymentModesLink = getSyncLifecycle(
 export const billManagerLink = getSyncLifecycle(
   createBillingActionItem({
     actionKey: 'bill-manager',
+    route: '/bill-manager',
     title: 'Bill Manager',
   }),
   options,
@@ -148,6 +160,7 @@ export const billManagerLink = getSyncLifecycle(
 export const chargeableItemsLink = getSyncLifecycle(
   createBillingActionItem({
     actionKey: 'charge-items',
+    route: '/charge-items',
     title: 'Charge Items',
   }),
   options,

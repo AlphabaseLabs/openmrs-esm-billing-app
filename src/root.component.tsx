@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import BillingDashboard from './billing-dashboard/billing-dashboard.component';
 // import ClaimsManagementOverview from './claims/claims-management/main/claims-overview-main.component';
 // import ClaimsManagementPreAuthRequest from './claims/claims-management/main/claims-pre-auth-main.component';
@@ -20,7 +20,7 @@ const RootComponent: React.FC = () => {
       <Routes>
         <Route path="/" element={<BillingDashboard />} />
         <Route path="/billing-history" element={<BillingDashboard />} />
-        <Route path="/payment-history" element={<Navigate replace to="/billing-history" />} />
+        <Route path="/payment-history" element={<BillingDashboard />} />
         <Route path="/bill-manager" element={<BillingDashboard />} />
         <Route path="/charge-items" element={<BillingDashboard />} />
         {/* <Route path="/claims-overview" element={<ClaimsManagementOverview />} /> */}

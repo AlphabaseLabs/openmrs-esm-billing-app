@@ -24,6 +24,9 @@ jest.mock('../all-bills-table/all-bills-table.component', () => ({ actions }) =>
 jest.mock('../billable-services/billing-history/billing-history.component', () => ({
   BillingHistory: () => <div>Billing History</div>,
 }));
+jest.mock('../billable-services/payment-history/payment-history.component', () => ({
+  PaymentHistory: () => <div>Payment History</div>,
+}));
 jest.mock('../billable-services/bill-manager/bill-manager.component', () => () => <div>Bill Manager</div>);
 jest.mock('../billable-services/dashboard/dashboard.component', () => ({
   ChargeItemsDashboard: () => <div>Charge Items</div>,
@@ -36,14 +39,24 @@ jest.mock('@openmrs/esm-framework', () => {
   return {
     ...originalModule,
     ExtensionSlot: ({ state }) => (
-      <button
-        type="button"
-        onClick={() => {
-          state?.onSelectAction?.('billing-history', 'Billing History');
-          state?.onSelect?.();
-        }}>
-        Billing Actions Slot
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            state?.onSelectAction?.('payment-history', 'Payment History');
+            state?.onSelect?.();
+          }}>
+          Payment History Action
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            state?.onSelectAction?.('billing-history', 'Billing History');
+            state?.onSelect?.();
+          }}>
+          Billing History Action
+        </button>
+      </>
     ),
     UserHasAccess: ({ children }) => <>{children}</>,
   };
@@ -79,19 +92,28 @@ test('renders the selected billing action inline and shows a back button', async
   expect(screen.getAllByText('Billing History')).toHaveLength(2);
 });
 
-test('renders the selected billing action inline without route navigation', async () => {
+test('renders the payment history route inline and shows a back button', async () => {
+  renderBillingDashboard('/payment-history');
+
+  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
+  expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
+  expect(screen.getByRole('button', { name: /back/i })).toHaveTextContent('Back');
+  expect(screen.getAllByText('Payment History')).toHaveLength(2);
+});
+
+test('renders the selected payment history action inline without route navigation', async () => {
   const user = userEvent.setup();
   renderBillingDashboard();
 
   await user.click(screen.getByRole('button', { name: /billing options/i }));
   expect(screen.getByRole('menu', { name: /billing options/i })).toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: /billing actions slot/i }));
+  await user.click(screen.getByRole('button', { name: /payment history action/i }));
   expect(screen.queryByRole('menu', { name: /billing options/i })).not.toBeInTheDocument();
-  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Billing History');
+  expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Payment History');
   expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('hidden');
   expect(screen.getByRole('button', { name: /back/i })).toHaveTextContent('Back');
-  expect(screen.getAllByText('Billing History')).toHaveLength(2);
+  expect(screen.getAllByText('Payment History')).toHaveLength(2);
 });
 
 test('renders the invoice overview with the patient header for patient bill routes', () => {

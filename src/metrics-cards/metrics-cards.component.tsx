@@ -7,11 +7,65 @@ import { type MappedBill } from '../types';
 import styles from './metrics-cards.scss';
 import { useBillMetrics } from './metrics.resource';
 
+export interface MetricCardDefinition {
+  title: string;
+  value: string;
+  secondaryValue?: string | null;
+}
+
 interface MetricsCardsProps {
   bills: Array<MappedBill>;
   isLoading?: boolean;
   error?: unknown;
 }
+
+interface MetricsCardsLayoutProps {
+  cards: Array<MetricCardDefinition>;
+  isLoading?: boolean;
+  error?: unknown;
+  loadingDescription: string;
+  errorHeaderTitle: string;
+}
+
+export const MetricsCardsLayout = ({
+  cards,
+  isLoading = false,
+  error = null,
+  loadingDescription,
+  errorHeaderTitle,
+}: MetricsCardsLayoutProps) => {
+  if (isLoading) {
+    return (
+      <section className={styles.container}>
+        <InlineLoading status="active" iconDescription="Loading" description={loadingDescription} />
+      </section>
+    );
+  }
+
+  if (error) {
+    return <ErrorState headerTitle={errorHeaderTitle} error={error} />;
+  }
+
+  return (
+    <section className={styles.container}>
+      {cards.map((card) => (
+        <Layer key={card.title} className={classNames(styles.cardContainer)}>
+          <Tile className={styles.tileContainer}>
+            <div className={styles.tileHeader}>
+              <div className={styles.headerLabelContainer}>
+                <label className={styles.headerLabel}>{card.title}</label>
+              </div>
+            </div>
+            <div>
+              <p className={styles.totalsValue}>{card.value}</p>
+              {card.secondaryValue ? <p className={styles.totalsLabel}>{card.secondaryValue}</p> : null}
+            </div>
+          </Tile>
+        </Layer>
+      ))}
+    </section>
+  );
+};
 
 export default function MetricsCards({ bills, isLoading = false, error = null }: MetricsCardsProps) {
   const { t } = useTranslation();
@@ -29,79 +83,53 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
   } = useBillMetrics(bills);
 
   const cards = useMemo(() => {
-    const allCards = [
-      { title: t('totalBills', 'Total Bills'), count: totalBills },
-      { title: t('totalPayments', 'Total Payments'), count: totalPayments },
-      { title: t('totalDue', 'Total Due'), count: pendingBills },
-      { title: t('totalDiscount', 'Total Discount'), count: totalDiscount },
+    const allCards: Array<MetricCardDefinition> = [
+      { title: t('totalBills', 'Total Bills'), value: totalBills },
+      { title: t('totalPayments', 'Total Payments'), value: totalPayments },
+      { title: t('totalDue', 'Total Due'), value: pendingBills },
+      { title: t('totalDiscount', 'Total Discount'), value: totalDiscount },
     ];
 
     if (waivedAmount > 0) {
-      allCards.push({ title: t('waivedBills', 'Waived Bills'), count: waivedBills });
+      allCards.push({ title: t('waivedBills', 'Waived Bills'), value: waivedBills });
     }
 
-    // Only show exempted bills if the amount is greater than 0
     if (exemptedAmount > 0) {
       allCards.push({
         title: t('exemptedBills', 'Exempted Bills'),
-        count: exemptedBills,
+        value: exemptedBills,
       });
     }
 
-    // Only show tax collection if the amount is greater than 0
     if (taxCollectionAmount > 0) {
       allCards.push({
         title: t('taxCollection', 'Tax Collection'),
-        count: taxCollection,
+        value: taxCollection,
       });
     }
 
     return allCards;
   }, [
-    totalBills,
-    totalPayments,
-    pendingBills,
-    totalDiscount,
-    waivedBills,
-    exemptedBills,
     exemptedAmount,
-    waivedAmount,
+    exemptedBills,
+    pendingBills,
+    t,
     taxCollection,
     taxCollectionAmount,
-    t,
+    totalBills,
+    totalDiscount,
+    totalPayments,
+    waivedAmount,
+    waivedBills,
   ]);
 
-  if (isLoading) {
-    return (
-      <section className={styles.container}>
-        <InlineLoading
-          status="active"
-          iconDescription="Loading"
-          description={t('loadingBillMetrics', 'Loading bill metrics...')}
-        />
-      </section>
-    );
-  }
-
-  if (error) {
-    return <ErrorState headerTitle={t('billMetrics', 'Bill metrics')} error={error} />;
-  }
   return (
-    <section className={styles.container}>
-      {cards.map((card) => (
-        <Layer key={card.title} className={classNames(styles.cardContainer)}>
-          <Tile className={styles.tileContainer}>
-            <div className={styles.tileHeader}>
-              <div className={styles.headerLabelContainer}>
-                <label className={styles.headerLabel}>{card.title}</label>
-              </div>
-            </div>
-            <div>
-              <p className={styles.totalsValue}>{card.count}</p>
-            </div>
-          </Tile>
-        </Layer>
-      ))}
-    </section>
+    <MetricsCardsLayout
+      cards={cards}
+      isLoading={isLoading}
+      error={error}
+      loadingDescription={t('loadingBillMetrics', 'Loading bill metrics...')}
+      errorHeaderTitle={t('billMetrics', 'Bill metrics')}
+    />
   );
 }

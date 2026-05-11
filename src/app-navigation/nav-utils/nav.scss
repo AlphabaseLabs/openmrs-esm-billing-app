@@ -11,11 +11,13 @@
 
 .menuItemButton {
   @include type.type-style('body-compact-01');
+  display: block;
   width: 100%;
   border: none;
   background: transparent;
   padding: layout.$spacing-04 layout.$spacing-05;
   text-align: left;
+  text-decoration: none;
   color: colors.$gray-100;
   cursor: pointer;
 
