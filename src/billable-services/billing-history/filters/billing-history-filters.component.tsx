@@ -15,9 +15,9 @@ import useSWR from 'swr';
 import { usePaymentModes } from '../../../billing.resource';
 import { useTimeSheets } from '../../../payment-points/payment-points.resource';
 import { PaymentStatus } from '../../../types';
-import { usePaymentFilterContext } from '../usePaymentFilterContext';
-import { usePaymentTransactionHistory } from '../usePaymentTransactionHistory';
-import styles from './payment-filters.component.scss';
+import { useBillingHistoryFilterContext } from '../useBillingHistoryFilterContext';
+import { useBillingHistoryBills } from '../useBillingHistoryBills';
+import styles from './billing-history-filters.component.scss';
 
 type FilterOption = {
   id: string;
@@ -169,10 +169,10 @@ const formatPatientLabel = (patientName: string, patientIdentifier: string) =>
 const getPatientSearchUrl = (query: string) =>
   `${restBaseUrl}/patient?q=${encodeURIComponent(query)}&v=${patientSearchRepresentation}&limit=10&totalCount=false`;
 
-export const PaymentFilters = () => {
+export const BillingHistoryFilters = () => {
   const { t } = useTranslation();
   const { dateRange, setDateRange, filters, setFilters, appliedTimesheet, setAppliedTimesheet, setAppliedFilters } =
-    usePaymentFilterContext();
+    useBillingHistoryFilterContext();
   const todayRef = React.useRef(new Date());
   const paymentMethods = filters.paymentMethods ?? [];
   const cashiers = React.useMemo(() => filters.cashiers ?? [], [filters.cashiers]);
@@ -219,8 +219,8 @@ export const PaymentFilters = () => {
   );
 
   const [selectedDatePreset, setSelectedDatePreset] = React.useState(() => resolvePresetFromRange(dateRange));
-  const { bills: cashierBills } = usePaymentTransactionHistory({ ...filters, cashiers: [] });
-  const { bills: currentBills } = usePaymentTransactionHistory(filters);
+  const { bills: cashierBills } = useBillingHistoryBills({ ...filters, cashiers: [] });
+  const { bills: currentBills } = useBillingHistoryBills(filters);
   const { paymentModes = [], isLoading: isLoadingPaymentModes } = usePaymentModes(false);
   const { timesheets = [] } = useTimeSheets();
 
@@ -433,7 +433,7 @@ export const PaymentFilters = () => {
       <div className={styles.primaryRow}>
         <div className={styles.filterControl}>
           <Dropdown
-            id="payment-history-date-filter"
+            id="billing-history-date-filter"
             titleText={t('date', 'Date')}
             label={selectedDateItem.text}
             items={dateOptions}
@@ -451,7 +451,7 @@ export const PaymentFilters = () => {
             value={getDisplayDateValue(dateRange[0], selectedDatePreset !== 'all')}
             onChange={handleStartDateChange}>
             <DatePickerInput
-              id="payment-history-start-date"
+              id="billing-history-start-date"
               placeholder="mm/dd/yyyy"
               labelText={t('startDate', 'Start date')}
               size={compactControlSize}
@@ -465,7 +465,7 @@ export const PaymentFilters = () => {
             value={getDisplayDateValue(dateRange[1])}
             onChange={handleEndDateChange}>
             <DatePickerInput
-              id="payment-history-end-date"
+              id="billing-history-end-date"
               placeholder="mm/dd/yyyy"
               labelText={t('endDate', 'End date')}
               size={compactControlSize}

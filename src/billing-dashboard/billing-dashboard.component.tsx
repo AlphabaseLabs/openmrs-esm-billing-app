@@ -8,7 +8,7 @@ import AllBillsTable from '../all-bills-table/all-bills-table.component';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-dashboard.scss';
 import { ExtensionSlot } from '@openmrs/esm-framework';
-import { PaymentHistory } from '../billable-services/payment-history/payment-history.component';
+import { BillingHistory } from '../billable-services/billing-history/billing-history.component';
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
 import { ChargeItemsDashboard } from '../billable-services/dashboard/dashboard.component';
 import Invoice from '../invoice/invoice.component';
@@ -17,7 +17,7 @@ import { launchCreateBillWorkspace } from '../workspaces';
 type BillingActionKey = 'overview' | 'billing-history' | 'bill-manager' | 'charge-items';
 
 function getBillingActionFromPath(pathname: string): BillingActionKey {
-  if (pathname.endsWith('/billing-history') || pathname.endsWith('/payment-history')) {
+  if (pathname.endsWith('/billing-history')) {
     return 'billing-history';
   }
 
@@ -126,7 +126,7 @@ function BillingDashboard() {
   const renderInlinePage = () => {
     switch (selectedAction) {
       case 'billing-history':
-        return <PaymentHistory showHeader={false} />;
+        return <BillingHistory showHeader={false} />;
       case 'bill-manager':
         return <BillManager showHeader={false} />;
       case 'charge-items':

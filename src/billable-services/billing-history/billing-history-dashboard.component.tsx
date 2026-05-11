@@ -1,23 +1,23 @@
 import React from 'react';
 import { Dashboard, CloudMonitoring } from '@carbon/react/icons';
 import { Tabs, TabList, Tab, TabPanels, TabPanel, Layer } from '@carbon/react';
-import styles from './payment-dashboard.scss';
+import styles from './billing-history-dashboard.scss';
 import { useTranslation } from 'react-i18next';
-import { PaymentFilterProvider, usePaymentFilterContext } from './usePaymentFilterContext';
-import { PaymentFilters } from './filters/payment-filters.component';
-import { PaymentHistoryViewerContent } from './payment-history-viewer.component';
+import { BillingHistoryFilterProvider, useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
+import { BillingHistoryFilters } from './filters/billing-history-filters.component';
+import { BillHistoryViewerContent } from './bill-history-viewer.component';
 import PaymentMethodDistribution from './payment-method-distribution.component';
 import MetricsCards from '../../metrics-cards/metrics-cards.component';
-import { usePaymentTransactionHistory } from './usePaymentTransactionHistory';
+import { useBillingHistoryBills } from './useBillingHistoryBills';
 
-const PaymentDashboardContent = () => {
+const BillingHistoryDashboardContent = () => {
   const { t } = useTranslation();
-  const { filters } = usePaymentFilterContext();
-  const { bills: filteredBills, isLoading, error } = usePaymentTransactionHistory(filters);
+  const { filters } = useBillingHistoryFilterContext();
+  const { bills: filteredBills, isLoading, error } = useBillingHistoryBills(filters);
 
   return (
     <>
-      <PaymentFilters />
+      <BillingHistoryFilters />
       <MetricsCards bills={filteredBills} isLoading={isLoading} error={error} />
       <Layer className={styles.paymentDashboard}>
         <Tabs>
@@ -30,7 +30,7 @@ const PaymentDashboardContent = () => {
           </TabList>
           <TabPanels>
             <TabPanel>
-              <PaymentHistoryViewerContent bills={filteredBills} isLoading={isLoading} />
+              <BillHistoryViewerContent bills={filteredBills} isLoading={isLoading} />
             </TabPanel>
             <TabPanel>
               <PaymentMethodDistribution bills={filteredBills} isLoading={isLoading} />
@@ -42,10 +42,10 @@ const PaymentDashboardContent = () => {
   );
 };
 
-export const PaymentDashboard = () => {
+export const BillingHistoryDashboard = () => {
   return (
-    <PaymentFilterProvider>
-      <PaymentDashboardContent />
-    </PaymentFilterProvider>
+    <BillingHistoryFilterProvider>
+      <BillingHistoryDashboardContent />
+    </BillingHistoryFilterProvider>
   );
 };

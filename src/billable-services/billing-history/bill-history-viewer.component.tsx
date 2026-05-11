@@ -12,11 +12,11 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
 import { type MappedBill } from '../../types';
-import { PaymentHistoryTable } from './payment-history-table.component';
-import { usePaymentFilterContext } from './usePaymentFilterContext';
-import { usePaymentTransactionHistory } from './usePaymentTransactionHistory';
+import { BillHistoryTable } from './bill-history-table.component';
+import { useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
+import { useBillingHistoryBills } from './useBillingHistoryBills';
 
-interface PaymentHistoryViewerContentProps {
+interface BillHistoryViewerContentProps {
   bills: Array<MappedBill>;
   isLoading: boolean;
 }
@@ -35,7 +35,7 @@ const getColumnStyle = (columnKey: string) =>
         ? ({ inlineSize: '16rem' } as const)
         : undefined;
 
-const PaymentHistoryTableSkeleton = ({ headers, title }: { headers: Array<Header>; title: string }) => (
+const BillHistoryTableSkeleton = ({ headers, title }: { headers: Array<Header>; title: string }) => (
   <TableContainer>
     <Table size="sm" aria-label={title}>
       <TableHead>
@@ -65,7 +65,7 @@ const PaymentHistoryTableSkeleton = ({ headers, title }: { headers: Array<Header
   </TableContainer>
 );
 
-export const PaymentHistoryViewerContent = ({ bills: filteredBills, isLoading }: PaymentHistoryViewerContentProps) => {
+export const BillHistoryViewerContent = ({ bills: filteredBills, isLoading }: BillHistoryViewerContentProps) => {
   const { t } = useTranslation();
 
   const headers = useMemo(
@@ -87,9 +87,9 @@ export const PaymentHistoryViewerContent = ({ bills: filteredBills, isLoading }:
   return (
     <>
       {isLoading ? (
-        <PaymentHistoryTableSkeleton headers={headers} title={t('billingHistory', 'Billing History')} />
+        <BillHistoryTableSkeleton headers={headers} title={t('billingHistory', 'Billing History')} />
       ) : filteredBills.length > 0 ? (
-        <PaymentHistoryTable headers={headers} rows={filteredBills} />
+        <BillHistoryTable headers={headers} rows={filteredBills} />
       ) : (
         <EmptyPatientBill
           title={t('noBillingHistory', 'No billing history')}
@@ -100,9 +100,9 @@ export const PaymentHistoryViewerContent = ({ bills: filteredBills, isLoading }:
   );
 };
 
-export const PaymentHistoryViewer = () => {
-  const { filters } = usePaymentFilterContext();
-  const { bills, isLoading } = usePaymentTransactionHistory(filters);
+export const BillHistoryViewer = () => {
+  const { filters } = useBillingHistoryFilterContext();
+  const { bills, isLoading } = useBillingHistoryBills(filters);
 
-  return <PaymentHistoryViewerContent bills={bills} isLoading={isLoading} />;
+  return <BillHistoryViewerContent bills={bills} isLoading={isLoading} />;
 };

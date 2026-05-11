@@ -2,7 +2,7 @@ import React from 'react';
 import BillingHeader from '../../billing-header/billing-header.component';
 import { useParams } from 'react-router-dom';
 import { usePaymentPoints } from '../payment-points.resource';
-import { PaymentHistoryViewer } from '../../billable-services/payment-history/payment-history-viewer.component';
+import { BillHistoryViewer } from '../../billable-services/billing-history/bill-history-viewer.component';
 
 export const headers = [
   { header: 'Date', key: 'dateCreated' },
@@ -24,7 +24,7 @@ export const PaymentPoint = () => {
   return (
     <div>
       <BillingHeader title={`Payment Points / ${paymentPoint.name}`} />
-      <PaymentHistoryViewer />
+      <BillHistoryViewer />
     </div>
   );
 };

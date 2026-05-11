@@ -1,19 +1,19 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import BillingHeader from '../../billing-header/billing-header.component';
-import { PaymentDashboard } from './payment-dashboard.component';
+import { BillingHistoryDashboard } from './billing-history-dashboard.component';
 
-interface PaymentHistoryProps {
+interface BillingHistoryProps {
   showHeader?: boolean;
 }
 
-export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ showHeader = true }) => {
+export const BillingHistory: React.FC<BillingHistoryProps> = ({ showHeader = true }) => {
   const { t } = useTranslation();
 
   return (
     <div>
       {showHeader ? <BillingHeader title={t('billingHistory', 'Billing History')} /> : null}
-      <PaymentDashboard />
+      <BillingHistoryDashboard />
     </div>
   );
 };

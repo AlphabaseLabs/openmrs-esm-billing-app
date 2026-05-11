@@ -1,9 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PaymentStatus } from '../../../types';
-import { PaymentFilters } from './payment-filters.component';
-import { usePaymentFilterContext } from '../usePaymentFilterContext';
-import { usePaymentTransactionHistory } from '../usePaymentTransactionHistory';
+import { BillingHistoryFilters } from './billing-history-filters.component';
+import { useBillingHistoryFilterContext } from '../useBillingHistoryFilterContext';
+import { useBillingHistoryBills } from '../useBillingHistoryBills';
 import { usePaymentModes } from '../../../billing.resource';
 import { useTimeSheets } from '../../../payment-points/payment-points.resource';
 import useSWR from 'swr';
@@ -14,12 +14,12 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('../usePaymentFilterContext', () => ({
-  usePaymentFilterContext: jest.fn(),
+jest.mock('../useBillingHistoryFilterContext', () => ({
+  useBillingHistoryFilterContext: jest.fn(),
 }));
 
-jest.mock('../usePaymentTransactionHistory', () => ({
-  usePaymentTransactionHistory: jest.fn(),
+jest.mock('../useBillingHistoryBills', () => ({
+  useBillingHistoryBills: jest.fn(),
 }));
 
 jest.mock('../../../billing.resource', () => ({
@@ -39,12 +39,12 @@ jest.mock('@carbon/react', () => ({
 
     return (
       <div data-testid={`${inputId}-picker`} data-value={value instanceof Date ? value.toISOString() : ''}>
-        {inputId === 'payment-history-start-date' ? (
+        {inputId === 'billing-history-start-date' ? (
           <button type="button" onClick={() => onChange([new Date('2026-04-04T00:00:00.000Z')])}>
             Set mock start date
           </button>
         ) : null}
-        {inputId === 'payment-history-end-date' ? (
+        {inputId === 'billing-history-end-date' ? (
           <button type="button" onClick={() => onChange([new Date('2026-04-10T00:00:00.000Z')])}>
             Set mock end date
           </button>
@@ -127,9 +127,9 @@ jest.mock('@openmrs/esm-framework', () => ({
   useDebounce: (value: string) => value,
 }));
 
-const mockUsePaymentFilterContext = usePaymentFilterContext as jest.Mock;
+const mockUseBillingHistoryFilterContext = useBillingHistoryFilterContext as jest.Mock;
 const mockUsePaymentModes = usePaymentModes as jest.Mock;
-const mockUsePaymentTransactionHistory = usePaymentTransactionHistory as jest.Mock;
+const mockUseBillingHistoryBills = useBillingHistoryBills as jest.Mock;
 const mockUseTimeSheets = useTimeSheets as jest.Mock;
 const mockUseSWR = useSWR as jest.Mock;
 
@@ -138,7 +138,7 @@ const mockSetAppliedTimesheet = jest.fn();
 const mockSetDateRange = jest.fn();
 const mockSetFilters = jest.fn();
 
-describe('PaymentFilters', () => {
+describe('BillingHistoryFilters', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-04-08T12:00:00.000Z'));
     mockSetAppliedFilters.mockClear();
@@ -172,7 +172,7 @@ describe('PaymentFilters', () => {
       error: null,
     }));
 
-    mockUsePaymentFilterContext.mockReturnValue({
+    mockUseBillingHistoryFilterContext.mockReturnValue({
       dateRange: [new Date('2026-04-01T00:00:00.000Z'), new Date('2026-04-08T23:59:59.999Z')],
       setDateRange: mockSetDateRange,
       filters: {
@@ -188,7 +188,7 @@ describe('PaymentFilters', () => {
       setAppliedFilters: mockSetAppliedFilters,
     });
 
-    mockUsePaymentTransactionHistory.mockReturnValue({
+    mockUseBillingHistoryBills.mockReturnValue({
       bills: [],
       isLoading: false,
       isValidating: false,
@@ -210,13 +210,13 @@ describe('PaymentFilters', () => {
   });
 
   it('shows custom date when the current range does not match a preset', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     expect(screen.getByLabelText('Date')).toHaveValue('custom');
   });
 
   it('keeps the start date field empty when the all preset is selected', () => {
-    mockUsePaymentFilterContext.mockReturnValue({
+    mockUseBillingHistoryFilterContext.mockReturnValue({
       dateRange: [new Date(0), new Date('2026-04-08T23:59:59.999Z')],
       setDateRange: mockSetDateRange,
       filters: {
@@ -232,18 +232,18 @@ describe('PaymentFilters', () => {
       setAppliedFilters: mockSetAppliedFilters,
     });
 
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     expect(screen.getByLabelText('Date')).toHaveValue('all');
-    expect(screen.getByTestId('payment-history-start-date-picker')).toHaveAttribute('data-value', '');
-    expect(screen.getByTestId('payment-history-end-date-picker')).toHaveAttribute(
+    expect(screen.getByTestId('billing-history-start-date-picker')).toHaveAttribute('data-value', '');
+    expect(screen.getByTestId('billing-history-end-date-picker')).toHaveAttribute(
       'data-value',
       '2026-04-08T23:59:59.999Z',
     );
   });
 
   it('keeps the start date field empty when the current custom range still starts at unix epoch', () => {
-    mockUsePaymentFilterContext.mockReturnValue({
+    mockUseBillingHistoryFilterContext.mockReturnValue({
       dateRange: [new Date(0), new Date('2026-04-10T23:59:59.999Z')],
       setDateRange: mockSetDateRange,
       filters: {
@@ -259,18 +259,18 @@ describe('PaymentFilters', () => {
       setAppliedFilters: mockSetAppliedFilters,
     });
 
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     expect(screen.getByLabelText('Date')).toHaveValue('custom');
-    expect(screen.getByTestId('payment-history-start-date-picker')).toHaveAttribute('data-value', '');
-    expect(screen.getByTestId('payment-history-end-date-picker')).toHaveAttribute(
+    expect(screen.getByTestId('billing-history-start-date-picker')).toHaveAttribute('data-value', '');
+    expect(screen.getByTestId('billing-history-end-date-picker')).toHaveAttribute(
       'data-value',
       '2026-04-10T23:59:59.999Z',
     );
   });
 
   it('applies the last month preset like the accounting app', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'lastMonth' } });
 
@@ -281,7 +281,7 @@ describe('PaymentFilters', () => {
   });
 
   it('applies the today preset', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'today' } });
 
@@ -292,7 +292,7 @@ describe('PaymentFilters', () => {
   });
 
   it('applies the yesterday preset', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'yesterday' } });
 
@@ -303,7 +303,7 @@ describe('PaymentFilters', () => {
   });
 
   it('applies the this week preset', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'thisWeek' } });
 
@@ -314,7 +314,7 @@ describe('PaymentFilters', () => {
   });
 
   it('uses the current date when custom date is selected from the preset dropdown', () => {
-    mockUsePaymentFilterContext.mockReturnValue({
+    mockUseBillingHistoryFilterContext.mockReturnValue({
       dateRange: [new Date(0), new Date('2026-04-08T23:59:59.999Z')],
       setDateRange: mockSetDateRange,
       filters: {
@@ -330,7 +330,7 @@ describe('PaymentFilters', () => {
       setAppliedFilters: mockSetAppliedFilters,
     });
 
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'custom' } });
 
@@ -341,7 +341,7 @@ describe('PaymentFilters', () => {
   });
 
   it('keeps the existing end date when only the start date changes', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Set mock start date' }));
 
@@ -352,7 +352,7 @@ describe('PaymentFilters', () => {
   });
 
   it('keeps the existing start date when only the end date changes', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Set mock end date' }));
 
@@ -363,7 +363,7 @@ describe('PaymentFilters', () => {
   });
 
   it('applies the selected patient from the inline patient search', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     fireEvent.change(screen.getByLabelText('Patient'), { target: { value: 'Jane' } });
     fireEvent.click(screen.getByRole('button', { name: /Jane Doe/i }));
@@ -378,7 +378,7 @@ describe('PaymentFilters', () => {
   });
 
   it('defaults the bill status filter to all', () => {
-    render(<PaymentFilters />);
+    render(<BillingHistoryFilters />);
 
     expect(screen.getByLabelText('Bill Status')).toHaveValue('');
   });

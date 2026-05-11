@@ -21,7 +21,7 @@ import { type MappedBill } from '../../types';
 import { exportToExcel } from '../../helpers/excelExport';
 import dayjs from 'dayjs';
 
-export const PaymentHistoryTable = ({
+export const BillHistoryTable = ({
   headers,
   rows = [],
 }: {

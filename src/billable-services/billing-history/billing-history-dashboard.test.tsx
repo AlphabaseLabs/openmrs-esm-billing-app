@@ -1,24 +1,24 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { PaymentDashboard } from './payment-dashboard.component';
+import { BillingHistoryDashboard } from './billing-history-dashboard.component';
 
-jest.mock('./usePaymentFilterContext', () => ({
-  PaymentFilterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  usePaymentFilterContext: () => ({ filters: {} }),
+jest.mock('./useBillingHistoryFilterContext', () => ({
+  BillingHistoryFilterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useBillingHistoryFilterContext: () => ({ filters: {} }),
 }));
 
-jest.mock('./usePaymentTransactionHistory', () => ({
-  usePaymentTransactionHistory: () => ({ bills: [], isLoading: false, error: null }),
+jest.mock('./useBillingHistoryBills', () => ({
+  useBillingHistoryBills: () => ({ bills: [], isLoading: false, error: null }),
 }));
 
-jest.mock('./filters/payment-filters.component', () => ({
-  PaymentFilters: () => <div data-testid="payment-filters">Filters</div>,
+jest.mock('./filters/billing-history-filters.component', () => ({
+  BillingHistoryFilters: () => <div data-testid="payment-filters">Filters</div>,
 }));
 
 jest.mock('../../metrics-cards/metrics-cards.component', () => () => <div data-testid="payment-metrics">Metrics</div>);
 
-jest.mock('./payment-history-viewer.component', () => ({
-  PaymentHistoryViewerContent: () => <div data-testid="payment-history-table">History Table</div>,
+jest.mock('./bill-history-viewer.component', () => ({
+  BillHistoryViewerContent: () => <div data-testid="payment-history-table">History Table</div>,
 }));
 
 jest.mock('./payment-method-distribution.component', () => () => <div>Payment Summary</div>);
@@ -40,7 +40,7 @@ beforeAll(() => {
 });
 
 test('renders filters above payment metrics and metrics above the table content', () => {
-  render(<PaymentDashboard />);
+  render(<BillingHistoryDashboard />);
 
   const metrics = screen.getByTestId('payment-metrics');
   const filters = screen.getByTestId('payment-filters');

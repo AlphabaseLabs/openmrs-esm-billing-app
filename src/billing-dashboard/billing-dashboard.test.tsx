@@ -21,8 +21,8 @@ jest.mock('../all-bills-table/all-bills-table.component', () => ({ actions }) =>
     <div>All Bills Table</div>
   </div>
 ));
-jest.mock('../billable-services/payment-history/payment-history.component', () => ({
-  PaymentHistory: () => <div>Billing History</div>,
+jest.mock('../billable-services/billing-history/billing-history.component', () => ({
+  BillingHistory: () => <div>Billing History</div>,
 }));
 jest.mock('../billable-services/bill-manager/bill-manager.component', () => () => <div>Bill Manager</div>);
 jest.mock('../billable-services/dashboard/dashboard.component', () => ({

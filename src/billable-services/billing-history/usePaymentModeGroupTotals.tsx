@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { usePaymentModes } from '../../billing.resource';
 import { type MappedBill, type Payment } from '../../types';
-import { usePaymentFilterContext } from './usePaymentFilterContext';
+import { useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
 
 export const usePaymentModeGroupTotals = (bills: MappedBill[] = []) => {
-  const { appliedFilters } = usePaymentFilterContext();
+  const { appliedFilters } = useBillingHistoryFilterContext();
   const { paymentModes } = usePaymentModes(false);
 
   const paymentModeFilters = paymentModes?.filter((pm) => appliedFilters.includes(pm.name)).map((pm) => pm.name);

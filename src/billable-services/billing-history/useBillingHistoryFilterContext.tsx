@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { type MappedBill, type Timesheet, type Filter } from '../../types';
 import { useBills } from '../../billing.resource';
 
-interface PaymentFilterContextType {
+interface BillingHistoryFilterContextType {
   dateRange: [Date, Date];
   setDateRange: (dates: [Date, Date]) => void;
   appliedFilters: string[];
@@ -22,7 +22,7 @@ interface PaymentFilterContextType {
 
 const defaultDateRange: [Date, Date] = [new Date(0), dayjs().endOf('day').toDate()];
 
-export const PaymentFilterContext = createContext<PaymentFilterContextType>({
+export const BillingHistoryFilterContext = createContext<BillingHistoryFilterContextType>({
   dateRange: defaultDateRange,
   setDateRange: () => {},
   appliedFilters: [],
@@ -50,11 +50,11 @@ export const PaymentFilterContext = createContext<PaymentFilterContextType>({
   setFilters: () => {},
 });
 
-interface PaymentFilterProviderProps {
+interface BillingHistoryFilterProviderProps {
   children: ReactNode;
 }
 
-export const PaymentFilterProvider = ({ children }: PaymentFilterProviderProps) => {
+export const BillingHistoryFilterProvider = ({ children }: BillingHistoryFilterProviderProps) => {
   const [dateRange, setDateRange] = useState<[Date, Date]>(defaultDateRange);
   const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
   const [appliedTimesheet, setAppliedTimesheet] = useState<Timesheet | undefined>();
@@ -102,14 +102,14 @@ export const PaymentFilterProvider = ({ children }: PaymentFilterProviderProps) 
     setFilters,
   };
 
-  return <PaymentFilterContext.Provider value={value}>{children}</PaymentFilterContext.Provider>;
+  return <BillingHistoryFilterContext.Provider value={value}>{children}</BillingHistoryFilterContext.Provider>;
 };
 
-export const usePaymentFilterContext = () => {
-  const context = useContext(PaymentFilterContext);
+export const useBillingHistoryFilterContext = () => {
+  const context = useContext(BillingHistoryFilterContext);
 
   if (context === undefined) {
-    throw new Error('usePaymentFilterContext must be used within a PaymentFilterProvider');
+    throw new Error('useBillingHistoryFilterContext must be used within a BillingHistoryFilterProvider');
   }
 
   return context;
