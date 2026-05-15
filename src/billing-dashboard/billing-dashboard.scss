@@ -88,8 +88,30 @@
 .headerActions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: layout.$spacing-03;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: auto;
+  max-width: 100%;
+}
+
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: layout.$spacing-03;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+.invoiceSearchWrapper {
+  flex: 0 1 clamp(18rem, 32vw, 26rem);
+  width: clamp(18rem, 32vw, 26rem);
+  min-width: 16rem;
+
+  :global(.cds--search),
+  :global(.cds--search-input) {
+    width: 100%;
+  }
 }
 
 .optionsMenu {
@@ -123,9 +145,6 @@
   margin: layout.$spacing-05;
 }
 
-// .backButton {
-//   margin-bottom: layout.$spacing-05;
-// }
 .backButton {
   color: colors.$blue-60;
   @include type.type-style('label-02');
@@ -139,18 +158,6 @@
   span {
     order: 2;
   }
-}
-
-.backButtonContent {
-  display: inline-flex;
-  align-items: center;
-  gap: layout.$spacing-03;
-  color: inherit;
-}
-
-.backButtonContent :global(svg) {
-  color: inherit;
-  fill: currentColor;
 }
 
 .embeddedPageContent {
@@ -177,5 +184,16 @@
 
   .headerActions {
     width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .headerButtons,
+  .invoiceSearchWrapper {
+    width: 100%;
+  }
+
+  .headerButtons {
+    flex-wrap: wrap;
   }
 }

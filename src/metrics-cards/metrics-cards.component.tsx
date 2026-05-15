@@ -1,9 +1,10 @@
 import { InlineLoading, Layer, Tile } from '@carbon/react';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
-import classNames from 'classnames';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { convertToCurrency } from '../helpers';
 import { type MappedBill } from '../types';
+import { type BillingHistoryMetricsData } from '../billable-services/billing-history/history.resource';
 import styles from './metrics-cards.scss';
 import { useBillMetrics } from './metrics.resource';
 
@@ -14,7 +15,8 @@ export interface MetricCardDefinition {
 }
 
 interface MetricsCardsProps {
-  bills: Array<MappedBill>;
+  bills?: Array<MappedBill>;
+  metrics?: BillingHistoryMetricsData;
   isLoading?: boolean;
   error?: unknown;
 }
@@ -26,6 +28,19 @@ interface MetricsCardsLayoutProps {
   loadingDescription: string;
   errorHeaderTitle: string;
 }
+
+type ResolvedBillingMetrics = {
+  totalBills: string;
+  pendingBills: string;
+  totalPayments: string;
+  exemptedBills: string;
+  totalDiscount: string;
+  waivedBills: string;
+  exemptedAmount: number;
+  waivedAmount: number;
+  taxCollection: string;
+  taxCollectionAmount: number;
+};
 
 export const MetricsCardsLayout = ({
   cards,
@@ -49,7 +64,7 @@ export const MetricsCardsLayout = ({
   return (
     <section className={styles.container}>
       {cards.map((card) => (
-        <Layer key={card.title} className={classNames(styles.cardContainer)}>
+        <Layer key={card.title} className={styles.cardContainer}>
           <Tile className={styles.tileContainer}>
             <div className={styles.tileHeader}>
               <div className={styles.headerLabelContainer}>
@@ -67,7 +82,7 @@ export const MetricsCardsLayout = ({
   );
 };
 
-export default function MetricsCards({ bills, isLoading = false, error = null }: MetricsCardsProps) {
+export default function MetricsCards({ bills = [], metrics, isLoading = false, error = null }: MetricsCardsProps) {
   const { t } = useTranslation();
   const {
     totalBills,
@@ -82,38 +97,39 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     taxCollectionAmount,
   } = useBillMetrics(bills);
 
-  const cards = useMemo(() => {
-    const allCards: Array<MetricCardDefinition> = [
-      { title: t('totalBills', 'Total Bills'), value: totalBills },
-      { title: t('totalPayments', 'Total Payments'), value: totalPayments },
-      { title: t('totalDue', 'Total Due'), value: pendingBills },
-      { title: t('totalDiscount', 'Total Discount'), value: totalDiscount },
-    ];
-
-    if (waivedAmount > 0) {
-      allCards.push({ title: t('waivedBills', 'Waived Bills'), value: waivedBills });
+  const resolvedMetrics = useMemo<ResolvedBillingMetrics>(() => {
+    if (metrics) {
+      return {
+        totalBills: convertToCurrency(metrics.totalBills),
+        pendingBills: convertToCurrency(metrics.totalDue),
+        totalPayments: convertToCurrency(metrics.totalPayments),
+        exemptedBills: convertToCurrency(metrics.exemptedAmount),
+        totalDiscount: convertToCurrency(metrics.totalDiscount),
+        waivedBills: convertToCurrency(metrics.waivedAmount),
+        exemptedAmount: metrics.exemptedAmount,
+        waivedAmount: metrics.waivedAmount,
+        taxCollection: convertToCurrency(metrics.taxCollectionAmount),
+        taxCollectionAmount: metrics.taxCollectionAmount,
+      };
     }
 
-    if (exemptedAmount > 0) {
-      allCards.push({
-        title: t('exemptedBills', 'Exempted Bills'),
-        value: exemptedBills,
-      });
-    }
-
-    if (taxCollectionAmount > 0) {
-      allCards.push({
-        title: t('taxCollection', 'Tax Collection'),
-        value: taxCollection,
-      });
-    }
-
-    return allCards;
+    return {
+      totalBills,
+      pendingBills,
+      totalPayments,
+      exemptedBills,
+      totalDiscount,
+      waivedBills,
+      exemptedAmount,
+      waivedAmount,
+      taxCollection,
+      taxCollectionAmount,
+    };
   }, [
     exemptedAmount,
     exemptedBills,
+    metrics,
     pendingBills,
-    t,
     taxCollection,
     taxCollectionAmount,
     totalBills,
@@ -122,6 +138,35 @@ export default function MetricsCards({ bills, isLoading = false, error = null }:
     waivedAmount,
     waivedBills,
   ]);
+
+  const cards = useMemo(() => {
+    const allCards: Array<MetricCardDefinition> = [
+      { title: t('totalBills', 'Total Bills'), value: resolvedMetrics.totalBills },
+      { title: t('totalPayments', 'Total Payments'), value: resolvedMetrics.totalPayments },
+      { title: t('totalDue', 'Total Due'), value: resolvedMetrics.pendingBills },
+      { title: t('totalDiscount', 'Total Discount'), value: resolvedMetrics.totalDiscount },
+    ];
+
+    if (resolvedMetrics.waivedAmount > 0) {
+      allCards.push({ title: t('waivedBills', 'Waived Bills'), value: resolvedMetrics.waivedBills });
+    }
+
+    if (resolvedMetrics.exemptedAmount > 0) {
+      allCards.push({
+        title: t('exemptedBills', 'Exempted Bills'),
+        value: resolvedMetrics.exemptedBills,
+      });
+    }
+
+    if (resolvedMetrics.taxCollectionAmount > 0) {
+      allCards.push({
+        title: t('taxCollection', 'Tax Collection'),
+        value: resolvedMetrics.taxCollection,
+      });
+    }
+
+    return allCards;
+  }, [resolvedMetrics, t]);
 
   return (
     <MetricsCardsLayout

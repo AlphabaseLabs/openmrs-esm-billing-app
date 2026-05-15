@@ -1,59 +1,78 @@
-import dayjs from 'dayjs';
-import { useMemo } from 'react';
-import { useBills } from '../../billing.resource';
+import { useCallback } from 'react';
 import { type Filter } from '../../types';
-import { getFilteredBillsForHistory, getLatestPaymentTimestamp } from './billing-history.utils';
+import {
+  fetchBillingHistoryForExport,
+  type BillingHistoryRow,
+  useBillingHistoryList,
+  useBillingHistoryMetrics as useBillingHistoryMetricsResource,
+} from './history.resource';
 import { useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
 
-type BillingHistoryBillDateSource = 'bill' | 'payment';
-
 interface UseBillingHistoryBillsOptions {
-  dateFilterSource?: BillingHistoryBillDateSource;
+  page?: number;
+  pageSize?: number;
 }
 
 export const useBillingHistoryBills = (filters: Filter, options: UseBillingHistoryBillsOptions = {}) => {
-  const { dateRange } = useBillingHistoryFilterContext();
-  const dateFilterSource = options.dateFilterSource ?? 'bill';
-  const rangeStart = useMemo(() => dayjs(dateRange[0]).startOf('day').valueOf(), [dateRange]);
-  const rangeEnd = useMemo(() => dayjs(dateRange[1]).endOf('day').valueOf(), [dateRange]);
-  const queryStartDate = useMemo(
-    () => (dateFilterSource === 'payment' ? new Date(0) : dayjs(dateRange[0]).startOf('day').toDate()),
-    [dateFilterSource, dateRange],
-  );
-  const queryEndDate = useMemo(() => dayjs(dateRange[1]).endOf('day').toDate(), [dateRange]);
-  const { bills, isLoading, isValidating, error } = useBills(
-    filters.patientUuid ?? '',
-    filters.billStatus ?? '',
-    queryStartDate,
-    queryEndDate,
-  );
+  const { dateRange, appliedTimesheet } = useBillingHistoryFilterContext();
+  const page = options.page ?? 1;
+  const pageSize = options.pageSize ?? 10;
+  const listResponse = useBillingHistoryList({
+    filters,
+    dateRange,
+    page,
+    pageSize,
+    timesheetUuid: appliedTimesheet?.uuid,
+  });
 
-  const filteredBills = useMemo(() => getFilteredBillsForHistory(bills ?? [], filters), [bills, filters]);
-  const scopedBills = useMemo(
+  const exportRows = useCallback(
     () =>
-      dateFilterSource === 'payment'
-        ? filteredBills.filter((bill) =>
-            (bill.payments ?? []).some((payment) => {
-              if (payment?.voided) {
-                return false;
-              }
-
-              const paymentTimestamp = dayjs(payment?.dateCreated).valueOf();
-              return (
-                Number.isFinite(paymentTimestamp) && paymentTimestamp >= rangeStart && paymentTimestamp <= rangeEnd
-              );
-            }),
-          )
-        : filteredBills,
-    [dateFilterSource, filteredBills, rangeEnd, rangeStart],
-  );
-  const sortedBills = useMemo(
-    () =>
-      scopedBills
-        .slice()
-        .sort((leftBill, rightBill) => getLatestPaymentTimestamp(rightBill) - getLatestPaymentTimestamp(leftBill)),
-    [scopedBills],
+      fetchBillingHistoryForExport({
+        filters,
+        dateRange,
+        timesheetUuid: appliedTimesheet?.uuid,
+      }),
+    [appliedTimesheet?.uuid, dateRange, filters],
   );
 
-  return { bills: sortedBills, isLoading, isValidating, error };
+  return {
+    bills: listResponse.rows,
+    totalCount: listResponse.totalCount,
+    error: listResponse.error,
+    isLoading: listResponse.isLoading,
+    isValidating: listResponse.isValidating,
+    mutate: listResponse.mutate,
+    exportRows,
+  };
+};
+
+export const useBillingHistoryMetrics = (filters: Filter) => {
+  const { dateRange, appliedTimesheet } = useBillingHistoryFilterContext();
+  return useBillingHistoryMetricsResource({
+    filters,
+    dateRange,
+    timesheetUuid: appliedTimesheet?.uuid,
+  });
+};
+
+const matchesSearch = (search: string, ...values: Array<string | number | null | undefined>) => {
+  const trimmedSearch = search.trim().toLowerCase();
+  if (!trimmedSearch) {
+    return true;
+  }
+
+  return values.some((value) => `${value ?? ''}`.toLowerCase().includes(trimmedSearch));
+};
+
+export const matchesBillingHistoryRowSearch = (row: BillingHistoryRow, search: string) => {
+  return matchesSearch(
+    search,
+    row.dateCreated,
+    row.receiptNumber,
+    row.patientName,
+    row.identifier,
+    row.status,
+    row.billedItems,
+    row.referenceCodes,
+  );
 };

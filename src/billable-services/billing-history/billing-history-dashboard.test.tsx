@@ -8,7 +8,7 @@ jest.mock('./useBillingHistoryFilterContext', () => ({
 }));
 
 jest.mock('./useBillingHistoryBills', () => ({
-  useBillingHistoryBills: () => ({ bills: [], isLoading: false, error: null }),
+  useBillingHistoryMetrics: () => ({ metrics: { paymentMethodTotals: [] }, isLoading: false, error: null }),
 }));
 
 jest.mock('./filters/billing-history-filters.component', () => ({
@@ -18,7 +18,7 @@ jest.mock('./filters/billing-history-filters.component', () => ({
 jest.mock('../../metrics-cards/metrics-cards.component', () => () => <div data-testid="payment-metrics">Metrics</div>);
 
 jest.mock('./bill-history-viewer.component', () => ({
-  BillHistoryViewerContent: () => <div data-testid="payment-history-table">History Table</div>,
+  BillHistoryViewer: () => <div data-testid="payment-history-table">History Table</div>,
 }));
 
 jest.mock('./payment-method-distribution.component', () => () => <div>Payment Summary</div>);

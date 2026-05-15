@@ -1,14 +1,13 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { navigate } from '@openmrs/esm-framework';
-import { useBills, useBillsPaginated } from '../billing.resource';
+import { useBillsPaginated } from '../billing.resource';
 import { getInvoiceUrl } from '../helpers';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import AllBillsTable from './all-bills-table.component';
 
 jest.mock('../billing.resource', () => ({
-  useBills: jest.fn(),
   useBillsPaginated: jest.fn(),
 }));
 
@@ -16,6 +15,7 @@ jest.mock('@openmrs/esm-framework', () => ({
   useLayoutType: jest.fn(() => 'desktop'),
   isDesktop: jest.fn(() => true),
   useConfig: jest.fn(() => ({ bills: { pageSizes: [10], pageSize: 10 } })),
+  useDebounce: jest.fn((value) => value),
   ErrorState: ({ error, headerTitle }: { error: Error; headerTitle: string }) => (
     <div>
       <span>{headerTitle}</span>
@@ -30,12 +30,11 @@ jest.mock('@openmrs/esm-patient-common-lib', () => ({
 }));
 
 const mockUseBillsPaginated = useBillsPaginated as jest.Mock;
-const mockUseBills = useBills as jest.Mock;
 const mockNavigate = navigate as jest.Mock;
 
-const buildBillsResponse = (bills = []) => ({
+const buildBillsResponse = (bills = [], totalCount = bills.length) => ({
   bills,
-  totalCount: bills.length,
+  totalCount,
   isLoading: false,
   isValidating: false,
   error: null,
@@ -96,43 +95,34 @@ const paidBill = {
 describe('AllBillsTable', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    mockUseBills.mockImplementation((_patientUuid, _billStatus, _startingDate, _endDate, enabled) => {
-      if (!enabled) {
-        return {
-          bills: [],
-          error: null,
-          isLoading: false,
-          isValidating: false,
-          mutate: jest.fn(),
-        };
+    mockUseBillsPaginated.mockImplementation(({ patientUuid, billStatus, receiptNumber }) => {
+      if (patientUuid === 'patient-uuid-2') {
+        return buildBillsResponse([secondTestBill]);
       }
 
-      return {
-        bills: [testBill],
-        error: null,
-        isLoading: false,
-        isValidating: false,
-        mutate: jest.fn(),
-      };
-    });
-    mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
-      if (!enabled) {
-        return buildBillsResponse();
+      if (receiptNumber === 'INV-999') {
+        return buildBillsResponse([
+          {
+            ...secondTestBill,
+            patientName: 'Invoice Match',
+            receiptNumber: 'INV-999',
+          },
+        ]);
+      }
+
+      if (receiptNumber) {
+        return buildBillsResponse([]);
       }
 
       if (billStatus === 'PENDING') {
         return buildBillsResponse([testBill]);
       }
 
-      if (billStatus === 'POSTED') {
-        return buildBillsResponse([postedBill]);
-      }
-
       if (billStatus === 'PAID') {
         return buildBillsResponse([paidBill]);
       }
 
-      return buildBillsResponse();
+      return buildBillsResponse([paidBill, postedBill, testBill], 3);
     });
     Object.defineProperty(window, 'getOpenmrsSpaBase', {
       configurable: true,
@@ -145,7 +135,7 @@ describe('AllBillsTable', () => {
     jest.clearAllMocks();
   });
 
-  test('navigates to the billing page when a row is clicked outside the patient name', async () => {
+  test('navigates to the billing page when a row is clicked', async () => {
     const user = userEvent.setup();
 
     render(
@@ -154,12 +144,10 @@ describe('AllBillsTable', () => {
       </SelectedDateContext.Provider>,
     );
 
-    const row = screen.getByText('Jane Doe').closest('tr');
-    expect(row).not.toBeNull();
-    await user.click(screen.getByText('PENDING'));
+    await user.click(screen.getByText('Paid Patient'));
 
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: getInvoiceUrl('patient-uuid', 'bill-uuid'),
+      to: getInvoiceUrl('patient-uuid-4', 'bill-uuid-4'),
     });
   });
 
@@ -191,12 +179,25 @@ describe('AllBillsTable', () => {
     expect(screen.queryByText('Patient identifier')).not.toBeInTheDocument();
   });
 
-  test('defaults to all bills and sorts pending, posted, and paid bills by date', () => {
+  test('defaults to all bills and shows all returned statuses', () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
         <AllBillsTable />
       </SelectedDateContext.Provider>,
     );
+
+    expect(mockUseBillsPaginated.mock.calls[0][0]).toMatchObject({
+      patientUuid: '',
+      billStatus: '',
+      receiptNumber: '',
+      page: 1,
+      pageSize: 10,
+    });
+    expect(
+      mockUseBillsPaginated.mock.calls.every(
+        ([params]) => !['PENDING', 'POSTED', 'PAID'].includes(params.billStatus ?? ''),
+      ),
+    ).toBe(true);
 
     expect(screen.getByText('All bills')).toBeInTheDocument();
     expect(
@@ -211,155 +212,36 @@ describe('AllBillsTable', () => {
     ]);
   });
 
-  test('filters bills by invoice number', async () => {
-    const user = userEvent.setup();
-    const hiddenBill = {
-      ...secondTestBill,
-      patientName: 'Invoice Match',
-      receiptNumber: 'INV-999',
-    } as any;
-
-    mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
-      if (!enabled) {
-        return buildBillsResponse();
-      }
-
-      if (billStatus === 'PENDING') {
-        return buildBillsResponse([testBill]);
-      }
-
-      if (billStatus === 'POSTED') {
-        return buildBillsResponse();
-      }
-
-      return buildBillsResponse();
-    });
-    mockUseBills.mockImplementation((_patientUuid, billStatus, _startingDate, _endDate, enabled) => {
-      if (!enabled) {
-        return {
-          bills: [],
-          error: null,
-          isLoading: false,
-          isValidating: false,
-          mutate: jest.fn(),
-        };
-      }
-
-      if (billStatus === 'PENDING') {
-        return {
-          bills: [testBill, hiddenBill],
-          error: null,
-          isLoading: false,
-          isValidating: false,
-          mutate: jest.fn(),
-        };
-      }
-
-      return {
-        bills: [],
-        error: null,
-        isLoading: false,
-        isValidating: false,
-        mutate: jest.fn(),
-      };
-    });
-
+  test('filters bills by invoice number using the backend filter prop', async () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
-        <AllBillsTable />
+        <AllBillsTable receiptNumber="INV-999" />
       </SelectedDateContext.Provider>,
     );
 
-    expect(screen.queryByText('Invoice Match')).not.toBeInTheDocument();
-
-    await user.type(screen.getByRole('searchbox'), 'INV-999');
-
-    expect(screen.getByText('Invoice Match')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Invoice Match')).toBeInTheDocument();
+    });
     expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
   });
 
-  test('filters bills by billed items', async () => {
-    const user = userEvent.setup();
-    const hiddenBill = {
-      ...secondTestBill,
-      patientName: 'Service Match',
-      lineItems: [
-        {
-          billableService: 'service-uuid:Teeth Whitening',
-          item: 'service-uuid:Teeth Whitening',
-        },
-      ],
-    } as any;
-
-    mockUseBillsPaginated.mockImplementation(({ billStatus, enabled }) => {
-      if (!enabled) {
-        return buildBillsResponse();
-      }
-
-      if (billStatus === 'PENDING') {
-        return buildBillsResponse([testBill]);
-      }
-
-      if (billStatus === 'POSTED') {
-        return buildBillsResponse();
-      }
-
-      return buildBillsResponse();
-    });
-    mockUseBills.mockImplementation((_patientUuid, billStatus, _startingDate, _endDate, enabled) => {
-      if (!enabled) {
-        return {
-          bills: [],
-          error: null,
-          isLoading: false,
-          isValidating: false,
-          mutate: jest.fn(),
-        };
-      }
-
-      if (billStatus === 'PENDING') {
-        return {
-          bills: [testBill, hiddenBill],
-          error: null,
-          isLoading: false,
-          isValidating: false,
-          mutate: jest.fn(),
-        };
-      }
-
-      return {
-        bills: [],
-        error: null,
-        isLoading: false,
-        isValidating: false,
-        mutate: jest.fn(),
-      };
-    });
-
+  test('filters bills by selected patient uuid using the backend filter', () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
-        <AllBillsTable />
+        <AllBillsTable patientUuid="patient-uuid-2" />
       </SelectedDateContext.Provider>,
     );
 
-    expect(screen.queryByText('Service Match')).not.toBeInTheDocument();
-
-    await user.type(screen.getByRole('searchbox'), 'teeth whitening');
-
-    expect(screen.getByText('Service Match')).toBeInTheDocument();
+    expect(screen.getByText('John Smith')).toBeInTheDocument();
     expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
   });
 
-  test('keeps the search controls visible when a search has no matching bills', async () => {
-    const user = userEvent.setup();
-
+  test('keeps the search controls visible when an invoice filter prop has no matching bills', () => {
     render(
       <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
-        <AllBillsTable />
+        <AllBillsTable receiptNumber="does-not-exist" />
       </SelectedDateContext.Provider>,
     );
-
-    await user.type(screen.getByRole('searchbox'), 'does-not-exist');
 
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
     expect(screen.getByText('No matching bills to display')).toBeInTheDocument();

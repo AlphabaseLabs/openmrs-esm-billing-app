@@ -69,6 +69,7 @@ test('renders billing home controls and the bills table by default', () => {
   expect(screen.getByTestId('billing-header-title')).toHaveTextContent('Home');
   expect(screen.getByTestId('billing-header-date-filter')).toHaveTextContent('shown');
   expect(screen.queryByRole('button', { name: /show more/i })).not.toBeInTheDocument();
+  expect(screen.getByPlaceholderText('Search bills by invoice number')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /create bill/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /billing options/i })).toBeInTheDocument();
   expect(screen.getByText('All Bills Table')).toBeInTheDocument();

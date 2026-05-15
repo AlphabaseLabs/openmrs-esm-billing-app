@@ -362,12 +362,54 @@ export interface BillsPaginatedResponse {
 export interface UseBillsPaginatedParams {
   patientUuid?: string;
   billStatus?: PaymentStatus.PENDING | '' | string;
+  receiptNumber?: string;
   startingDate?: Date;
   endDate?: Date;
   page?: number;
   pageSize?: number;
   enabled?: boolean;
 }
+
+const paginatedBillsRequestOptions = {
+  errorRetryCount: 2,
+  keepPreviousData: true,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+} as const;
+
+const buildPaginatedBillsUrl = ({
+  patientUuid,
+  billStatus,
+  receiptNumber,
+  startingDate,
+  endDate,
+  page,
+  pageSize,
+}: Required<Omit<UseBillsPaginatedParams, 'enabled'>>) => {
+  const urlParams = new URLSearchParams({
+    v: 'custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
+    createdOnOrAfter: startingDate.toISOString(),
+    createdOnOrBefore: endDate.toISOString(),
+    limit: pageSize.toString(),
+    startIndex: String((page - 1) * pageSize),
+    totalCount: 'true',
+  });
+
+  if (billStatus) {
+    urlParams.append('status', billStatus);
+  }
+
+  if (patientUuid) {
+    urlParams.append('patientUuid', patientUuid);
+  }
+
+  const trimmedReceiptNumber = receiptNumber.trim();
+  if (trimmedReceiptNumber) {
+    urlParams.append('receiptNumber', trimmedReceiptNumber);
+  }
+
+  return `${restBaseUrl}/cashier/bill?${urlParams.toString()}`;
+};
 
 /**
  * Hook for fetching bills with server-side pagination.
@@ -379,32 +421,22 @@ export interface UseBillsPaginatedParams {
 export const useBillsPaginated = ({
   patientUuid = '',
   billStatus = '',
+  receiptNumber = '',
   startingDate = dayjs().subtract(10, 'year').startOf('day').toDate(),
   endDate = dayjs().endOf('day').toDate(),
   page = 1,
   pageSize = 10,
   enabled = true,
 }: UseBillsPaginatedParams = {}): BillsPaginatedResponse => {
-  const startingDateISO = startingDate.toISOString();
-  const endDateISO = endDate.toISOString();
-  const startIndex = (page - 1) * pageSize;
-
-  // Build URL with pagination parameters
-  const urlParams = new URLSearchParams({
-    status: billStatus || '',
-    v: 'custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
-    createdOnOrAfter: startingDateISO,
-    createdOnOrBefore: endDateISO,
-    limit: pageSize.toString(),
-    startIndex: startIndex.toString(),
-    totalCount: 'true',
+  const url = buildPaginatedBillsUrl({
+    patientUuid,
+    billStatus,
+    receiptNumber,
+    startingDate,
+    endDate,
+    page,
+    pageSize,
   });
-
-  if (patientUuid) {
-    urlParams.append('patientUuid', patientUuid);
-  }
-
-  const url = `${restBaseUrl}/cashier/bill?${urlParams.toString()}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     data: {
@@ -413,10 +445,7 @@ export const useBillsPaginated = ({
       totalCount?: number;
       links?: Array<{ rel: string; uri: string }>;
     };
-  }>(enabled ? url : null, openmrsFetch, {
-    errorRetryCount: 2,
-    keepPreviousData: true,
-  });
+  }>(enabled ? url : null, openmrsFetch, paginatedBillsRequestOptions);
 
   const sortBills = sortBy(data?.data?.results ?? [], ['dateCreated']).reverse();
   const mappedResults = sortBills?.map((bill) => mapBillProperties(bill)) ?? [];

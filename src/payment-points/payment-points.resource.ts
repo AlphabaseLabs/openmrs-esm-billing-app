@@ -1,22 +1,26 @@
 import { type FetchResponse, openmrsFetch, useSession } from '@openmrs/esm-framework';
+import { useMemo } from 'react';
 import useSWR from 'swr';
 import { type PaymentPoint, type Timesheet } from '../types';
+
+const defaultRequestOptions = {
+  errorRetryCount: 3,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+} as const;
 
 export const usePaymentPoints = () => {
   const url = `/ws/rest/v1/cashier/cashPoint`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     data: { results: PaymentPoint[]; length: number };
-  }>(url, openmrsFetch, {
-    errorRetryCount: 3,
-  });
+  }>(url, openmrsFetch, defaultRequestOptions);
 
   return {
-    paymentPoints: data?.data.results.map((res) => {
-      return {
-        ...res,
-        id: res.uuid,
-      };
-    }),
+    paymentPoints:
+      data?.data.results.map((paymentPoint) => ({
+        ...paymentPoint,
+        id: paymentPoint.uuid,
+      })) ?? [],
     error,
     isLoading,
     isValidating,
@@ -44,9 +48,7 @@ export const useTimeSheets = () => {
   const url = `/ws/rest/v1/cashier/timesheet?v=full`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     data: { results: Timesheet[] };
-  }>(url, openmrsFetch, {
-    errorRetryCount: 3,
-  });
+  }>(url, openmrsFetch, defaultRequestOptions);
 
   return {
     timesheets: data?.data.results ?? [],
@@ -65,9 +67,7 @@ export const useActiveSheet = () => {
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     data: { results: Timesheet[] };
-  }>(providerUUID ? url : undefined, openmrsFetch, {
-    errorRetryCount: 3,
-  });
+  }>(providerUUID ? url : undefined, openmrsFetch, defaultRequestOptions);
 
   return {
     timesheets: data?.data.results.filter((r) => Boolean(r)) ?? [],
@@ -126,7 +126,11 @@ interface UsersResponse {
 
 export function useProviders() {
   const url = `/ws/rest/v1/provider?v=custom:(uuid,person:(uuid)`;
-  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(url, openmrsFetch);
+  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(
+    url,
+    openmrsFetch,
+    defaultRequestOptions,
+  );
   const providers = data?.data?.results || [];
 
   return { providers, error, isLoading };
@@ -134,21 +138,33 @@ export function useProviders() {
 
 export function useProviderOptions() {
   const url = `/ws/rest/v1/provider?v=custom:(uuid,person:(uuid,display))`;
-  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(url, openmrsFetch);
-  const providers = data?.data?.results || [];
-
-  const options: ProviderOption[] = (providers || []).map((p) => ({
-    id: p.uuid,
-    uuid: p.uuid,
-    label: p.person?.display ?? p.uuid,
-  })).sort((a, b) => a.label.localeCompare(b.label));
+  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(
+    url,
+    openmrsFetch,
+    defaultRequestOptions,
+  );
+  const options = useMemo<Array<ProviderOption>>(
+    () =>
+      (data?.data?.results ?? [])
+        .map((provider) => ({
+          id: provider.uuid,
+          uuid: provider.uuid,
+          label: provider.person?.display ?? provider.uuid,
+        }))
+        .sort((leftOption, rightOption) => leftOption.label.localeCompare(rightOption.label)),
+    [data?.data?.results],
+  );
 
   return { providerOptions: options, error, isLoading };
 }
 
 export function useUsers() {
   const url = `/ws/rest/v1/user?v=custom:(uuid,person:(uuid)`;
-  const { data, error, isLoading } = useSWR<FetchResponse<{ results: UsersResponse[] }>>(url, openmrsFetch);
+  const { data, error, isLoading } = useSWR<FetchResponse<{ results: UsersResponse[] }>>(
+    url,
+    openmrsFetch,
+    defaultRequestOptions,
+  );
   const users = data?.data?.results || [];
 
   return { users, error, isLoading };

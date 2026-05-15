@@ -1,3 +1,4 @@
+@use '@carbon/colors';
 @use '@carbon/layout';
 @use '@carbon/type';
 @use '@openmrs/esm-styleguide/src/vars' as *;
@@ -11,7 +12,6 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: layout.$spacing-04;
-  // margin-bottom: layout.$spacing-01;
   flex-wrap: wrap;
 }
 
@@ -34,7 +34,7 @@
 }
 
 .filterContainer {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 16rem;
 
   :global(.cds--dropdown__wrapper--inline) {
@@ -56,8 +56,10 @@
 
 .actionsContainer {
   display: flex;
+  flex: 1 1 auto;
   justify-content: flex-end;
   align-items: center;
+  min-width: 0;
 }
 
 .headerContainer {
@@ -93,12 +95,66 @@
   gap: layout.$spacing-03;
 }
 
-.searchbar {
+.tableSearchWrapper {
+  position: relative;
   flex: 1;
+  min-width: 0;
 }
 
-.tableContainer section {
-  position: relative;
+.searchbar {
+  width: 100%;
+}
+
+.patientSearchResults {
+  position: absolute;
+  top: calc(100% + #{layout.$spacing-02});
+  inset-inline: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  max-height: 18rem;
+  overflow-y: auto;
+  border: 1px solid $ui-03;
+  background: $ui-02;
+  box-shadow: 0 layout.$spacing-03 layout.$spacing-05 rgb(0 0 0 / 16%);
+}
+
+.patientSearchResultButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: layout.$spacing-01;
+  width: 100%;
+  padding: layout.$spacing-04;
+  border: none;
+  border-bottom: 1px solid $ui-03;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover,
+  &:focus {
+    background: colors.$gray-10;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.patientSearchResultName {
+  @include type.type-style('body-compact-01');
+  color: $ui-05;
+}
+
+.patientSearchResultMeta,
+.patientSearchState {
+  @include type.type-style('label-01');
+  color: $text-02;
+}
+
+.patientSearchState {
+  padding: layout.$spacing-04;
 }
 
 .pagination {

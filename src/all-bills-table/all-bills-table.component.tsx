@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
-import sortBy from 'lodash-es/sortBy';
 import {
   Button,
   DataTable,
@@ -24,9 +23,10 @@ import { Renew } from '@carbon/react/icons';
 import { ErrorState, isDesktop, navigate, useConfig, useLayoutType } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
-import { useBills, useBillsPaginated } from '../billing.resource';
+import { useBillsPaginated } from '../billing.resource';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import { convertToCurrency, getInvoiceUrl } from '../helpers';
+import { toPatientSearchOption, type PatientSearchResult, usePatientSearchResults } from '../hooks/use-patient-search';
 import type { MappedBill } from '../types';
 import styles from './all-bills-table.scss';
 
@@ -37,12 +37,17 @@ type FilterOption = {
   text: string;
 };
 
+type SelectedPatient = {
+  uuid: string;
+  label: string;
+};
+
 type TableRowData = {
   id: string;
   uuid: string;
   patientUuid: string;
-  patientName: React.ReactNode;
-  billDate: React.ReactNode;
+  patientName: string;
+  billDate: string;
   status: string;
   billedItems: string;
   billTotal: string;
@@ -50,11 +55,14 @@ type TableRowData = {
 
 interface AllBillsTableProps {
   actions?: React.ReactNode;
+  patientUuid?: string;
+  receiptNumber?: string;
 }
 
 interface BillTableDataParams {
+  patientUuid: string;
   billStatus: BillStatusFilter;
-  hasSearch: boolean;
+  receiptNumber: string;
   currentPage: number;
   pageSize: number;
   startDate: Date;
@@ -76,8 +84,6 @@ interface DisplayTableState {
   hasResolvedData: boolean;
 }
 
-const mergedHomeBillStatuses = ['PENDING', 'POSTED', 'PAID'] as const;
-
 const getBillLineItemLabel = (value?: string) => {
   if (!value) {
     return '';
@@ -93,202 +99,36 @@ const getBilledItems = (bill: MappedBill) =>
     .filter(Boolean)
     .join(' & ') ?? '';
 
-const mergeBillsByDate = (...billCollections: Array<Array<MappedBill> | undefined>) => {
-  const deduplicatedBills = new Map<string, MappedBill>();
-
-  billCollections
-    .flatMap((bills) => bills ?? [])
-    .forEach((bill) => {
-      deduplicatedBills.set(bill.uuid, bill);
-    });
-
-  return sortBy(Array.from(deduplicatedBills.values()), ['dateCreatedUnformatted']).reverse();
-};
-
-const paginateBills = (bills: Array<MappedBill>, currentPage: number, pageSize: number) => {
-  const startIndex = (currentPage - 1) * pageSize;
-  return bills.slice(startIndex, startIndex + pageSize);
-};
-
-const combineTotalCounts = (...counts: Array<number | null>) =>
-  counts.some((count) => count === null) ? null : counts.reduce((sum, count) => sum + (count ?? 0), 0);
-
-const hasActiveRequest = (...states: Array<boolean>) => states.some(Boolean);
-
-const matchesSearch = (bill: MappedBill, searchTerm: string) =>
-  [bill.patientName, bill.identifier, bill.receiptNumber, getBilledItems(bill)].some((value) =>
-    value?.toLowerCase().includes(searchTerm),
-  );
-
 function useBillTableData({
+  patientUuid,
   billStatus,
-  hasSearch,
+  receiptNumber,
   currentPage,
   pageSize,
   startDate,
   endDate,
 }: BillTableDataParams): BillTableDataResult {
-  const isAllBillsFilter = billStatus === '';
-  const mergedBrowsePageSize = currentPage * pageSize;
-
-  const pendingBrowseBills = useBillsPaginated({
-    patientUuid: '',
-    billStatus: 'PENDING',
-    startingDate: startDate,
-    endDate: endDate,
-    page: 1,
-    pageSize: mergedBrowsePageSize,
-    enabled: isAllBillsFilter && !hasSearch,
-  });
-
-  const postedBrowseBills = useBillsPaginated({
-    patientUuid: '',
-    billStatus: 'POSTED',
-    startingDate: startDate,
-    endDate: endDate,
-    page: 1,
-    pageSize: mergedBrowsePageSize,
-    enabled: isAllBillsFilter && !hasSearch,
-  });
-
-  const paidBrowseBills = useBillsPaginated({
-    patientUuid: '',
-    billStatus: 'PAID',
-    startingDate: startDate,
-    endDate: endDate,
-    page: 1,
-    pageSize: mergedBrowsePageSize,
-    enabled: isAllBillsFilter && !hasSearch,
-  });
-
-  const filteredBrowseBills = useBillsPaginated({
-    patientUuid: '',
+  const billsResponse = useBillsPaginated({
+    patientUuid,
     billStatus,
+    receiptNumber,
     startingDate: startDate,
     endDate: endDate,
     page: currentPage,
     pageSize,
-    enabled: !isAllBillsFilter && !hasSearch,
+    enabled: true,
   });
 
-  const pendingSearchBills = useBills('', mergedHomeBillStatuses[0], startDate, endDate, isAllBillsFilter && hasSearch);
-  const postedSearchBills = useBills('', mergedHomeBillStatuses[1], startDate, endDate, isAllBillsFilter && hasSearch);
-  const paidSearchBills = useBills('', mergedHomeBillStatuses[2], startDate, endDate, isAllBillsFilter && hasSearch);
-  const filteredSearchBills = useBills('', billStatus, startDate, endDate, !isAllBillsFilter && hasSearch);
-
-  const mergedBrowseBills = useMemo(
-    () => mergeBillsByDate(pendingBrowseBills.bills, postedBrowseBills.bills, paidBrowseBills.bills),
-    [paidBrowseBills.bills, pendingBrowseBills.bills, postedBrowseBills.bills],
-  );
-  const mergedSearchBills = useMemo(
-    () => mergeBillsByDate(pendingSearchBills.bills, postedSearchBills.bills, paidSearchBills.bills),
-    [paidSearchBills.bills, pendingSearchBills.bills, postedSearchBills.bills],
-  );
-
-  const bills = useMemo(() => {
-    if (hasSearch) {
-      return isAllBillsFilter ? mergedSearchBills : (filteredSearchBills.bills ?? []);
-    }
-
-    if (isAllBillsFilter) {
-      return paginateBills(mergedBrowseBills, currentPage, pageSize);
-    }
-
-    return filteredBrowseBills.bills ?? [];
-  }, [
-    currentPage,
-    filteredBrowseBills.bills,
-    filteredSearchBills.bills,
-    hasSearch,
-    isAllBillsFilter,
-    mergedBrowseBills,
-    mergedSearchBills,
-    pageSize,
-  ]);
-
-  const totalItems = useMemo(() => {
-    if (hasSearch) {
-      return null;
-    }
-
-    if (isAllBillsFilter) {
-      return combineTotalCounts(
-        pendingBrowseBills.totalCount,
-        postedBrowseBills.totalCount,
-        paidBrowseBills.totalCount,
-      );
-    }
-
-    return filteredBrowseBills.totalCount;
-  }, [
-    filteredBrowseBills.totalCount,
-    hasSearch,
-    isAllBillsFilter,
-    pendingBrowseBills.totalCount,
-    paidBrowseBills.totalCount,
-    postedBrowseBills.totalCount,
-  ]);
-
-  const isLoading = hasSearch
-    ? isAllBillsFilter
-      ? hasActiveRequest(pendingSearchBills.isLoading, postedSearchBills.isLoading, paidSearchBills.isLoading)
-      : filteredSearchBills.isLoading
-    : isAllBillsFilter
-      ? hasActiveRequest(pendingBrowseBills.isLoading, postedBrowseBills.isLoading, paidBrowseBills.isLoading)
-      : filteredBrowseBills.isLoading;
-
-  const isValidating = hasSearch
-    ? isAllBillsFilter
-      ? hasActiveRequest(pendingSearchBills.isValidating, postedSearchBills.isValidating, paidSearchBills.isValidating)
-      : filteredSearchBills.isValidating
-    : isAllBillsFilter
-      ? hasActiveRequest(pendingBrowseBills.isValidating, postedBrowseBills.isValidating, paidBrowseBills.isValidating)
-      : filteredBrowseBills.isValidating;
-
-  const error = hasSearch
-    ? isAllBillsFilter
-      ? (pendingSearchBills.error ?? postedSearchBills.error ?? paidSearchBills.error)
-      : filteredSearchBills.error
-    : isAllBillsFilter
-      ? (pendingBrowseBills.error ?? postedBrowseBills.error ?? paidBrowseBills.error)
-      : filteredBrowseBills.error;
-
   const refresh = useCallback(() => {
-    if (hasSearch) {
-      if (isAllBillsFilter) {
-        void Promise.all([pendingSearchBills.mutate(), postedSearchBills.mutate(), paidSearchBills.mutate()]);
-        return;
-      }
-
-      void filteredSearchBills.mutate();
-      return;
-    }
-
-    if (isAllBillsFilter) {
-      void Promise.all([pendingBrowseBills.mutate(), postedBrowseBills.mutate(), paidBrowseBills.mutate()]);
-      return;
-    }
-
-    void filteredBrowseBills.mutate();
-  }, [
-    filteredBrowseBills,
-    filteredSearchBills,
-    hasSearch,
-    isAllBillsFilter,
-    pendingBrowseBills,
-    pendingSearchBills,
-    paidBrowseBills,
-    paidSearchBills,
-    postedBrowseBills,
-    postedSearchBills,
-  ]);
+    void billsResponse.mutate();
+  }, [billsResponse]);
 
   return {
-    bills,
-    totalItems,
-    isLoading,
-    isValidating,
-    error,
+    bills: billsResponse.bills,
+    totalItems: billsResponse.totalCount,
+    isLoading: billsResponse.isLoading,
+    isValidating: billsResponse.isValidating,
+    error: billsResponse.error,
     refresh,
   };
 }
@@ -340,7 +180,7 @@ function useDisplayedTableState(
   };
 }
 
-const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
+const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = '', receiptNumber = '' }) => {
   const { t } = useTranslation();
   const id = useId();
   const config = useConfig();
@@ -349,10 +189,9 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
   const [billStatus, setBillStatus] = useState<BillStatusFilter>('');
   const [pageSize, setPageSize] = useState(config?.bills?.pageSize ?? 10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchString, setSearchString] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState<SelectedPatient | null>(null);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const { selectedDate } = useContext(SelectedDateContext);
-  const hasSearch = searchString.trim().length > 0;
-  const searchTerm = searchString.trim().toLowerCase();
   const pageSizes = config?.bills?.pageSizes ?? [10, 20, 50, 100, 500, 1000];
   const filterOptions = useMemo<Array<FilterOption>>(
     () => [
@@ -363,6 +202,13 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
     [t],
   );
   const selectedFilter = filterOptions.find((option) => option.id === billStatus) ?? filterOptions[0];
+  const resolvedPatientUuid = selectedPatient?.uuid ?? patientUuid;
+  const {
+    error: patientSearchError,
+    isLoading: isLoadingPatients,
+    results: patientSearchResults,
+    showResults: showPatientSearchResults,
+  } = usePatientSearchResults(patientSearchTerm, selectedPatient?.label);
 
   const startDate = useMemo(
     () =>
@@ -375,36 +221,23 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
   );
 
   const billTableData = useBillTableData({
+    patientUuid: resolvedPatientUuid,
     billStatus,
-    hasSearch,
+    receiptNumber: receiptNumber.trim(),
     currentPage,
     pageSize,
     startDate,
     endDate,
   });
-
-  const matchingBills = useMemo(() => {
-    if (!hasSearch) {
-      return billTableData.bills;
-    }
-
-    return billTableData.bills.filter((bill) => matchesSearch(bill, searchTerm));
-  }, [billTableData.bills, hasSearch, searchTerm]);
-
-  const visibleBills = useMemo(
-    () => (hasSearch ? paginateBills(matchingBills, currentPage, pageSize) : matchingBills),
-    [currentPage, hasSearch, matchingBills, pageSize],
-  );
-
-  const liveTotalItems = hasSearch ? matchingBills.length : billTableData.totalItems;
+  const hasActiveTableFilters = Boolean(resolvedPatientUuid || receiptNumber.trim() || billStatus);
   const displayedTable = useDisplayedTableState(
-    visibleBills,
-    liveTotalItems,
+    billTableData.bills,
+    billTableData.totalItems,
     billTableData.isLoading,
     billTableData.error,
   );
   const showInitialSkeleton = billTableData.isLoading && !displayedTable.hasResolvedData;
-  const shouldRenderTableShell = displayedTable.visibleBills.length > 0 || hasSearch;
+  const shouldRenderTableShell = displayedTable.visibleBills.length > 0 || hasActiveTableFilters;
 
   const headerData = useMemo(
     () => [
@@ -423,22 +256,32 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
         id: bill.uuid,
         uuid: bill.uuid,
         patientUuid: bill.patientUuid,
-        patientName: bill.patientName,
-        billDate: <span className={styles.billDateCell}>{bill.dateCreated}</span>,
+        patientName: bill.patientName ?? '--',
+        billDate: bill.dateCreated,
         status: bill.status,
         billedItems: getBilledItems(bill),
         billTotal: convertToCurrency(Number(bill.totalAmount ?? 0)),
       })),
     [displayedTable.visibleBills],
   );
+  const rowLookup = useMemo(() => new Map(rowData.map((row) => [row.id, row])), [rowData]);
 
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchString(event.target.value);
+  const handlePatientSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setPatientSearchTerm(event.target.value);
+    setSelectedPatient(null);
     setCurrentPage(1);
   }, []);
 
-  const handleClearSearch = useCallback(() => {
-    setSearchString('');
+  const handlePatientSearchClear = useCallback(() => {
+    setPatientSearchTerm('');
+    setSelectedPatient(null);
+    setCurrentPage(1);
+  }, []);
+
+  const handlePatientSelect = useCallback((patient: PatientSearchResult) => {
+    const patientOption = toPatientSearchOption(patient);
+    setSelectedPatient(patientOption);
+    setPatientSearchTerm(patientOption.label);
     setCurrentPage(1);
   }, []);
 
@@ -453,7 +296,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageSize, selectedDate]);
+  }, [pageSize, receiptNumber, resolvedPatientUuid, selectedDate]);
 
   if (showInitialSkeleton) {
     return (
@@ -504,13 +347,18 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
         <div className={styles.billListContainer}>
           <FilterableTableHeader
             handleRefresh={billTableData.refresh}
-            handleSearch={handleSearchChange}
-            handleClearSearch={handleClearSearch}
+            handleSearch={handlePatientSearchChange}
+            handleClearSearch={handlePatientSearchClear}
+            handlePatientSelect={handlePatientSelect}
             isRefreshing={billTableData.isLoading || billTableData.isValidating}
             isValidating={billTableData.isValidating}
             layout={layout}
+            patientSearchError={patientSearchError}
+            patientSearchResults={patientSearchResults}
             responsiveSize={responsiveSize}
-            searchString={searchString}
+            searchString={patientSearchTerm}
+            showPatientSearchResults={showPatientSearchResults}
+            isLoadingPatients={isLoadingPatients}
             t={t}
           />
           <DataTable
@@ -531,7 +379,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
                   </TableHead>
                   <TableBody>
                     {rows.map((row) => {
-                      const rowDetails = rowData.find((dataRow) => dataRow.id === row.id);
+                      const rowDetails = rowLookup.get(row.id);
 
                       return (
                         <TableRow
@@ -540,7 +388,11 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
                           className={styles.clickableRow}
                           onClick={() => rowDetails && handleRowClick(rowDetails.patientUuid, rowDetails.uuid)}>
                           {row.cells.map((cell) => (
-                            <TableCell key={cell.id}>{cell.value}</TableCell>
+                            <TableCell
+                              key={cell.id}
+                              className={cell.info.header === 'billDate' ? styles.billDateCell : undefined}>
+                              {cell.value}
+                            </TableCell>
                           ))}
                         </TableRow>
                       );
@@ -550,7 +402,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions }) => {
               </TableContainer>
             )}
           </DataTable>
-          {!billTableData.isLoading && matchingBills.length === 0 ? (
+          {!billTableData.isLoading && displayedTable.visibleBills.length === 0 && hasActiveTableFilters ? (
             <div className={styles.filterEmptyState}>
               <Layer level={0}>
                 <Tile className={styles.filterEmptyStateTile}>
@@ -601,11 +453,16 @@ interface FilterableTableHeaderProps {
   handleRefresh: () => void;
   handleSearch: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleClearSearch: () => void;
+  handlePatientSelect: (patient: PatientSearchResult) => void;
   isRefreshing: boolean;
   isValidating: boolean;
+  isLoadingPatients: boolean;
   layout: ReturnType<typeof useLayoutType>;
+  patientSearchError: Error | undefined;
+  patientSearchResults: Array<PatientSearchResult>;
   responsiveSize: 'sm' | 'lg';
   searchString: string;
+  showPatientSearchResults: boolean;
   t: ReturnType<typeof useTranslation>['t'];
 }
 
@@ -613,11 +470,16 @@ function FilterableTableHeader({
   handleRefresh,
   handleSearch,
   handleClearSearch,
+  handlePatientSelect,
   isRefreshing,
   isValidating,
+  isLoadingPatients,
   layout,
+  patientSearchError,
+  patientSearchResults,
   responsiveSize,
   searchString,
+  showPatientSearchResults,
   t,
 }: FilterableTableHeaderProps) {
   return (
@@ -635,18 +497,47 @@ function FilterableTableHeader({
         </div>
       </div>
       <div className={styles.searchContainer}>
-        <Search
-          className={styles.searchbar}
-          labelText=""
-          placeholder={t(
-            'filterBillsByPatientNameIdentifierOrInvoiceNumber',
-            'Filter bills by patient name, identifier, invoice number, or billed items',
-          )}
-          onChange={handleSearch}
-          onClear={handleClearSearch}
-          size={responsiveSize}
-          value={searchString}
-        />
+        <div className={styles.tableSearchWrapper}>
+          <Search
+            className={styles.searchbar}
+            labelText=""
+            placeholder={t('searchForPatient', 'Search patient by name or identifier')}
+            onChange={handleSearch}
+            onClear={handleClearSearch}
+            size={responsiveSize}
+            value={searchString}
+          />
+          {showPatientSearchResults ? (
+            <div className={styles.patientSearchResults} role="listbox" aria-label={t('patient', 'Patient')}>
+              {isLoadingPatients ? (
+                <div className={styles.patientSearchState}>{t('searchingPatients', 'Searching patients...')}</div>
+              ) : patientSearchError ? (
+                <div className={styles.patientSearchState}>
+                  {t('patientSearchError', 'Unable to load patient search results')}
+                </div>
+              ) : patientSearchResults.length ? (
+                patientSearchResults.map((patient) => {
+                  const patientOption = toPatientSearchOption(patient);
+
+                  return (
+                    <button
+                      type="button"
+                      key={patient.uuid}
+                      className={styles.patientSearchResultButton}
+                      onClick={() => handlePatientSelect(patient)}>
+                      <span className={styles.patientSearchResultName}>{patientOption.name}</span>
+                      {patientOption.identifier ? (
+                        <span className={styles.patientSearchResultMeta}>{patientOption.identifier}</span>
+                      ) : null}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className={styles.patientSearchState}>{t('noMatchingPatients', 'No matching patients')}</div>
+              )}
+            </div>
+          ) : null}
+        </div>
         <Button
           kind="ghost"
           size={responsiveSize}

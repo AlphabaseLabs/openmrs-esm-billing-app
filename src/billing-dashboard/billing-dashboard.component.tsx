@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@carbon/react';
+import { Button, Search } from '@carbon/react';
 import { Add, ArrowLeft, OverflowMenuVertical } from '@carbon/react/icons';
+import { ExtensionSlot } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import BillingHeader from '../billing-header/billing-header.component';
 import AllBillsTable from '../all-bills-table/all-bills-table.component';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import styles from './billing-dashboard.scss';
-import { ExtensionSlot } from '@openmrs/esm-framework';
 import { BillingHistory } from '../billable-services/billing-history/billing-history.component';
 import { PaymentHistory } from '../billable-services/payment-history/payment-history.component';
 import BillManager from '../billable-services/bill-manager/bill-manager.component';
@@ -41,6 +41,7 @@ function BillingDashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [selectedActionTitle, setSelectedActionTitle] = useState<string | null>(null);
+  const [receiptNumberSearch, setReceiptNumberSearch] = useState('');
   const optionsMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,6 +104,14 @@ function BillingDashboard() {
     launchCreateBillWorkspace(t);
   }, [t]);
 
+  const handleReceiptSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setReceiptNumberSearch(event.target.value);
+  }, []);
+
+  const handleReceiptSearchClear = useCallback(() => {
+    setReceiptNumberSearch('');
+  }, []);
+
   const handleBack = () => {
     if (getBillingActionFromPath(location.pathname) !== 'overview') {
       navigate('/');
@@ -124,34 +133,59 @@ function BillingDashboard() {
     return selectedAction === 'overview' ? null : embeddedPages[selectedAction];
   };
 
-  const headerActions = (
-    <div className={styles.headerActions}>
-      <Button kind="primary" size="sm" renderIcon={Add} onClick={handleLaunchCreateBill}>
-        {t('createBill', 'Create Bill')}
-      </Button>
-      <div className={styles.optionsMenuWrapper} ref={optionsMenuRef}>
-        <Button
-          kind="tertiary"
-          size="sm"
-          renderIcon={OverflowMenuVertical}
-          aria-haspopup="menu"
-          aria-expanded={isOptionsOpen}
-          onClick={() => setIsOptionsOpen((currentValue) => !currentValue)}>
-          {t('billingOptions', 'Billing options')}
-        </Button>
-        {isOptionsOpen ? (
-          <div className={styles.optionsMenu} role="menu" aria-label={t('billingOptions', 'Billing options')}>
-            <ExtensionSlot
-              name="billing-dashboard-actions-slot"
-              state={{
-                onSelect: () => setIsOptionsOpen(false),
-                onSelectAction: handleActionSelection,
-              }}
-            />
+  const headerActions = React.useMemo(
+    () => (
+      <div className={styles.headerActions}>
+        <div className={styles.invoiceSearchWrapper}>
+          <Search
+            id="billing-home-invoice-search"
+            labelText={t('invoiceNumberShort', 'Invoice #')}
+            closeButtonLabelText={t('clearSearch', 'Clear')}
+            placeholder={t('filterBillsByInvoiceNumber', 'Search bills by invoice number')}
+            value={receiptNumberSearch}
+            onChange={handleReceiptSearchChange}
+            onClear={handleReceiptSearchClear}
+            size="sm"
+          />
+        </div>
+        <div className={styles.headerButtons}>
+          <Button kind="primary" size="sm" renderIcon={Add} onClick={handleLaunchCreateBill}>
+            {t('createBill', 'Create Bill')}
+          </Button>
+          <div className={styles.optionsMenuWrapper} ref={optionsMenuRef}>
+            <Button
+              kind="tertiary"
+              size="sm"
+              renderIcon={OverflowMenuVertical}
+              aria-haspopup="menu"
+              aria-expanded={isOptionsOpen}
+              onClick={() => setIsOptionsOpen((currentValue) => !currentValue)}>
+              {t('billingOptions', 'Billing options')}
+            </Button>
+            {isOptionsOpen ? (
+              <div className={styles.optionsMenu} role="menu" aria-label={t('billingOptions', 'Billing options')}>
+                <ExtensionSlot
+                  name="billing-dashboard-actions-slot"
+                  state={{
+                    onSelect: () => setIsOptionsOpen(false),
+                    onSelectAction: handleActionSelection,
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
-    </div>
+    ),
+    [
+      handleActionSelection,
+      handleLaunchCreateBill,
+      handleReceiptSearchChange,
+      handleReceiptSearchClear,
+      isOptionsOpen,
+      receiptNumberSearch,
+      t,
+    ],
   );
 
   return (
@@ -180,7 +214,7 @@ function BillingDashboard() {
           </section>
         ) : (
           <section className={styles.billsTableContainer}>
-            <AllBillsTable actions={headerActions} />
+            <AllBillsTable actions={headerActions} receiptNumber={receiptNumberSearch} />
           </section>
         )}
       </main>

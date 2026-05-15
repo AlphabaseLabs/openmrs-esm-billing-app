@@ -3,9 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { PaymentStatus } from '../../../types';
 import { BillingHistoryFilters } from './billing-history-filters.component';
 import { useBillingHistoryFilterContext } from '../useBillingHistoryFilterContext';
-import { useBillingHistoryBills } from '../useBillingHistoryBills';
 import { usePaymentModes } from '../../../billing.resource';
-import { useTimeSheets } from '../../../payment-points/payment-points.resource';
+import { useProviderOptions, useTimeSheets } from '../../../payment-points/payment-points.resource';
 import useSWR from 'swr';
 
 jest.mock('react-i18next', () => ({
@@ -18,15 +17,12 @@ jest.mock('../useBillingHistoryFilterContext', () => ({
   useBillingHistoryFilterContext: jest.fn(),
 }));
 
-jest.mock('../useBillingHistoryBills', () => ({
-  useBillingHistoryBills: jest.fn(),
-}));
-
 jest.mock('../../../billing.resource', () => ({
   usePaymentModes: jest.fn(),
 }));
 
 jest.mock('../../../payment-points/payment-points.resource', () => ({
+  useProviderOptions: jest.fn(),
   useTimeSheets: jest.fn(),
 }));
 
@@ -129,7 +125,7 @@ jest.mock('@openmrs/esm-framework', () => ({
 
 const mockUseBillingHistoryFilterContext = useBillingHistoryFilterContext as jest.Mock;
 const mockUsePaymentModes = usePaymentModes as jest.Mock;
-const mockUseBillingHistoryBills = useBillingHistoryBills as jest.Mock;
+const mockUseProviderOptions = useProviderOptions as jest.Mock;
 const mockUseTimeSheets = useTimeSheets as jest.Mock;
 const mockUseSWR = useSWR as jest.Mock;
 
@@ -188,15 +184,13 @@ describe('BillingHistoryFilters', () => {
       setAppliedFilters: mockSetAppliedFilters,
     });
 
-    mockUseBillingHistoryBills.mockReturnValue({
-      bills: [],
-      isLoading: false,
-      isValidating: false,
-      error: null,
-    });
-
     mockUsePaymentModes.mockReturnValue({
       paymentModes: [],
+      isLoading: false,
+    });
+
+    mockUseProviderOptions.mockReturnValue({
+      providerOptions: [],
       isLoading: false,
     });
 

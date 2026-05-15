@@ -14,12 +14,20 @@ import {
 } from '@carbon/react';
 import { Download } from '@carbon/react/icons';
 import { navigate, useDebounce, useLayoutType } from '@openmrs/esm-framework';
-import { usePaginationInfo } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { exportToExcel } from '../../helpers/excelExport';
 import { convertToCurrency, getInvoiceUrl } from '../../helpers';
-import { type PaymentHistoryEntry } from './payment-history.utils';
+import { type PaymentHistoryEntry } from '../billing-history/history.resource';
+import {
+  createHistorySortRow,
+  getHistoryColumnStyle,
+  getHistoryResponsiveSize,
+  historyControlSize,
+  historyPageSizes,
+  historyTableSize,
+} from '../billing-history/history-table.utils';
+import { matchesPaymentHistoryEntrySearch } from './usePaymentHistoryEntries';
 import styles from './payment-history.scss';
 
 type PaymentEntryHistoryTableProps = {
@@ -28,53 +36,47 @@ type PaymentEntryHistoryTableProps = {
     header: string;
   }>;
   rows: Array<PaymentHistoryEntry>;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  isRefreshing: boolean;
+  onPageChange: (page: number, pageSize: number) => void;
+  onExport: (search: string) => Promise<Array<PaymentHistoryEntry>>;
 };
 
 type TableRowData = Omit<PaymentHistoryEntry, 'paymentAmount'> & {
   paymentAmount: string;
 };
 
-const controlSize = 'sm';
-const tableSize = 'sm';
 const columnStyles = {
   paymentDate: { inlineSize: '12rem', whiteSpace: 'nowrap' },
   invoiceId: { inlineSize: '9rem', whiteSpace: 'nowrap' },
   paymentAmount: { inlineSize: '9rem', whiteSpace: 'nowrap' },
 } as const;
 
-export const PaymentEntryHistoryTable = ({ headers, rows }: PaymentEntryHistoryTableProps) => {
+export const PaymentEntryHistoryTable = ({
+  headers,
+  rows,
+  totalCount,
+  page,
+  pageSize,
+  isRefreshing,
+  onPageChange,
+  onExport,
+}: PaymentEntryHistoryTableProps) => {
   const { t } = useTranslation();
-  const layout = useLayoutType();
-  const responsiveSize = layout !== 'tablet' ? 'sm' : 'md';
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const responsiveSize = getHistoryResponsiveSize(useLayoutType());
   const [searchString, setSearchString] = useState('');
-  const debouncedSearchString = useDebounce(searchString, 1000);
-  const getColumnStyle = (columnKey: string) => columnStyles[columnKey as keyof typeof columnStyles];
-
-  const filteredEntries = useMemo(() => {
-    if (!debouncedSearchString.trim()) {
-      return rows;
-    }
-
-    const searchTerm = debouncedSearchString.trim().toLowerCase();
-
-    return rows.filter((row) =>
-      [
-        row.paymentDate,
-        row.patientName,
-        row.identifier,
-        row.invoiceId,
-        row.paymentMethod,
-        row.referenceId,
-        `${row.paymentAmount}`,
-      ].some((value) => `${value ?? ''}`.toLowerCase().includes(searchTerm)),
-    );
-  }, [debouncedSearchString, rows]);
+  const debouncedSearchString = useDebounce(searchString, 300);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchString]);
+    setSearchString('');
+  }, [page, pageSize]);
+
+  const filteredEntries = useMemo(
+    () => rows.filter((row) => matchesPaymentHistoryEntrySearch(row, debouncedSearchString)),
+    [debouncedSearchString, rows],
+  );
 
   const transformedRows = useMemo<Array<TableRowData>>(
     () =>
@@ -84,53 +86,23 @@ export const PaymentEntryHistoryTable = ({ headers, rows }: PaymentEntryHistoryT
       })),
     [filteredEntries],
   );
-  const rowLookup = useMemo(() => new Map(transformedRows.map((row) => [row.id, row])), [transformedRows]);
-
-  const pageStart = (currentPage - 1) * pageSize;
-  const currentItemsCount = Math.max(0, Math.min(pageSize, transformedRows.length - pageStart));
-  const { pageSizes } = usePaginationInfo(pageSize, transformedRows.length, currentPage, currentItemsCount);
-
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(transformedRows.length / pageSize));
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, pageSize, transformedRows.length]);
-
-  const parseCurrencyValue = (value: unknown) => Number(`${value ?? ''}`.replace(/[^0-9.-]/g, '') || 0);
-  const parseDateValue = (value: unknown) => {
-    const parsedDate = dayjs(`${value ?? ''}`, 'DD-MMM-YYYY, hh:mm A', true);
-    return parsedDate.isValid() ? parsedDate.valueOf() : 0;
-  };
-
-  const sortRow = (cellA, cellB, { key, sortDirection, sortStates, compare }) => {
-    const compareValues = (firstValue: number, secondValue: number) =>
-      sortDirection === sortStates.ASC ? firstValue - secondValue : secondValue - firstValue;
-
-    switch (key) {
-      case 'paymentDate':
-        return compareValues(parseDateValue(cellA), parseDateValue(cellB));
-      case 'paymentAmount':
-        return compareValues(parseCurrencyValue(cellA), parseCurrencyValue(cellB));
-      default:
-        return sortDirection === sortStates.ASC ? compare(cellA, cellB) : compare(cellB, cellA);
-    }
-  };
+  const rowLookup = useMemo(() => new Map(filteredEntries.map((row) => [row.id, row])), [filteredEntries]);
+  const sortRow = createHistorySortRow('paymentDate', ['paymentAmount']);
 
   const handleRowClick = (billUuid: string, patientUuid: string) => {
     navigate({ to: getInvoiceUrl(patientUuid, billUuid) });
   };
 
-  const handleExport = () => {
-    const round2 = (value: number) => Number((value || 0).toFixed(2));
-    const data = filteredEntries.map((row) => ({
+  const handleExport = async () => {
+    const exportRows = await onExport(debouncedSearchString);
+    const data = exportRows.map((row) => ({
       'Payment date': row.paymentDate,
+      'Invoice #': row.invoiceId,
       'Patient name': row.patientName,
-      'Patient identifier': row.identifier,
-      'Invoice ID': row.invoiceId,
-      'Payment amount': round2(row.paymentAmount),
+      Identifier: row.identifier,
+      'Payment amount': Number(row.paymentAmount.toFixed(2)),
       'Payment method': row.paymentMethod,
-      'Reference ID': row.referenceId,
+      'Reference codes': row.referenceId,
     }));
 
     exportToExcel(data, {
@@ -144,8 +116,11 @@ export const PaymentEntryHistoryTable = ({ headers, rows }: PaymentEntryHistoryT
       <div className={styles.tableToolbar}>
         <Search
           className={styles.tableSearch}
-          size={controlSize}
-          placeholder={t('searchPaymentHistory', 'Search payment history table')}
+          size={historyControlSize}
+          placeholder={t(
+            'searchPaymentHistoryPage',
+            'Search this page by patient, identifier, invoice, payment method, or reference',
+          )}
           labelText={t('searchPaymentHistory', 'Search payment history table')}
           closeButtonLabelText={t('clearSearch', 'Clear search input')}
           id="search-payment-history"
@@ -156,44 +131,49 @@ export const PaymentEntryHistoryTable = ({ headers, rows }: PaymentEntryHistoryT
 
         <Button
           className={styles.toolbarAction}
-          size={controlSize}
+          size={historyControlSize}
           renderIcon={Download}
-          iconDescription="Download"
-          onClick={handleExport}>
+          iconDescription={t('download', 'Download')}
+          disabled={isRefreshing}
+          onClick={() => {
+            void handleExport();
+          }}>
           {t('download', 'Download')}
         </Button>
       </div>
-      <DataTable useZebraStyles isSortable size={tableSize} rows={transformedRows} headers={headers} sortRow={sortRow}>
-        {({ rows, headers, getHeaderProps, getRowProps, getTableProps, getTableContainerProps }) => (
+      <DataTable
+        useZebraStyles
+        isSortable
+        size={historyTableSize}
+        rows={transformedRows}
+        headers={headers}
+        sortRow={sortRow}>
+        {({ rows: tableRows, headers, getHeaderProps, getRowProps, getTableProps, getTableContainerProps }) => (
           <TableContainer {...getTableContainerProps()}>
-            <Table {...getTableProps()} size={tableSize} aria-label={t('paymentHistory', 'Payment History')}>
+            <Table {...getTableProps()} size={historyTableSize} aria-label={t('paymentHistory', 'Payment History')}>
               <TableHead>
                 <TableRow>
                   {headers.map((header) => (
                     <TableHeader
                       key={header.key}
-                      {...getHeaderProps({
-                        header,
-                      })}
-                      style={getColumnStyle(header.key)}>
+                      {...getHeaderProps({ header })}
+                      style={getHistoryColumnStyle(columnStyles, header.key)}>
                       {header.header}
                     </TableHeader>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.slice(pageStart, pageStart + pageSize).map((row) => {
+                {tableRows.map((row) => {
                   const paymentData = rowLookup.get(row.id);
                   return (
                     <TableRow
                       key={row.id}
-                      {...getRowProps({
-                        row,
-                      })}
+                      {...getRowProps({ row })}
                       onClick={() => paymentData && handleRowClick(paymentData.billUuid, paymentData.patientUuid)}
                       className={styles.clickableRow}>
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id} style={getColumnStyle(cell.info.header)}>
+                        <TableCell key={cell.id} style={getHistoryColumnStyle(columnStyles, cell.info.header)}>
                           {cell.value}
                         </TableCell>
                       ))}
@@ -205,19 +185,16 @@ export const PaymentEntryHistoryTable = ({ headers, rows }: PaymentEntryHistoryT
           </TableContainer>
         )}
       </DataTable>
-      {pageSizes.length > 1 ? (
+      {totalCount > 0 ? (
         <Pagination
           forwardText={t('nextPage', 'Next page')}
           backwardText={t('previousPage', 'Previous page')}
-          page={currentPage ?? 1}
-          pageSize={pageSize ?? 10}
-          pageSizes={pageSizes}
-          totalItems={filteredEntries.length ?? 0}
+          page={page}
+          pageSize={pageSize}
+          pageSizes={historyPageSizes}
+          totalItems={totalCount}
           size={responsiveSize}
-          onChange={({ page: newPage, pageSize }) => {
-            setCurrentPage(newPage);
-            setPageSize(pageSize);
-          }}
+          onChange={({ page: nextPage, pageSize: nextPageSize }) => onPageChange(nextPage, nextPageSize)}
         />
       ) : null}
     </div>

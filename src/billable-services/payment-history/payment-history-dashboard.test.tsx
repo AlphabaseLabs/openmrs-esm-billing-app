@@ -4,7 +4,11 @@ import { PaymentHistoryDashboard } from './payment-history-dashboard.component';
 
 jest.mock('../billing-history/useBillingHistoryFilterContext', () => ({
   BillingHistoryFilterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useBillingHistoryFilterContext: () => ({ filters: {} }),
+  useBillingHistoryFilterContext: () => ({
+    filters: {},
+    dateRange: [new Date('2026-04-01T00:00:00.000Z'), new Date('2026-04-30T23:59:59.999Z')],
+    appliedTimesheet: undefined,
+  }),
 }));
 
 jest.mock('../billing-history/filters/billing-history-filters.component', () => ({
@@ -12,7 +16,11 @@ jest.mock('../billing-history/filters/billing-history-filters.component', () => 
 }));
 
 jest.mock('./usePaymentHistoryEntries', () => ({
-  usePaymentHistoryEntries: () => ({ entries: [], isLoading: false, error: null }),
+  usePaymentHistoryMetrics: () => ({
+    metrics: { paymentMethodTotals: [] },
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 jest.mock('./payment-history-metrics.component', () => ({
@@ -20,7 +28,7 @@ jest.mock('./payment-history-metrics.component', () => ({
 }));
 
 jest.mock('./payment-entry-history-viewer.component', () => ({
-  PaymentEntryHistoryViewerContent: () => <div data-testid="payment-history-table">Payment History Table</div>,
+  PaymentEntryHistoryViewer: () => <div data-testid="payment-history-table">Payment History Table</div>,
 }));
 
 jest.mock('./payment-entry-mode-summary.component', () => ({

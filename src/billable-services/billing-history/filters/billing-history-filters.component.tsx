@@ -8,15 +8,17 @@ import {
   SelectItem,
   SkeletonIcon,
 } from '@carbon/react';
-import { type FetchResponse, openmrsFetch, restBaseUrl, useDebounce } from '@openmrs/esm-framework';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import useSWR from 'swr';
 import { usePaymentModes } from '../../../billing.resource';
-import { useTimeSheets } from '../../../payment-points/payment-points.resource';
+import {
+  type PatientSearchResult,
+  toPatientSearchOption,
+  usePatientSearchResults,
+} from '../../../hooks/use-patient-search';
+import { useProviderOptions, useTimeSheets } from '../../../payment-points/payment-points.resource';
 import { PaymentStatus } from '../../../types';
 import { useBillingHistoryFilterContext } from '../useBillingHistoryFilterContext';
-import { useBillingHistoryBills } from '../useBillingHistoryBills';
 import styles from './billing-history-filters.component.scss';
 
 type FilterOption = {
@@ -25,34 +27,15 @@ type FilterOption = {
   isSelectAll?: boolean;
 };
 
-type DateRange = [Date, Date];
-
-type PatientSearchResult = {
+type SelectedPatient = {
   uuid: string;
-  display?: string;
-  identifiers?: Array<{
-    identifier?: string;
-    preferred?: boolean;
-  }>;
-  patientIdentifier?: {
-    identifier?: string;
-  };
-  person?: {
-    personName?: {
-      display?: string;
-      givenName?: string;
-      middleName?: string;
-      familyName?: string;
-    };
-  };
+  label: string;
 };
+
+type DateRange = [Date, Date];
 
 const fiscalYearStartMonth = 6;
 const compactControlSize = 'sm';
-const patientSearchRepresentation = encodeURIComponent(
-  'custom:(uuid,display,identifiers:(identifier,preferred),patientIdentifier:(identifier),person:(personName))',
-);
-
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 const startOfWeek = (date: Date) =>
@@ -142,49 +125,17 @@ const itemToString = (item: FilterOption | null | undefined) => item?.text ?? ''
 const getDisplayDateValue = (date: Date | null | undefined, shouldShow = true) =>
   shouldShow && date && date.getTime() !== 0 ? date : undefined;
 
-const extractPatientName = (patient: PatientSearchResult) => {
-  const personName = patient.person?.personName;
-  if (personName?.display) {
-    return personName.display;
-  }
-
-  if (personName) {
-    return [personName.givenName, personName.middleName, personName.familyName].filter(Boolean).join(' ');
-  }
-
-  const [, displayName = patient.display ?? patient.uuid] = patient.display?.split(' - ') ?? [];
-  return displayName;
-};
-
-const extractPatientIdentifier = (patient: PatientSearchResult) =>
-  patient.patientIdentifier?.identifier ||
-  patient.identifiers?.find((identifier) => identifier.preferred)?.identifier ||
-  patient.identifiers?.[0]?.identifier ||
-  patient.display?.split(' - ')[0]?.trim() ||
-  '';
-
-const formatPatientLabel = (patientName: string, patientIdentifier: string) =>
-  patientIdentifier ? `${patientName} (${patientIdentifier})` : patientName;
-
-const getPatientSearchUrl = (query: string) =>
-  `${restBaseUrl}/patient?q=${encodeURIComponent(query)}&v=${patientSearchRepresentation}&limit=10&totalCount=false`;
-
 const selectAllOptionId = 'select-all';
 
-interface BillingHistoryFiltersProps {
-  dateFilterSource?: 'bill' | 'payment';
-}
-
-export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHistoryFiltersProps) => {
+export const BillingHistoryFilters = () => {
   const { t } = useTranslation();
   const { dateRange, setDateRange, filters, setFilters, appliedTimesheet, setAppliedTimesheet, setAppliedFilters } =
     useBillingHistoryFilterContext();
   const todayRef = React.useRef(new Date());
   const paymentMethods = filters.paymentMethods ?? [];
   const cashiers = React.useMemo(() => filters.cashiers ?? [], [filters.cashiers]);
-  const [selectedPatient, setSelectedPatient] = React.useState<{ uuid: string; label: string } | null>(null);
+  const [selectedPatient, setSelectedPatient] = React.useState<SelectedPatient | null>(null);
   const [patientSearchTerm, setPatientSearchTerm] = React.useState('');
-  const debouncedPatientSearchTerm = useDebounce(patientSearchTerm.trim(), 300);
 
   const dateOptions = React.useMemo<Array<FilterOption>>(
     () => [
@@ -225,25 +176,8 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
   );
 
   const [selectedDatePreset, setSelectedDatePreset] = React.useState(() => resolvePresetFromRange(dateRange));
-  const cashierFilterContext = React.useMemo(
-    () => ({
-      dateFilterSource,
-    }),
-    [dateFilterSource],
-  );
-  const filtersWithoutCashiers = React.useMemo(
-    () => ({
-      ...filters,
-      cashiers: [],
-    }),
-    [filters],
-  );
-  const { bills: cashierBills } = useBillingHistoryBills(filtersWithoutCashiers, cashierFilterContext);
-  const currentBills = React.useMemo(
-    () => (cashiers.length ? cashierBills.filter((bill) => cashiers.includes(bill.cashier.uuid)) : cashierBills),
-    [cashierBills, cashiers],
-  );
   const { paymentModes = [], isLoading: isLoadingPaymentModes } = usePaymentModes(false);
+  const { providerOptions = [], isLoading: isLoadingProviderOptions } = useProviderOptions();
   const { timesheets = [] } = useTimeSheets();
 
   React.useEffect(() => {
@@ -313,20 +247,15 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
   const cashierOptions = React.useMemo<Array<FilterOption>>(
     () => [
       { id: selectAllOptionId, text: t('allCashiers', 'All Cashiers'), isSelectAll: true },
-      ...Array.from(new Map(cashierBills.map((bill) => [bill.cashier.uuid, bill.cashier])).values())
-        .sort((first, second) => first.display.localeCompare(second.display))
-        .map((cashier) => ({
-          id: cashier.uuid,
-          text: cashier.display,
-        })),
+      ...providerOptions.map((cashier) => ({
+        id: cashier.uuid,
+        text: cashier.label,
+      })),
     ],
-    [cashierBills, t],
+    [providerOptions, t],
   );
 
-  const selectedCashierIds = React.useMemo(
-    () => new Set(currentBills.map((bill) => bill.cashier.uuid).filter((cashierId) => cashiers.includes(cashierId))),
-    [cashiers, currentBills],
-  );
+  const selectedCashierIds = React.useMemo(() => new Set(cashiers), [cashiers]);
 
   const selectedCashiersTimesheets = React.useMemo(
     () =>
@@ -342,23 +271,12 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
     }
   }, [appliedTimesheet, selectedCashiersTimesheets, setAppliedTimesheet]);
 
-  const showPatientSearchResults =
-    debouncedPatientSearchTerm.length >= 2 &&
-    (!selectedPatient || debouncedPatientSearchTerm !== selectedPatient.label);
-
   const {
-    data: patientSearchResponse,
-    isLoading: isLoadingPatients,
     error: patientSearchError,
-  } = useSWR<FetchResponse<{ results: Array<PatientSearchResult> }>, Error>(
-    showPatientSearchResults ? getPatientSearchUrl(debouncedPatientSearchTerm) : null,
-    openmrsFetch,
-    {
-      revalidateOnFocus: false,
-    },
-  );
-
-  const patientSearchResults = patientSearchResponse?.data?.results ?? [];
+    isLoading: isLoadingPatients,
+    results: patientSearchResults,
+    showResults: showPatientSearchResults,
+  } = usePatientSearchResults(patientSearchTerm, selectedPatient?.label);
 
   React.useEffect(() => {
     if (!filters.patientUuid) {
@@ -370,14 +288,9 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
       return;
     }
 
-    const currentPatientBill = currentBills.find((bill) => bill.patientUuid === filters.patientUuid);
-    const patientLabel = currentPatientBill
-      ? formatPatientLabel(currentPatientBill.patientName, currentPatientBill.identifier)
-      : filters.patientUuid;
-
-    setSelectedPatient({ uuid: filters.patientUuid, label: patientLabel });
-    setPatientSearchTerm(patientLabel);
-  }, [currentBills, filters.patientUuid, patientSearchTerm, selectedPatient]);
+    setSelectedPatient({ uuid: filters.patientUuid, label: filters.patientUuid });
+    setPatientSearchTerm(filters.patientUuid);
+  }, [filters.patientUuid, patientSearchTerm, selectedPatient]);
 
   const selectedDateItem = dateOptions.find((option) => option.id === selectedDatePreset) ?? dateOptions[0];
   const selectedPaymentTypeItems = paymentTypeOptions.filter((option) => paymentMethods.includes(option.text));
@@ -434,15 +347,9 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
   };
 
   const handlePatientSelect = (patient: PatientSearchResult) => {
-    const patientName = extractPatientName(patient);
-    const patientIdentifier = extractPatientIdentifier(patient);
-    const patientLabel = formatPatientLabel(patientName, patientIdentifier);
-
-    setSelectedPatient({
-      uuid: patient.uuid,
-      label: patientLabel,
-    });
-    setPatientSearchTerm(patientLabel);
+    const patientOption = toPatientSearchOption(patient);
+    setSelectedPatient(patientOption);
+    setPatientSearchTerm(patientOption.label);
     updateFilters({
       patientUuid: patient.uuid,
     });
@@ -528,17 +435,21 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
         </div>
 
         <div className={styles.filterControl}>
-          <MultiSelect
-            id="cashier-filter"
-            label={t('cashier', 'Cashier')}
-            titleText={t('cashier', 'Cashier')}
-            items={cashierOptions}
-            selectedItems={selectedCashierItems}
-            itemToString={itemToString}
-            selectionFeedback="top-after-reopen"
-            onChange={handleCashierChange}
-            size={compactControlSize}
-          />
+          {isLoadingProviderOptions ? (
+            <SkeletonIcon className={styles.filterSkeleton} />
+          ) : (
+            <MultiSelect
+              id="cashier-filter"
+              label={t('cashier', 'Cashier')}
+              titleText={t('cashier', 'Cashier')}
+              items={cashierOptions}
+              selectedItems={selectedCashierItems}
+              itemToString={itemToString}
+              selectionFeedback="top-after-reopen"
+              onChange={handleCashierChange}
+              size={compactControlSize}
+            />
+          )}
         </div>
 
         {showTimesheetFilter ? (
@@ -582,8 +493,7 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
                 </div>
               ) : patientSearchResults.length ? (
                 patientSearchResults.map((patient) => {
-                  const patientName = extractPatientName(patient);
-                  const patientIdentifier = extractPatientIdentifier(patient);
+                  const patientOption = toPatientSearchOption(patient);
 
                   return (
                     <button
@@ -591,9 +501,9 @@ export const BillingHistoryFilters = ({ dateFilterSource = 'bill' }: BillingHist
                       key={patient.uuid}
                       className={styles.patientSearchResultButton}
                       onClick={() => handlePatientSelect(patient)}>
-                      <span className={styles.patientSearchResultName}>{patientName}</span>
-                      {patientIdentifier ? (
-                        <span className={styles.patientSearchResultMeta}>{patientIdentifier}</span>
+                      <span className={styles.patientSearchResultName}>{patientOption.name}</span>
+                      {patientOption.identifier ? (
+                        <span className={styles.patientSearchResultMeta}>{patientOption.identifier}</span>
                       ) : null}
                     </button>
                   );

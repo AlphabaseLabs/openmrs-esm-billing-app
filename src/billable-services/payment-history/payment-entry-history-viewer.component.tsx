@@ -1,86 +1,53 @@
-import {
-  SkeletonText,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@carbon/react';
 import { ErrorState } from '@openmrs/esm-framework';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
+import { type PaymentHistoryEntry } from '../billing-history/history.resource';
+import { HistoryTableSkeleton, type HistoryTableHeader } from '../billing-history/history-table.utils';
 import { PaymentEntryHistoryTable } from './payment-entry-history-table.component';
-import { type PaymentHistoryEntry } from './payment-history.utils';
-
-type Header = {
-  header: string;
-  key: string;
-};
-
-const getColumnStyle = (columnKey: string) =>
-  columnKey === 'paymentDate'
-    ? ({ inlineSize: '12rem', whiteSpace: 'nowrap' } as const)
-    : columnKey === 'invoiceId'
-      ? ({ inlineSize: '9rem', whiteSpace: 'nowrap' } as const)
-      : columnKey === 'paymentAmount'
-        ? ({ inlineSize: '9rem', whiteSpace: 'nowrap' } as const)
-        : undefined;
-
-const PaymentEntryHistoryTableSkeleton = ({ headers, title }: { headers: Array<Header>; title: string }) => (
-  <TableContainer>
-    <Table size="sm" aria-label={title}>
-      <TableHead>
-        <TableRow>
-          {headers.map((header) => (
-            <TableHeader key={header.key} style={getColumnStyle(header.key)}>
-              {header.header}
-            </TableHeader>
-          ))}
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {Array.from({ length: 5 }).map((_, rowIndex) => (
-          <TableRow key={`payment-history-skeleton-row-${rowIndex}`}>
-            {headers.map((header) => (
-              <TableCell key={`${header.key}-${rowIndex}`} style={getColumnStyle(header.key)}>
-                <SkeletonText
-                  heading={false}
-                  width={header.key === 'paymentDate' || header.key === 'invoiceId' ? '70%' : '90%'}
-                />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </TableContainer>
-);
+import { useBillingHistoryFilterContext } from '../billing-history/useBillingHistoryFilterContext';
+import { usePaymentHistoryEntries } from './usePaymentHistoryEntries';
 
 interface PaymentEntryHistoryViewerContentProps {
   entries: Array<PaymentHistoryEntry>;
+  totalCount: number;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: unknown;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number, pageSize: number) => void;
+  onExport: (search: string) => Promise<Array<PaymentHistoryEntry>>;
 }
+
+const columnStyles = {
+  paymentDate: { inlineSize: '12rem', whiteSpace: 'nowrap' },
+  invoiceId: { inlineSize: '9rem', whiteSpace: 'nowrap' },
+  paymentAmount: { inlineSize: '9rem', whiteSpace: 'nowrap' },
+} as const;
 
 export const PaymentEntryHistoryViewerContent = ({
   entries,
+  totalCount,
   isLoading,
+  isRefreshing,
   error,
+  page,
+  pageSize,
+  onPageChange,
+  onExport,
 }: PaymentEntryHistoryViewerContentProps) => {
   const { t } = useTranslation();
 
-  const headers = useMemo(
+  const headers = useMemo<Array<HistoryTableHeader>>(
     () => [
       { header: t('paymentDate', 'Payment date'), key: 'paymentDate' },
+      { header: t('invoiceNumberShort', 'Invoice #'), key: 'invoiceId' },
       { header: t('patientName', 'Patient name'), key: 'patientName' },
-      { header: t('identifier', 'Patient identifier'), key: 'identifier' },
-      { header: t('invoiceId', 'Invoice ID'), key: 'invoiceId' },
+      { header: t('identifier', 'Identifier'), key: 'identifier' },
       { header: t('paymentAmount', 'Payment amount'), key: 'paymentAmount' },
       { header: t('paymentMethod', 'Payment method'), key: 'paymentMethod' },
-      { header: t('referenceId', 'Reference ID'), key: 'referenceId' },
+      { header: t('referenceCodes', 'Reference codes'), key: 'referenceId' },
     ],
     [t],
   );
@@ -90,10 +57,17 @@ export const PaymentEntryHistoryViewerContent = ({
   }
 
   if (isLoading) {
-    return <PaymentEntryHistoryTableSkeleton headers={headers} title={t('paymentHistory', 'Payment History')} />;
+    return (
+      <HistoryTableSkeleton
+        columnStyles={columnStyles}
+        compactWidthKeys={['paymentDate', 'invoiceId']}
+        headers={headers}
+        title={t('paymentHistory', 'Payment History')}
+      />
+    );
   }
 
-  if (entries.length === 0) {
+  if (totalCount === 0) {
     return (
       <EmptyPatientBill
         title={t('noPaymentHistory', 'No payment history')}
@@ -102,5 +76,54 @@ export const PaymentEntryHistoryViewerContent = ({
     );
   }
 
-  return <PaymentEntryHistoryTable headers={headers} rows={entries} />;
+  return (
+    <PaymentEntryHistoryTable
+      headers={headers}
+      rows={entries}
+      totalCount={totalCount}
+      page={page}
+      pageSize={pageSize}
+      isRefreshing={isRefreshing}
+      onPageChange={onPageChange}
+      onExport={onExport}
+    />
+  );
+};
+
+export const PaymentEntryHistoryViewer = () => {
+  const { filters, dateRange, appliedTimesheet } = useBillingHistoryFilterContext();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { entries, totalCount, isLoading, isValidating, error, exportRows } = usePaymentHistoryEntries(filters, {
+    page,
+    pageSize,
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [appliedTimesheet?.uuid, dateRange, filters]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(totalCount / pageSize));
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [page, pageSize, totalCount]);
+
+  return (
+    <PaymentEntryHistoryViewerContent
+      entries={entries}
+      totalCount={totalCount}
+      isLoading={isLoading}
+      isRefreshing={isValidating}
+      error={error}
+      page={page}
+      pageSize={pageSize}
+      onPageChange={(nextPage, nextPageSize) => {
+        setPage(nextPage);
+        setPageSize(nextPageSize);
+      }}
+      onExport={exportRows}
+    />
+  );
 };
