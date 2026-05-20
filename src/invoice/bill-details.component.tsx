@@ -1,14 +1,27 @@
-import { Button, Tooltip } from '@carbon/react';
+import { Button, Loading, Tooltip } from '@carbon/react';
 import { Printer } from '@carbon/react/icons';
-import { restBaseUrl, showModal } from '@openmrs/esm-framework';
+import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
 import { InvoiceActions } from './invoice-actions.component';
 import InvoiceTable from './invoice-table.component';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
+
+type PatientPhoneResponse = {
+  person?: {
+    attributes?: Array<{
+      value?: string;
+      attributeType?: {
+        display?: string;
+        name?: string;
+      };
+    }>;
+  };
+};
 
 interface BillDetailsProps {
   readonly bill: MappedBill;
@@ -26,7 +39,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   onDiscard,
 }) => {
   const { t } = useTranslation();
+  const { sendInvoiceUrl } = useConfig<BillingConfig>();
+  const { sessionLocation } = useSession();
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const paidLineItems = useMemo(
     () => bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [],
     [bill?.lineItems],
@@ -49,6 +65,67 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     });
   };
 
+  const getPatientPhoneNumber = async () => {
+    if (!bill?.patientUuid) {
+      return undefined;
+    }
+
+    try {
+      const response = await openmrsFetch<PatientPhoneResponse>(
+        `${restBaseUrl}/patient/${bill.patientUuid}?v=custom:(person:(attributes:(value,attributeType:(display,name))))`,
+      );
+      const phoneAttribute = response.data?.person?.attributes?.find((attribute) => {
+        const attributeName = `${attribute.attributeType?.display ?? ''} ${attribute.attributeType?.name ?? ''}`;
+        return /phone|telephone|mobile|contact/i.test(attributeName);
+      });
+
+      return phoneAttribute?.value;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    setIsSendingInvoice(true);
+
+    try {
+      const response = await openmrsFetch(sendInvoiceUrl.replace('${restBaseUrl}', restBaseUrl), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: {
+          clinicName: sessionLocation?.display ?? sessionLocation?.uuid,
+          billType: 'OPD Bill',
+          patientFirstName,
+          patientPhoneNumber: await getPatientPhoneNumber(),
+          billUuid: bill?.uuid,
+          billId: bill?.id,
+          emr: 'openmrs',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Invoice send request failed');
+      }
+
+      showSnackbar({
+        title: t('invoiceSent', 'Invoice sent'),
+        subtitle: t('invoiceSentToPatient', 'Invoice sent to {{patientName}}', { patientName: bill?.patientName }),
+        kind: 'success',
+      });
+    } catch {
+      showSnackbar({
+        title: t('invoiceNotSent', 'Invoice not sent'),
+        subtitle: t(
+          'invoiceSendError',
+          'Sorry, we were unable to process your request. Please try again or contact support.',
+        ),
+        kind: 'error',
+      });
+    } finally {
+      setIsSendingInvoice(false);
+    }
+  };
+
   const invoiceDetails = {
     [t('totalAmount', 'Total amount')]: convertToCurrency(bill?.totalAmount ?? 0),
     [t('amountTendered', 'Amount tendered')]: convertToCurrency(bill?.tenderedAmount ?? 0),
@@ -58,6 +135,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
   const dateTimeLabel = t('dateAndTime', 'Date and time');
   const dateTimeTooltip = formatBillDateTime(bill?.dateCreatedUnformatted);
+  const patientFirstName = bill?.patientName?.trim().split(/\s+/)?.[0];
 
   return (
     <>
@@ -73,19 +151,20 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           ))}
         </section>
         <div className={styles.actionsContainer}>
-          {(bill?.status === 'PAID' || bill?.tenderedAmount > 0) && (
-            <Button
-              kind="secondary"
-              renderIcon={Printer}
-              onClick={() =>
-                openPrintPreview(
-                  `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
-                  `${t('receipt', 'Receipt')} ${bill?.receiptNumber}`,
-                )
-              }>
-              {t('printReceipt', 'Print receipt')}
-            </Button>
-          )}
+          <Button
+            kind="secondary"
+            renderIcon={isSendingInvoice ? undefined : WhatsAppIcon}
+            disabled={isSendingInvoice || !bill?.uuid}
+            onClick={handleSendInvoice}>
+            {isSendingInvoice ? (
+              <>
+                <Loading className={styles.buttonSpinner} withOverlay={false} small />
+                {t('sendingInvoice', 'Sending invoice')}
+              </>
+            ) : (
+              t('sendInvoice', 'Send invoice')
+            )}
+          </Button>
           <Button
             kind="primary"
             renderIcon={Printer}
@@ -136,6 +215,15 @@ function InvoiceDetails({
         valueContent
       )}
     </div>
+  );
+}
+
+function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M16.02 3.2C9 3.2 3.3 8.81 3.3 15.72c0 2.19.58 4.34 1.69 6.24L3.2 28.8l7.03-1.78a12.92 12.92 0 0 0 5.79 1.38c7.02 0 12.73-5.62 12.73-12.52S23.04 3.2 16.02 3.2Zm0 22.96c-1.88 0-3.72-.5-5.32-1.45l-.38-.23-4.17 1.06 1.12-4.04-.25-.41a10.07 10.07 0 0 1-1.5-5.29c0-5.66 4.71-10.27 10.5-10.27s10.5 4.61 10.5 10.27-4.71 10.36-10.5 10.36Z" />
+      <path d="M21.82 18.56c-.32-.16-1.88-.92-2.17-1.03-.29-.11-.5-.16-.71.16-.21.32-.81 1.03-.99 1.24-.18.21-.37.24-.69.08-.32-.16-1.34-.49-2.55-1.56-.94-.83-1.58-1.86-1.76-2.18-.18-.32-.02-.49.14-.65.14-.14.32-.37.48-.56.16-.19.21-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.71-1.69-.97-2.31-.26-.6-.52-.52-.71-.53h-.6c-.21 0-.56.08-.85.4-.29.32-1.12 1.08-1.12 2.64s1.15 3.07 1.31 3.28c.16.21 2.27 3.43 5.49 4.81.77.33 1.37.53 1.84.68.77.24 1.47.21 2.02.13.62-.09 1.88-.76 2.15-1.49.26-.73.26-1.36.18-1.49-.08-.13-.29-.21-.61-.37Z" />
+    </svg>
   );
 }
 

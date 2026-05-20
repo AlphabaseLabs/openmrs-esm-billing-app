@@ -14,6 +14,7 @@ export interface BillingConfig {
   };
   patientBillsUrl: string;
   billingStatusQueryUrl: string;
+  sendInvoiceUrl: string;
   excludedPaymentMode: Array<{ uuid: string; label: string }>;
   inPatientVisitTypeUuid: string;
   paymentMethodsUuidsThatShouldNotShowPrompt: Array<string>;
@@ -90,6 +91,11 @@ export const configSchema: ConfigSchema = {
     _type: Type.String,
     _default: '${restBaseUrl}/cashier/billLineItem?orderUuid=${orderUuid}&v=full',
     _description: 'URL to query billing status',
+  },
+  sendInvoiceUrl: {
+    _type: Type.String,
+    _default: '${restBaseUrl}/n8n/ai-agent/send-invoice',
+    _description: 'The n8n endpoint used to send invoices to patients',
   },
   excludedPaymentMode: {
     _type: Type.Array,

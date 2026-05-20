@@ -41,6 +41,10 @@
   flex-wrap: wrap;
 }
 
+.buttonSpinner {
+  margin-inline-end: layout.$spacing-03;
+}
+
 .label {
   @include type.type-style('body-compact-02');
   color: colors.$gray-70;

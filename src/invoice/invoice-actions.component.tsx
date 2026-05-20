@@ -52,6 +52,21 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
       </IconButton>
       <PopoverContent>
         <div className={styles.actionMenuContent}>
+          {(bill?.status === 'PAID' || bill?.tenderedAmount > 0) && (
+            <Button
+              kind="ghost"
+              size="sm"
+              renderIcon={Printer}
+              className={styles.actionMenuItem}
+              onClick={() =>
+                openPrintPreview(
+                  `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
+                  `${t('receipt', 'Receipt')} ${bill?.receiptNumber}`,
+                )
+              }>
+              {t('printReceipt', 'Print receipt')}
+            </Button>
+          )}
           <Button
             kind="ghost"
             size="sm"
