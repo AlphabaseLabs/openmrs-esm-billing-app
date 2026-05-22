@@ -1,23 +1,29 @@
-import { navigate, showSnackbar, useConfig } from '@openmrs/esm-framework';
-import { render, screen, waitFor } from '@testing-library/react';
+import { launchWorkspace2, navigate, openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
 import { addPaymentToBill, usePaymentModes } from '../../billing.resource';
 import Payments from './payments.component';
-import { type LineItem, type PaymentMethod } from '../../types';
+import { type LineItem, type PaymentMethod, PaymentStatus } from '../../types';
 
 const mockAddPaymentToBill = addPaymentToBill as jest.MockedFunction<typeof addPaymentToBill>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
+const mockLaunchWorkspace2 = launchWorkspace2 as jest.MockedFunction<typeof launchWorkspace2>;
 const mockNavigate = navigate as jest.MockedFunction<typeof navigate>;
+const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch>;
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
+const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 
 jest.mock('@openmrs/esm-framework', () => ({
   ...jest.requireActual('@openmrs/esm-framework'),
+  launchWorkspace2: jest.fn(),
   navigate: jest.fn(),
+  openmrsFetch: jest.fn(),
   showSnackbar: jest.fn(),
   useConfig: jest.fn(),
+  useSession: jest.fn(),
 }));
 
 jest.mock('../../billing.resource', () => ({
@@ -96,8 +102,12 @@ describe('Payment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseConfig.mockReturnValue({
+      aiAgentApiBaseUrl: '/ws/rest/v1/n8n/',
       paymentMethodTaxes: { enabled: false, paymentTypeTaxPercents: [] },
       defaultPaymentMethodName: 'Cash',
+    } as any);
+    mockUseSession.mockReturnValue({
+      user: { uuid: 'user-1' },
     } as any);
   });
 
@@ -156,7 +166,7 @@ describe('Payment', () => {
       subtitle:
         'An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: Invalid Submission',
       kind: 'error',
-      timeoutInMs: 3000,
+      timeoutInMs: 5000,
       isLowContrast: true,
     });
   });
@@ -209,6 +219,7 @@ describe('Payment', () => {
 
   test('should preselect the configured default payment method on the bill payment form', () => {
     mockUseConfig.mockReturnValue({
+      aiAgentApiBaseUrl: '/ws/rest/v1/n8n/',
       paymentMethodTaxes: { enabled: false, paymentTypeTaxPercents: [] },
       defaultPaymentMethodName: 'Mobile Money',
     } as any);
@@ -222,6 +233,125 @@ describe('Payment', () => {
     render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
 
     expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i);
+  });
+
+  test('should launch the AI payments workspace from the billing payment header', async () => {
+    const user = userEvent.setup();
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+
+    await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
+
+    expect(mockLaunchWorkspace2).toHaveBeenCalledTimes(1);
+    expect(mockLaunchWorkspace2).toHaveBeenCalledWith(
+      'ai-agent-payments-workspace',
+      expect.objectContaining({
+        currentInvoiceContext: {
+          billUuid: paymentBill.uuid,
+          patientUuid: paymentBill.patientUuid,
+        },
+        onAddPaymentDraft: expect.any(Function),
+      }),
+    );
+  });
+
+  test('should hide the AI payments workspace action for paid bills', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            status: PaymentStatus.PAID,
+          } as any
+        }
+        selectedLineItems={updatedMockLineItems}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Open AI payments workspace/i })).not.toBeInTheDocument();
+  });
+
+  test('should process AI-linked payments and update the attachment after save', async () => {
+    const user = userEvent.setup();
+    mockAddPaymentToBill.mockResolvedValue({} as any);
+    mockOpenmrsFetch.mockResolvedValue({ data: {} } as any);
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+
+    await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
+
+    const workspaceProps = mockLaunchWorkspace2.mock.calls[0]?.[1] as {
+      onAddPaymentDraft?: (draft: any) => Promise<void>;
+    };
+
+    await act(async () => {
+      await workspaceProps.onAddPaymentDraft?.({
+        invoice: {
+          billUuid: paymentBill.uuid,
+          patientUuid: paymentBill.patientUuid,
+        },
+        amount: 100,
+        paymentMethodName: 'Mobile Money',
+        referenceCode: 'AI-REF-1',
+        sourceDocumentId: 'doc-1',
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i),
+    );
+    expect(screen.getByRole('spinbutton', { name: /Amount/i })).toHaveValue(100);
+    expect(screen.getByRole('textbox', { name: /Reference number/i })).toHaveValue('AI-REF-1');
+
+    const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+    await user.click(submitButton);
+
+    expect(mockAddPaymentToBill).toHaveBeenCalledWith(paymentBill.uuid, {
+      amount: 100,
+      amountTendered: 100,
+      attributes: [
+        {
+          attributeType: 'd453e528-0264-4d6e-ae23-bc0b777e1146',
+          value: 'AI-REF-1',
+        },
+      ],
+      instanceType: '28989582-e8c3-46b0-96d0-c249cb06d5c6',
+    });
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/n8n/ai-agent/attachment', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: expect.objectContaining({
+        id: 'doc-1',
+        processing_status: 'processed',
+        processed_by: 'user-1',
+        emr_mapping: paymentBill.uuid,
+        emr_mapping_type: 'bill',
+      }),
+    });
   });
 
   test('should not show incomplete payment before a line item is selected and payment amount is entered', () => {

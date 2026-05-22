@@ -1,41 +1,77 @@
 @use '@carbon/colors';
 @use '@carbon/layout';
-@use '@carbon/type';
 
 .wrapper {
   display: flex;
+  align-items: flex-start;
+  gap: layout.$spacing-07;
 }
 
 .divider {
+  align-self: stretch;
   background: colors.$gray-20;
-  height: 12rem;
-  margin: 2rem;
   width: 1px;
 }
 
 .paymentContainer {
-  margin: 0;
-  padding: 0 0 5%;
-  width: 70%;
-}
-
-.paymentMethodContainer {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  align-items: flex-end;
-  column-gap: 1rem;
-  margin: 0.625rem 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-bottom: layout.$spacing-07;
 }
 
 .paymentTotals {
-  margin: 0;
-  padding: layout.$spacing-07 layout.$spacing-05 0;
+  flex: 0 0 20rem;
+  padding-top: layout.$spacing-07;
+}
+
+.paymentHeader {
+  > div {
+    align-items: center;
+    justify-content: flex-start;
+    gap: layout.$spacing-03;
+  }
+
+  :global(.billing-ai-title-action) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  :global(.billing-ai-title-action-icon-wrapper) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  :global(.billing-ai-agent-icon) {
+    display: block;
+    width: 1.875rem;
+    height: 1.75rem;
+  }
+
+  :global(.billing-ai-secondary-sparkle-fill) {
+    opacity: 0.08;
+    animation: billingSmoothBlueFillGlow 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  :global(.billing-ai-secondary-sparkle-glow) {
+    opacity: 0.05;
+    animation: billingSmoothBlueOuterGlow 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
 }
 
 .processPayments {
   display: flex;
   justify-content: flex-end;
-  margin: layout.$spacing-05;
+  margin-top: layout.$spacing-05;
   padding-top: layout.$spacing-05;
   column-gap: layout.$spacing-04;
   border-top: 1px solid colors.$cool-gray-40;
@@ -43,4 +79,38 @@
 
 .paymentError {
   margin: layout.$spacing-05 0;
+}
+
+.processButtonContent {
+  display: inline-flex;
+  align-items: center;
+  column-gap: layout.$spacing-03;
+}
+
+@keyframes billingSmoothBlueFillGlow {
+  0% {
+    opacity: 0.08;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.08;
+  }
+}
+
+@keyframes billingSmoothBlueOuterGlow {
+  0% {
+    opacity: 0.05;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0.05;
+  }
 }

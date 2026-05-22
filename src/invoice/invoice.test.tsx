@@ -145,9 +145,6 @@ xdescribe('Invoice', () => {
     const paymentSection = await screen.findByRole('heading', { name: /Payments/i });
     expect(paymentSection).toBeInTheDocument();
 
-    const addPaymentOptionButton = await screen.findByRole('button', { name: /Add payment option/i });
-    expect(addPaymentOptionButton).toBeInTheDocument();
-    await user.click(addPaymentOptionButton);
     const paymentModeInput = screen.getByRole('combobox', { name: /Payment method/i });
     expect(paymentModeInput).toBeInTheDocument();
     await user.click(paymentModeInput);
@@ -166,8 +163,6 @@ xdescribe('Invoice', () => {
     const paymentReferenceNumberInput = screen.getByRole('textbox', { name: /Reference number/ });
     expect(paymentReferenceNumberInput).toBeInTheDocument();
     await user.type(paymentReferenceNumberInput, '123456');
-
-    expect(addPaymentOptionButton).toBeDisabled();
 
     // should process payment
     mockedAddPaymentToBill.mockResolvedValueOnce(Promise.resolve({} as any));
@@ -271,9 +266,7 @@ xdescribe('Invoice', () => {
       expect(screen.getByRole('columnheader', { name: new RegExp(header, 'i') })).toBeInTheDocument();
     });
 
-    const addPaymentOptionButton = await screen.findByRole('button', { name: /Add payment option/i });
-    expect(addPaymentOptionButton).toBeInTheDocument();
-    expect(addPaymentOptionButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Add payment option/i })).not.toBeInTheDocument();
   });
 });
 

@@ -1,53 +1,39 @@
-import React, { useEffect } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import React from 'react';
+import { Controller, useFormContext, useWatch, type FieldArrayWithId } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Dropdown, NumberInputSkeleton, TextInput, NumberInput } from '@carbon/react';
-import { useConfig } from '@openmrs/esm-framework';
 import { ErrorState } from '@openmrs/esm-patient-common-lib';
 import styles from './payment-form.scss';
-import { usePaymentModes } from '../../../billing.resource';
-import { type PaymentFormValue } from '../../../types';
-import { type BillingConfig } from '../../../config-schema';
+import { type PaymentFormValue, type PaymentMethod } from '../../../types';
+import { PaymentRowRemoveAction } from '../ai-payments.integration';
 
 type PaymentFormProps = {
   disablePayment: boolean;
+  fields: Array<FieldArrayWithId<PaymentFormValue, 'payment', 'id'>>;
+  isLoading: boolean;
+  error: Error | null | undefined;
+  onRemovePaymentRow: (index: number) => void;
+  paymentModes: Array<PaymentMethod>;
 };
 
-const PaymentForm: React.FC<PaymentFormProps> = ({ disablePayment }) => {
+const PaymentForm: React.FC<PaymentFormProps> = ({
+  disablePayment,
+  error,
+  fields,
+  isLoading,
+  onRemovePaymentRow,
+  paymentModes,
+}) => {
   const { t } = useTranslation();
-  const { defaultPaymentMethodName } = useConfig<BillingConfig>();
   const {
     control,
     formState: { errors },
     setFocus,
-    getValues,
-    setValue,
   } = useFormContext<PaymentFormValue>();
-  const { paymentModes, isLoading, error } = usePaymentModes();
-
-  useEffect(() => {
-    if (!paymentModes?.length || disablePayment) {
-      return;
-    }
-
-    const normalizedConfiguredDefaultPaymentMethod = defaultPaymentMethodName?.trim().toLowerCase();
-    const defaultPaymentMethod =
-      paymentModes.find((mode) => mode.name?.trim().toLowerCase() === normalizedConfiguredDefaultPaymentMethod) ??
-      paymentModes.find((mode) => mode.name?.trim().toLowerCase() === 'cash') ??
-      paymentModes[0] ??
-      null;
-    const currentMethod = getValues('payment.0.method');
-
-    if (!currentMethod && defaultPaymentMethod) {
-      setValue('payment.0.method', defaultPaymentMethod, { shouldValidate: true });
-    }
-  }, [defaultPaymentMethodName, disablePayment, getValues, paymentModes, setValue]);
-
-  const shouldShowReferenceCode = (index: number) => {
-    const formValues = getValues();
-    const attributes = formValues?.payment?.[index]?.method?.attributeTypes ?? [];
-    return attributes.some((attribute) => attribute.required) || attributes?.length > 0;
-  };
+  const paymentRows = useWatch({
+    control,
+    name: 'payment',
+  });
 
   if (isLoading) {
     return <NumberInputSkeleton />;
@@ -67,69 +53,82 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ disablePayment }) => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.paymentMethodContainer}>
-        <Controller
-          control={control}
-          name="payment.0.method"
-          render={({ field }) => (
-            <Dropdown
-              id="paymentMethod"
-              selectedItem={field.value ?? null}
-              onChange={({ selectedItem }) => {
-                setFocus('payment.0.amount');
-                field.onChange(selectedItem);
-              }}
-              titleText={t('paymentMethod', 'Payment method')}
-              label={t('selectPaymentMethod', 'Select payment method')}
-              items={paymentModes}
-              itemToString={(item) => (item ? item.name : '')}
-              invalid={!!errors?.payment?.[0]?.method}
-              invalidText={errors?.payment?.[0]?.method?.message}
+      {fields.map((formField, index) => {
+        const showReferenceCode = Boolean(paymentRows?.[index]?.method?.attributeTypes?.length);
+
+        return (
+          <div className={styles.paymentMethodContainer} key={formField.id}>
+            <Controller
+              control={control}
+              name={`payment.${index}.method`}
+              render={({ field }) => (
+                <Dropdown
+                  id={`paymentMethod-${index}`}
+                  selectedItem={field.value ?? null}
+                  onChange={({ selectedItem }) => {
+                    field.onChange(selectedItem ?? null);
+                    setFocus(`payment.${index}.amount`);
+                  }}
+                  titleText={t('paymentMethod', 'Payment method')}
+                  label={t('selectPaymentMethod', 'Select payment method')}
+                  items={paymentModes}
+                  itemToString={(item) => item?.name ?? ''}
+                  invalid={!!errors?.payment?.[index]?.method}
+                  invalidText={errors?.payment?.[index]?.method?.message}
+                />
+              )}
             />
-          )}
-        />
-        <Controller
-          control={control}
-          name="payment.0.amount"
-          render={({ field }) => (
-            <NumberInput
-              allowEmpty
-              disableWheel
-              hideSteppers
-              id="paymentAmount"
-              onChange={(_, { value }) => {
-                const nextValue = value === '' || value === undefined ? undefined : Number(value);
-                field.onChange(nextValue);
-              }}
-              invalid={!!errors?.payment?.[0]?.amount}
-              invalidText={errors?.payment?.[0]?.amount?.message}
-              label={t('amount', 'Amount')}
-              placeholder={t('enterAmount', 'Enter amount')}
-              value={field.value ?? ''}
+
+            <Controller
+              control={control}
+              name={`payment.${index}.amount`}
+              render={({ field }) => (
+                <NumberInput
+                  allowEmpty
+                  disableWheel
+                  hideSteppers
+                  id={`paymentAmount-${index}`}
+                  onChange={(_, { value }) => {
+                    field.onChange(value === '' || value === undefined ? undefined : Number(value));
+                  }}
+                  invalid={!!errors?.payment?.[index]?.amount}
+                  invalidText={errors?.payment?.[index]?.amount?.message}
+                  label={t('amount', 'Amount')}
+                  placeholder={t('enterAmount', 'Enter amount')}
+                  value={field.value ?? ''}
+                />
+              )}
             />
-          )}
-        />
-        {shouldShowReferenceCode(0) && (
-          <Controller
-            name="payment.0.referenceCode"
-            control={control}
-            render={({ field }) => (
-              <TextInput
-                id="paymentReferenceCode"
-                labelText={t('referenceNumber', 'Reference number')}
-                placeholder={t('enterReferenceNumber', 'Enter ref. number')}
-                type="text"
-                name={field.name}
-                onBlur={field.onBlur}
-                onChange={field.onChange}
-                value={field.value ?? ''}
-                invalid={!!errors?.payment?.[0]?.referenceCode}
-                invalidText={errors?.payment?.[0]?.referenceCode?.message}
+
+            {showReferenceCode ? (
+              <Controller
+                name={`payment.${index}.referenceCode`}
+                control={control}
+                render={({ field }) => (
+                  <TextInput
+                    id={`paymentReferenceCode-${index}`}
+                    labelText={t('referenceNumber', 'Reference number')}
+                    placeholder={t('enterReferenceNumber', 'Enter ref. number')}
+                    type="text"
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    onChange={field.onChange}
+                    value={field.value ?? ''}
+                    invalid={!!errors?.payment?.[index]?.referenceCode}
+                    invalidText={errors?.payment?.[index]?.referenceCode?.message}
+                  />
+                )}
               />
+            ) : (
+              <div className={styles.referenceCodePlaceholder} />
             )}
-          />
-        )}
-      </div>
+
+            <div className={styles.paymentRowActions}>
+              {fields.length > 1 ? <PaymentRowRemoveAction index={index} onRemove={onRemovePaymentRow} t={t} /> : null}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

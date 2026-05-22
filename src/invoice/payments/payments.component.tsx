@@ -1,21 +1,24 @@
-import React from 'react';
-import { Button, InlineNotification } from '@carbon/react';
+import React, { useMemo } from 'react';
+import { Button, InlineLoading, InlineNotification } from '@carbon/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { navigate, showSnackbar } from '@openmrs/esm-framework';
+import { navigate } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { mutate } from 'swr';
 import { z } from 'zod';
-import { addPaymentToBill } from '../../billing.resource';
 import { convertToCurrency } from '../../helpers';
 import { type LineItem, type PaymentFormValue, PaymentStatus, type MappedBill } from '../../types';
-import { extractErrorMessagesFromResponse } from '../../utils';
 import { InvoiceBreakDown } from './invoice-breakdown/invoice-breakdown.component';
 import PaymentForm from './payment-form/payment-form.component';
 import PaymentHistory from './payment-history/payment-history.component';
 import styles from './payments.scss';
 import { usePaymentSchema } from '../../hooks/usePaymentSchema';
+import { usePaymentModes } from '../../billing.resource';
+import {
+  createEmptyPaymentRow,
+  PaymentAiWorkspaceHeaderAction,
+  useAiPaymentsIntegration,
+} from './ai-payments.integration';
 
 type PaymentProps = {
   bill: MappedBill;
@@ -34,35 +37,50 @@ const Payments: React.FC<PaymentProps> = ({
 }) => {
   const { t } = useTranslation();
   const paymentSchema = usePaymentSchema(bill);
+  const paymentFormSchema = useMemo(() => z.object({ payment: z.array(paymentSchema) }), [paymentSchema]);
+  const { paymentModes, isLoading: isLoadingPaymentModes, error: paymentModesError } = usePaymentModes();
 
   const methods = useForm<PaymentFormValue>({
     mode: 'onChange',
-    defaultValues: { payment: [{ method: null, amount: undefined, referenceCode: '' }] },
-    resolver: zodResolver(z.object({ payment: z.array(paymentSchema) })),
+    defaultValues: { payment: [createEmptyPaymentRow()] },
+    resolver: zodResolver(paymentFormSchema),
   });
+
+  const { fields, isSubmittingPayments, launchAiPaymentsWorkspace, processPayments, removePaymentRow } =
+    useAiPaymentsIntegration({
+      bill,
+      formMethods: methods,
+      paymentModes,
+    });
 
   const formValues = useWatch({
     name: 'payment',
     control: methods.control,
   });
 
-  const selectedUnpaidLineItems = selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID);
+  const selectedUnpaidLineItems = useMemo(
+    () => selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID),
+    [selectedLineItems],
+  );
   const hasSelectedUnpaidLineItems = selectedUnpaidLineItems.length > 0;
   const hasEnteredPaymentAmount = formValues?.some((item) => Number(item.amount ?? 0) > 0) ?? false;
   const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount ?? 0) + curr, 0) ?? 0;
   const amountDue = bill.balance ?? 0;
   const summaryTotalAmount = (bill.totalAmountWithoutTaxAndDiscount ?? 0) + (bill.totalTax ?? 0);
 
-  // selected line items amount due
-  const selectedLineItemsAmountDue = selectedUnpaidLineItems.reduce(
-    (curr: number, prev) =>
-      curr +
-      Number(prev.price * prev.quantity) +
-      Number(
-        prev.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
-          Number(prev.discounts?.reduce((acc, discount) => acc + discount.amount, 0)),
+  const selectedLineItemsAmountDue = useMemo(
+    () =>
+      selectedUnpaidLineItems.reduce(
+        (currentAmount, lineItem) =>
+          currentAmount +
+          Number(lineItem.price * lineItem.quantity) +
+          Number(
+            lineItem.taxes?.reduce((accumulator, tax) => accumulator + tax.amount, 0) -
+              Number(lineItem.discounts?.reduce((accumulator, discount) => accumulator + discount.amount, 0)),
+          ),
+        0,
       ),
-    0,
+    [selectedUnpaidLineItems],
   );
 
   const handleNavigateToBillingDashboard = () =>
@@ -72,69 +90,25 @@ const Payments: React.FC<PaymentProps> = ({
           to: discardDestination ?? window.getOpenmrsSpaBase() + 'home/billing',
         });
 
-  const handleProcessPayment = async () => {
-    const currentPayment = formValues?.[0];
-    if (!currentPayment?.method || !currentPayment.amount) {
-      return;
-    }
-
-    const paymentPayload = {
-      amount: Number(bill.totalAmount ?? bill.balance ?? currentPayment.amount),
-      amountTendered: Number(currentPayment.amount),
-      attributes:
-        currentPayment.method.attributeTypes?.flatMap((attribute) =>
-          attribute.uuid
-            ? [
-                {
-                  attributeType: attribute.uuid,
-                  value: currentPayment.referenceCode ?? '',
-                },
-              ]
-            : [],
-        ) ?? [],
-      instanceType: currentPayment.method.uuid,
-    };
-
-    try {
-      await addPaymentToBill(bill.uuid, paymentPayload);
-
-      showSnackbar({
-        title: t('billPayment', 'Bill payment'),
-        subtitle: 'Bill payment processing has been successful',
-        kind: 'success',
-        timeoutInMs: 3000,
-      });
-
-      const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
-      await mutate((key) => typeof key === 'string' && key.startsWith(url));
-      methods.reset({ payment: [{ method: null, amount: undefined, referenceCode: '' }] });
-    } catch (error) {
-      showSnackbar({
-        title: t('failedBillPayment', 'Bill payment failed'),
-        subtitle: `An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: ${extractErrorMessagesFromResponse(
-          error.responseBody,
-        )}`,
-        kind: 'error',
-        timeoutInMs: 3000,
-        isLowContrast: true,
-      });
-    }
-  };
-
   const amountDueDisplay = (amount: number) => (amount < 0 ? 'Client balance' : 'Amount due');
-
   const isFullyPaid = !hasSelectedUnpaidLineItems || totalNewPayments >= selectedLineItemsAmountDue;
-  const hasAmountPaidExceeded = amountDue > 0 && formValues.some((item) => Number(item.amount) > amountDue);
+  const hasAmountPaidExceeded = amountDue > 0 && totalNewPayments > amountDue;
   const isPaymentInvalid =
     hasSelectedUnpaidLineItems && hasEnteredPaymentAmount && !isFullyPaid && bill.lineItems.length > 1;
+  const showAiPaymentsAction = bill.status !== PaymentStatus.PAID;
+  const isProcessPaymentDisabled = !hasEnteredPaymentAmount || hasAmountPaidExceeded || isSubmittingPayments;
 
   return (
     <FormProvider {...methods}>
       <div className={styles.wrapper}>
         <div className={styles.paymentContainer}>
-          <CardHeader title={t('payments', 'Payments')}>
-            <span></span>
-          </CardHeader>
+          <div className={styles.paymentHeader}>
+            <CardHeader title={t('payments', 'Payments')}>
+              {showAiPaymentsAction ? (
+                <PaymentAiWorkspaceHeaderAction onLaunchAiPayments={launchAiPaymentsWorkspace} />
+              ) : null}
+            </CardHeader>
+          </div>
           <div>
             {bill && <PaymentHistory bill={bill} />}
             {isPaymentInvalid && (
@@ -160,7 +134,7 @@ const Payments: React.FC<PaymentProps> = ({
                   'Amount paid {{totalNewPayments}} should not be greater than amount due {{amountDue}} for selected line items',
                   {
                     totalNewPayments: convertToCurrency(totalNewPayments),
-                    selectedLineItemsAmountDue: convertToCurrency(selectedLineItemsAmountDue),
+                    amountDue: convertToCurrency(amountDue),
                   },
                 )}
                 lowContrast
@@ -168,7 +142,14 @@ const Payments: React.FC<PaymentProps> = ({
                 className={styles.paymentError}
               />
             )}
-            <PaymentForm disablePayment={amountDue <= 0} />
+            <PaymentForm
+              disablePayment={amountDue <= 0}
+              error={paymentModesError}
+              fields={fields}
+              isLoading={isLoadingPaymentModes}
+              onRemovePaymentRow={removePaymentRow}
+              paymentModes={paymentModes}
+            />
           </div>
         </div>
         <div className={styles.divider} />
@@ -194,15 +175,15 @@ const Payments: React.FC<PaymentProps> = ({
                 {t('discard', 'Discard')}
               </Button>
             ) : null}
-            {/* Process Payment is disabled when ANY of these are true:
-                1. No payment rows (not applicable with the default row)
-                2. Form invalid: usePaymentSchema validates each row (method required, amount > 0 and amount <= bill.balance per row, referenceCode when method requires it)
-                3. Overpayment: any single row has amount > bill.balance (hasAmountPaidExceeded) */}
-            <Button
-              type="button"
-              onClick={() => handleProcessPayment()}
-              disabled={!methods.formState.isValid || hasAmountPaidExceeded}>
-              {t('processPayment', 'Process Payment')}
+            <Button type="button" onClick={() => void processPayments(t)} disabled={isProcessPaymentDisabled}>
+              {isSubmittingPayments ? (
+                <span className={styles.processButtonContent}>
+                  {t('processingPayments', 'Processing...')}
+                  <InlineLoading status="active" iconDescription={t('loading', 'Loading')} />
+                </span>
+              ) : (
+                t('processPayment', 'Process Payment')
+              )}
             </Button>
           </div>
         </div>

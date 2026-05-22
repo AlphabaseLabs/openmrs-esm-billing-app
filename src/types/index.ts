@@ -294,6 +294,12 @@ export interface PaymentMethod {
   resourceVersion: string;
 }
 
+export interface AiPaymentSource {
+  type: 'ai_attachment';
+  documentId: string;
+  sourcePaymentId?: string;
+}
+
 export interface PatientInvoice {
   uuid: string;
   display: string;
@@ -370,18 +376,6 @@ export type PaymentMode = {
   resourceVersion?: string;
 };
 
-export interface PaymentMethod {
-  uuid: string;
-  name: string;
-  description: string;
-  retired: boolean;
-  retireReason: null;
-  auditInfo: AuditInfo;
-  attributeTypes: AttributeType[];
-  sortOrder: null;
-  resourceVersion: string;
-}
-
 export interface Payment {
   uuid: string;
   instanceType: PaymentInstanceType;
@@ -396,8 +390,11 @@ export interface Payment {
 
 export type FormPayment = {
   method: PaymentMethod | null;
-  amount: string | number | undefined;
-  referenceCode?: number | string;
+  amount: number | undefined;
+  referenceCode?: string;
+  preferredPaymentMethodName?: string;
+  clientPaymentId?: string;
+  aiSource?: AiPaymentSource | null;
 };
 
 export type PaymentFormValue = {

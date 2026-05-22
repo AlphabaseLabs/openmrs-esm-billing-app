@@ -1,6 +1,7 @@
 import { type ConfigSchema, Type } from '@openmrs/esm-framework';
 
 export interface BillingConfig {
+  aiAgentApiBaseUrl: string;
   enforceBillPayment: boolean;
   /**
    * Whether billing UI flows should require an active visit before allowing users to add/edit bills.
@@ -53,6 +54,11 @@ export interface BillingConfig {
 }
 
 export const configSchema: ConfigSchema = {
+  aiAgentApiBaseUrl: {
+    _type: Type.String,
+    _default: '/medagent/rest/v1/openmrs',
+    _description: 'Base OpenMRS REST URL used for AI payment receipt review and attachment update requests.',
+  },
   enforceBillPayment: {
     _type: Type.Boolean,
     _default: false,
