@@ -15,7 +15,14 @@ import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
 import { extractString, formatBillDateTime } from './helpers';
-import { FacilityDetail, type MappedBill, type PatientInvoice, type PaymentMethod, type PaymentStatus } from './types';
+import {
+  FacilityDetail,
+  type BillLineItemDiscount,
+  type MappedBill,
+  type PatientInvoice,
+  type PaymentMethod,
+  type PaymentStatus,
+} from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   // create base object
@@ -191,6 +198,32 @@ export const syncBillStatus = (billUuid: string) => {
 
 export const processBillPayment = (payload, billUuid: string) => {
   const url = `${restBaseUrl}/cashier/bill/${billUuid}`;
+  return openmrsFetch(url, {
+    method: 'POST',
+    body: payload,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+export type BillLineItemUpdate = {
+  quantity?: number;
+  price?: number;
+  priceName?: string;
+  priceUuid?: string;
+  paymentStatus?: 'PENDING' | 'POSTED' | 'PAID' | 'CANCELLED' | 'ADJUSTED' | 'EXEMPTED';
+  discounts?: Array<Pick<BillLineItemDiscount, 'amount' | 'baseAmount' | 'rate' | 'description' | 'sponsor'>>;
+};
+
+export const updateBillLineItem = (lineItemUuid: string, updates: BillLineItemUpdate) => {
+  const payload = { ...updates };
+
+  if (!payload.priceUuid) {
+    delete payload.priceUuid;
+  }
+
+  const url = `${restBaseUrl}/cashier/billLineItem/${lineItemUuid}`;
   return openmrsFetch(url, {
     method: 'POST',
     body: payload,

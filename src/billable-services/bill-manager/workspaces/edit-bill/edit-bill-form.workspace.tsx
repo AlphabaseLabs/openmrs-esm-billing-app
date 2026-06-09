@@ -15,7 +15,6 @@ import {
   InlineNotification,
   Switch,
   TextArea,
-  TextInput,
   FormLabel,
 } from '@carbon/react';
 import {
@@ -30,10 +29,10 @@ import {
 import { useProviderOptions, type ProviderOption } from '../../../../payment-points/payment-points.resource';
 
 import { type LineItem, type MappedBill } from '../../../../types';
-import { processBillPayment } from '../../../../billing.resource';
+import { updateBillLineItem } from '../../../../billing.resource';
 import { formatCurrencySimple } from '../../../../helpers/currency';
 import styles from './edit-bill.scss';
-import { createEditBillPayload } from './edit-bill-util';
+import { createEditBillLineItemPayload } from './edit-bill-util';
 import classNames from 'classnames';
 import {
   type EditBillFormData,
@@ -85,11 +84,25 @@ export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>
   }, [sponsorUuid, currentProvider?.uuid, providerOptions, setValue, getValues]);
 
   const watchedPrice = useWatch({ control, name: 'price', defaultValue: defaultValues.price });
+  const watchedPriceName = useWatch({ control, name: 'priceName', defaultValue: defaultValues.priceName });
+  const watchedPriceUuid = useWatch({ control, name: 'priceUuid', defaultValue: defaultValues.priceUuid });
   const watchedQuantity = useWatch({ control, name: 'quantity', defaultValue: defaultValues.quantity });
   const watchedDiscountValue = useWatch({ control, name: 'discountValue', defaultValue: defaultValues.discountValue });
+  const watchedProvider = useWatch({ control, name: 'provider', defaultValue: defaultValues.provider });
   const discountMethod =
     useWatch({ control, name: 'discountMethod', defaultValue: defaultValues.discountMethod }) ??
     DISCOUNT_METHODS.PERCENTAGE;
+  const lineItemUpdates = createEditBillLineItemPayload(lineItem, {
+    ...defaultValues,
+    price: watchedPrice,
+    priceName: watchedPriceName,
+    priceUuid: watchedPriceUuid,
+    quantity: watchedQuantity,
+    discountValue: watchedDiscountValue,
+    discountMethod,
+    provider: watchedProvider,
+  });
+  const hasLineItemUpdates = Object.keys(lineItemUpdates).length > 0;
 
   const subtotal = (parseFloat(watchedPrice ?? '0') || 0) * (parseInt(watchedQuantity ?? '0', 10) || 0);
   const discountAmount =
@@ -98,15 +111,22 @@ export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>
       : parseFloat(String(watchedDiscountValue ?? 0)) || 0;
 
   const onSubmit: SubmitHandler<EditBillFormData> = async (formData) => {
-    const updateBill = createEditBillPayload(lineItem, formData, bill, formData.adjustmentReason);
+    const lineItemUpdates = createEditBillLineItemPayload(lineItem, formData);
+    if (Object.keys(lineItemUpdates).length === 0) {
+      return;
+    }
+
     try {
-      const response = await processBillPayment(updateBill, bill.uuid);
+      const response = await updateBillLineItem(lineItem.uuid, lineItemUpdates);
       if (response.ok) {
         showSnackbar({
           title: t('billUpdate', 'Bill update'),
           subtitle: t('billUpdateSuccess', 'Bill update was successful'),
           kind: 'success',
           timeoutInMs: 5000,
+        });
+        mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
+          revalidate: true,
         });
       }
     } catch (error) {
@@ -117,9 +137,6 @@ export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>
         timeoutInMs: 5000,
       });
     } finally {
-      mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
-        revalidate: true,
-      });
       closeWorkspace({ discardUnsavedChanges: true });
     }
   };
@@ -160,6 +177,8 @@ export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>
                   onChange={({ selectedItem }) => {
                     if (selectedItem) {
                       field.onChange(selectedItem?.price?.toString());
+                      setValue('priceName', selectedItem.name, { shouldDirty: true });
+                      setValue('priceUuid', selectedItem.uuid, { shouldDirty: true });
                     }
                   }}
                   titleText={t('priceOption', 'Price option')}
@@ -281,7 +300,7 @@ export const EditBillForm: React.FC<Workspace2DefinitionProps<EditBillFormProps>
           </Button>
           <Button
             className={styles.button}
-            disabled={!isValid || !isDirty || isSubmitting}
+            disabled={!isValid || !isDirty || isSubmitting || !hasLineItemUpdates}
             kind="primary"
             type="submit">
             {isSubmitting ? (

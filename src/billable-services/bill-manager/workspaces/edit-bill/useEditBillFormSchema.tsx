@@ -30,6 +30,8 @@ export const useEditBillFormSchema = () => {
         .refine((priceStr) => parseInt(priceStr) > BILL_FORM_VALIDATION_RULES.MINIMUM_PRICE, {
           message: t('priceShouldBeGreaterThanZero', 'Price should be greater than zero'),
         }),
+      priceName: z.string().optional(),
+      priceUuid: z.string().optional(),
       quantity: z
         .string({ required_error: 'Quantity amount is required' })
         .refine((quantityStr) => parseInt(quantityStr) > BILL_FORM_VALIDATION_RULES.MINIMUM_QUANTITY, {
@@ -105,6 +107,8 @@ export const useDefaultEditBillFormValues = (billLineItem: LineItem, existingBil
 
   return {
     price: billLineItem?.price.toString(),
+    priceName: billLineItem?.priceName,
+    priceUuid: billLineItem?.priceUuid,
     quantity: billLineItem?.quantity.toString(),
     discountValue,
     discountMethod,

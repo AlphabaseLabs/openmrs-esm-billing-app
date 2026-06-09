@@ -4,11 +4,11 @@ import { EditBillForm } from './edit-bill-form.workspace';
 import { mockBillData, mockCurrentBillableService, mockInitialServicePrice } from '../../../../../__mocks__/bill.mock';
 import { useFormInitialValues } from './useEditBillFormSchema';
 import userEvent from '@testing-library/user-event';
-import { processBillPayment } from '../../../../billing.resource';
-import { createEditBillPayload } from './edit-bill-util';
+import { updateBillLineItem } from '../../../../billing.resource';
+import { createEditBillLineItemPayload } from './edit-bill-util';
 
 const mockedUseFormInitialValues = useFormInitialValues as jest.MockedFunction<typeof useFormInitialValues>;
-const mockedProcessBillPayment = processBillPayment as jest.MockedFunction<typeof processBillPayment>;
+const mockedUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
 jest.mock('./useEditBillFormSchema', () => ({
   ...jest.requireActual('./useEditBillFormSchema'),
@@ -16,7 +16,7 @@ jest.mock('./useEditBillFormSchema', () => ({
 }));
 
 jest.mock('../../../../billing.resource', () => ({
-  processBillPayment: jest.fn(),
+  updateBillLineItem: jest.fn(),
 }));
 
 const testProps = {
@@ -80,16 +80,15 @@ describe('EditBillForm', () => {
     // Expect save button to be enabled
     expect(saveButton).toBeEnabled();
 
-    const expectedPayload = createEditBillPayload(
-      testProps.workspaceProps.lineItem,
-      { quantity: '2', price: '100' },
-      testProps.workspaceProps.bill,
-      'Adjustment test reason',
-    );
+    const expectedPayload = createEditBillLineItemPayload(testProps.workspaceProps.lineItem, {
+      ...testProps.workspaceProps.lineItem,
+      quantity: '2',
+      price: '100',
+    });
     // Submit the form
     await user.click(saveButton);
     await waitFor(() => {
-      expect(mockedProcessBillPayment).toHaveBeenCalledWith(expectedPayload, 'test-uuid-1');
+      expect(mockedUpdateBillLineItem).toHaveBeenCalledWith('lineitem-uuid-1', expectedPayload);
     });
   });
 });

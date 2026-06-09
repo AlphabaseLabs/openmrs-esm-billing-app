@@ -1,4 +1,5 @@
-import type { BillLineItemDiscount } from '../../../../types';
+import type { BillLineItemUpdate } from '../../../../billing.resource';
+import type { BillLineItemDiscount, LineItem } from '../../../../types';
 import type { EditBillFormData } from './useEditBillFormSchema';
 
 /** Request shape for create/update (no uuid). */
@@ -34,27 +35,51 @@ function buildDiscountsFromFormData(
   return [discount];
 }
 
-/**
- * Creates a payload for editing a bill by updating a specific line item
- * @param {LineItem} lineItem - The line item to be updated
- * @param {EditBillFormData} data - Form data (price, quantity, discountValue, discountMethod, etc.)
- * @param {Bill} bill - The original bill
- * @param {string} adjustmentReason - The adjustment reason
- * @returns {Object} The formatted payload for bill update
- */
-export const createEditBillPayload = (lineItem, data: EditBillFormData, bill, adjustmentReason: string) => {
-  if (!lineItem?.uuid || !bill?.lineItems) {
-    throw new Error('Invalid input: lineItem and bill are required with valid properties');
-  }
+const safeParseInt = (value, fallback) => {
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? fallback : parsed;
+};
 
-  const safeParseInt = (value, fallback) => {
-    const parsed = parseInt(value, 10);
-    return isNaN(parsed) ? fallback : parsed;
+const safeParseFloat = (value, fallback) => {
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+};
+
+const toDiscountRequest = (
+  d: BillLineItemDiscount,
+  linePrice: number,
+  lineQty: number,
+): BillLineItemDiscountRequest => {
+  const baseAmount = d.baseAmount ?? linePrice * lineQty;
+  return {
+    amount: d.amount,
+    baseAmount,
+    ...(d.rate != null && { rate: d.rate }),
+    ...(d.description && { description: d.description }),
+    ...(d.sponsor && { sponsor: d.sponsor }),
   };
-  const safeParseFloat = (value, fallback) => {
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? fallback : parsed;
-  };
+};
+
+const normalizeDiscounts = (discounts: BillLineItemDiscountRequest[] = []) =>
+  discounts.map((discount) => ({
+    amount: discount.amount,
+    baseAmount: discount.baseAmount,
+    rate: discount.rate,
+    description: discount.description,
+    sponsor: discount.sponsor,
+  }));
+
+const areDiscountsEqual = (first: BillLineItemDiscountRequest[], second: BillLineItemDiscountRequest[]) =>
+  JSON.stringify(normalizeDiscounts(first)) === JSON.stringify(normalizeDiscounts(second));
+
+/**
+ * Creates a minimal payload for editing an existing bill line item.
+ * Only changed line-item fields are included.
+ */
+export const createEditBillLineItemPayload = (lineItem: LineItem, data: EditBillFormData): BillLineItemUpdate => {
+  if (!lineItem?.uuid) {
+    throw new Error('Invalid input: lineItem is required with a valid uuid');
+  }
 
   const quantity = safeParseInt(data?.quantity, lineItem.quantity);
   const price = safeParseFloat(
@@ -62,76 +87,29 @@ export const createEditBillPayload = (lineItem, data: EditBillFormData, bill, ad
     lineItem.price,
   );
   const discounts = buildDiscountsFromFormData(data, price, quantity);
+  const existingDiscounts = (lineItem.discounts ?? []).map((discount) =>
+    toDiscountRequest(discount, lineItem.price, lineItem.quantity),
+  );
+  const payload: BillLineItemUpdate = {};
 
-  const updatedLineItem = {
-    ...lineItem,
-    quantity,
-    price,
-    discounts,
-  };
+  if (quantity !== lineItem.quantity) {
+    payload.quantity = quantity;
+  }
 
-  const toDiscountRequest = (
-    d: BillLineItemDiscount,
-    linePrice: number,
-    lineQty: number,
-  ): BillLineItemDiscountRequest => {
-    const baseAmount = d.baseAmount ?? linePrice * lineQty;
-    return {
-      amount: d.amount,
-      baseAmount,
-      ...(d.rate != null && { rate: d.rate }),
-      ...(d.description && { description: d.description }),
-      ...(d.sponsor && { sponsor: d.sponsor }),
-    };
-  };
+  if (price !== lineItem.price) {
+    payload.price = price;
+  }
 
-  const formatLineItem = (li) => {
-    const base = {
-      item: li.item,
-      quantity: li.quantity,
-      price: li.price,
-      priceName: li.priceName,
-      priceUuid: li.priceUuid,
-      lineItemOrder: li.lineItemOrder,
-      uuid: li.uuid,
-      paymentStatus: li.paymentStatus,
-    };
-    if (li.uuid === lineItem.uuid) {
-      return { ...base, discounts: updatedLineItem.discounts };
-    }
-    if (Array.isArray(li.discounts) && li.discounts.length > 0) {
-      const discounts = li.discounts.map((d) => toDiscountRequest(d, li.price, li.quantity));
-      return { ...base, discounts };
-    }
-    return base;
-  };
+  if (data.priceName && data.priceName !== lineItem.priceName) {
+    payload.priceName = data.priceName;
+  }
 
-  // Create the bill update payload
-  const payload: any = {
-    cashPoint: bill.cashPointUuid,
-    cashier: bill.cashier.uuid,
-    lineItems: bill.lineItems.map((li) => formatLineItem(li.uuid === lineItem.uuid ? updatedLineItem : li)),
-    payments: bill.payments.map((payment) => ({
-      dateCreated: payment.dateCreated,
-      voided: payment.voided,
-      resourceVersion: payment.resourceVersion,
-      amount: payment.amount,
-      amountTendered: payment.amountTendered,
-      attributes: payment.attributes.map((attribute) => ({
-        attributeType: attribute.attributeType?.uuid,
-        value: attribute.value,
-      })),
-      instanceType: payment.instanceType.uuid,
-    })),
-    patient: bill.patientUuid,
-    billAdjusted: bill.uuid,
-    adjustmentReason,
-  };
+  if (data.priceUuid && data.priceUuid !== lineItem.priceUuid) {
+    payload.priceUuid = data.priceUuid;
+  }
 
-  // Only include status if it exists to avoid triggering rounding logic
-  // when the status is a calculated value that differs from backend status
-  if (bill.status !== undefined && bill.status !== null) {
-    payload.status = bill.status;
+  if (!areDiscountsEqual(discounts, existingDiscounts)) {
+    payload.discounts = discounts;
   }
 
   return payload;
