@@ -100,7 +100,7 @@ export const configSchema: ConfigSchema = {
   },
   sendInvoiceUrl: {
     _type: Type.String,
-    _default: '${restBaseUrl}/n8n/ai-agent/send-invoice',
+    _default: '/medagent/rest/v1/openmrs/messaging/notifications/invoice',
     _description: 'The n8n endpoint used to send invoices to patients',
   },
   excludedPaymentMode: {

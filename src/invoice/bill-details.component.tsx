@@ -1,4 +1,4 @@
-import { Button, Loading, Tooltip } from '@carbon/react';
+import { Button, Tooltip } from '@carbon/react';
 import { Printer } from '@carbon/react/icons';
 import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -42,7 +42,6 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { sendInvoiceUrl } = useConfig<BillingConfig>();
   const { sessionLocation } = useSession();
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
-  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
   const paidLineItems = useMemo(
     () => bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [],
     [bill?.lineItems],
@@ -86,10 +85,16 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
 
   const handleSendInvoice = async () => {
-    setIsSendingInvoice(true);
+    showSnackbar({
+      title: t('sendingInvoice', 'Sending invoice'),
+      subtitle: t('invoiceSendStarted', 'Sending invoice to {{patientName}}', {
+        patientName: bill?.patientName,
+      }),
+      kind: 'info',
+    });
 
     try {
-      const response = await openmrsFetch(sendInvoiceUrl.replace('${restBaseUrl}', restBaseUrl), {
+      const response = await openmrsFetch(sendInvoiceUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: {
@@ -99,7 +104,6 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           patientPhoneNumber: await getPatientPhoneNumber(),
           billUuid: bill?.uuid,
           billId: bill?.id,
-          emr: 'openmrs',
         },
       });
 
@@ -121,8 +125,6 @@ const BillDetails: React.FC<BillDetailsProps> = ({
         ),
         kind: 'error',
       });
-    } finally {
-      setIsSendingInvoice(false);
     }
   };
 
@@ -151,19 +153,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           ))}
         </section>
         <div className={styles.actionsContainer}>
-          <Button
-            kind="secondary"
-            renderIcon={isSendingInvoice ? undefined : WhatsAppIcon}
-            disabled={isSendingInvoice || !bill?.uuid}
-            onClick={handleSendInvoice}>
-            {isSendingInvoice ? (
-              <>
-                <Loading className={styles.buttonSpinner} withOverlay={false} small />
-                {t('sendingInvoice', 'Sending invoice')}
-              </>
-            ) : (
-              t('sendInvoice', 'Send invoice')
-            )}
+          <Button kind="secondary" renderIcon={WhatsAppIcon} disabled={!bill?.uuid} onClick={handleSendInvoice}>
+            {t('sendInvoice', 'Send invoice')}
           </Button>
           <Button
             kind="primary"

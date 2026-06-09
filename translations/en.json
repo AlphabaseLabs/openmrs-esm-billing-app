@@ -230,6 +230,7 @@
   "invoiceNumber": "Invoice number",
   "invoiceNumberShort": "Invoice #",
   "invoiceSendError": "Sorry, we were unable to process your request. Please try again or contact support.",
+  "invoiceSendStarted": "Sending invoice to {{patientName}}",
   "invoiceSent": "Invoice sent",
   "invoiceSentToPatient": "Invoice sent to {{patientName}}",
   "invoiceStatus": "Invoice status",
