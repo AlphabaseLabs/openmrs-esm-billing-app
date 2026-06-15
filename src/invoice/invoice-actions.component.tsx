@@ -5,14 +5,15 @@ import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import startCase from 'lodash-es/startCase';
 import { launchBillingWorkspace } from '../workspaces';
-import { type MappedBill } from '../types';
+import { type LineItem, type MappedBill } from '../types';
 import styles from './invoice.scss';
 
 interface InvoiceActionsProps {
   readonly bill: MappedBill;
+  readonly selectedLineItems?: Array<LineItem>;
 }
 
-export function InvoiceActions({ bill }: InvoiceActionsProps) {
+export function InvoiceActions({ bill, selectedLineItems = [] }: InvoiceActionsProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -95,7 +96,7 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
             renderIcon={Wallet}
             className={styles.actionMenuItem}
             onClick={() => {
-              launchBillingWorkspace('payment-workspace', { bill });
+              launchBillingWorkspace('payment-workspace', { bill, selectedLineItems });
               setIsOpen(false);
             }}>
             {t('additionalPayments', 'Additional payments')}

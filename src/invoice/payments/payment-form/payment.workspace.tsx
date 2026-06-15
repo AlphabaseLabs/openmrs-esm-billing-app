@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type MappedBill } from '../../../types';
+import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import styles from './payment.scss';
 import { Stack, TextInput, Button, ButtonSet, InlineLoading, Dropdown } from '@carbon/react';
 import {
@@ -18,9 +18,11 @@ import { usePaymentForm } from './use-payment-form';
 import { type z } from 'zod';
 import { mutate } from 'swr';
 import { convertToCurrency } from '../../../helpers';
+import { createLineItemAllocationBuilder } from '../ai-payments.integration';
 
 type PaymentWorkspaceProps = {
   bill: MappedBill;
+  selectedLineItems?: Array<LineItem>;
 };
 
 const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps>> = ({
@@ -28,7 +30,7 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
   closeWorkspace,
 }) => {
   const { t } = useTranslation();
-  const { bill } = workspaceProps ?? ({} as PaymentWorkspaceProps);
+  const { bill, selectedLineItems = [] } = workspaceProps ?? ({} as PaymentWorkspaceProps);
   const isTablet = useLayoutType() === 'tablet';
   const translationWrapper = (key: string, defaultValue?: string) => t(key, defaultValue);
   const { formMethods, paymentSchema } = usePaymentForm(translationWrapper, bill.balance);
@@ -44,6 +46,8 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
   } = formMethods;
 
   const onSubmit = async (data: PaymentFormData) => {
+    const selectedUnpaidLineItems = selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID);
+    const allocations = createLineItemAllocationBuilder(selectedUnpaidLineItems)(data.amountTendered);
     const payment = {
       instanceType: data.instanceType?.uuid,
       amount: data.amountTendered,
@@ -56,6 +60,7 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
             value,
           }))
         : [],
+      ...(allocations.length ? { allocations } : {}),
     };
 
     try {

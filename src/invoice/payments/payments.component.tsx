@@ -46,13 +46,6 @@ const Payments: React.FC<PaymentProps> = ({
     resolver: zodResolver(paymentFormSchema),
   });
 
-  const { fields, isSubmittingPayments, launchAiPaymentsWorkspace, processPayments, removePaymentRow } =
-    useAiPaymentsIntegration({
-      bill,
-      formMethods: methods,
-      paymentModes,
-    });
-
   const formValues = useWatch({
     name: 'payment',
     control: methods.control,
@@ -62,6 +55,15 @@ const Payments: React.FC<PaymentProps> = ({
     () => selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID),
     [selectedLineItems],
   );
+
+  const { fields, isSubmittingPayments, launchAiPaymentsWorkspace, processPayments, removePaymentRow } =
+    useAiPaymentsIntegration({
+      bill,
+      formMethods: methods,
+      paymentModes,
+      selectedLineItems: selectedUnpaidLineItems,
+    });
+
   const hasSelectedUnpaidLineItems = selectedUnpaidLineItems.length > 0;
   const hasEnteredPaymentAmount = formValues?.some((item) => Number(item.amount ?? 0) > 0) ?? false;
   const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount ?? 0) + curr, 0) ?? 0;

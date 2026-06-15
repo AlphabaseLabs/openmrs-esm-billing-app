@@ -18,6 +18,7 @@ import { extractErrorMessagesFromResponse } from '../../utils';
 import {
   type AiPaymentSource,
   type FormPayment,
+  type LineItem,
   type MappedBill,
   type PaymentFormValue,
   type PaymentMethod,
@@ -41,10 +42,15 @@ type UseAiPaymentsIntegrationParams = {
   bill: MappedBill;
   formMethods: UseFormReturn<PaymentFormValue>;
   paymentModes: Array<PaymentMethod>;
+  selectedLineItems?: Array<LineItem>;
 };
 
 type Translate = (key: string, defaultValue: string, values?: Record<string, unknown>) => string;
 type BillingPaymentPayload = Parameters<typeof addPaymentToBill>[1];
+type BillingPaymentAllocation = {
+  billLineItem: string;
+  allocatedAmount: number;
+};
 
 const aiAgentPaymentsWorkspaceName = 'ai-agent-payments-workspace';
 const pendingAiPaymentsStorageKey = 'billing-ai-pending-payments';
@@ -59,6 +65,19 @@ function toTrimmedString(value?: string | null) {
 
 function getPaymentAmount(row?: Pick<FormPayment, 'amount'> | null) {
   return Number(row?.amount ?? 0);
+}
+
+function roundPaymentAmount(value: number) {
+  return parseFloat(value.toFixed(2));
+}
+
+function getLineItemAmountDue(lineItem: LineItem) {
+  const taxAmount = (lineItem.taxes ?? []).reduce((sum, tax) => sum + Number(tax?.amount ?? 0), 0);
+  const discountAmount = (lineItem.discounts ?? []).reduce((sum, discount) => sum + Number(discount?.amount ?? 0), 0);
+  const lineItemTotal = Number(lineItem.total ?? lineItem.price * lineItem.quantity + taxAmount - discountAmount);
+  const totalAllocated = Number(lineItem.totalAllocated ?? 0);
+
+  return roundPaymentAmount(Math.max(lineItemTotal - totalAllocated, 0));
 }
 
 function createStableId() {
@@ -206,7 +225,40 @@ function buildBillingPaymentAttributes(row: FormPayment) {
   );
 }
 
-function buildBillingPaymentPayload(row: FormPayment): BillingPaymentPayload {
+export function createLineItemAllocationBuilder(lineItems: Array<LineItem>) {
+  const remainingLineItemAmounts = lineItems.map((lineItem) => ({
+    uuid: lineItem.uuid,
+    remainingAmount: getLineItemAmountDue(lineItem),
+  }));
+
+  return (paymentAmount: number): Array<BillingPaymentAllocation> => {
+    let remainingPaymentAmount = roundPaymentAmount(paymentAmount);
+
+    return remainingLineItemAmounts.flatMap((lineItem) => {
+      if (remainingPaymentAmount <= 0) {
+        return [];
+      }
+
+      const allocatedAmount = roundPaymentAmount(Math.min(lineItem.remainingAmount, remainingPaymentAmount));
+      remainingPaymentAmount = roundPaymentAmount(remainingPaymentAmount - allocatedAmount);
+      lineItem.remainingAmount = roundPaymentAmount(lineItem.remainingAmount - allocatedAmount);
+
+      return allocatedAmount > 0
+        ? [
+            {
+              billLineItem: lineItem.uuid,
+              allocatedAmount,
+            },
+          ]
+        : [];
+    });
+  };
+}
+
+function buildBillingPaymentPayload(
+  row: FormPayment,
+  allocations: Array<BillingPaymentAllocation> = [],
+): BillingPaymentPayload {
   const amountTendered = getPaymentAmount(row);
 
   return {
@@ -214,6 +266,7 @@ function buildBillingPaymentPayload(row: FormPayment): BillingPaymentPayload {
     amountTendered,
     attributes: buildBillingPaymentAttributes(row),
     instanceType: row.method?.uuid,
+    ...(allocations.length ? { allocations } : {}),
   };
 }
 
@@ -409,7 +462,12 @@ const AiAgentIcon: React.FC = () => (
   </svg>
 );
 
-export function useAiPaymentsIntegration({ bill, formMethods, paymentModes }: UseAiPaymentsIntegrationParams): {
+export function useAiPaymentsIntegration({
+  bill,
+  formMethods,
+  paymentModes,
+  selectedLineItems = [],
+}: UseAiPaymentsIntegrationParams): {
   fields: Array<FieldArrayWithId<PaymentFormValue, 'payment', 'id'>>;
   isSubmittingPayments: boolean;
   launchAiPaymentsWorkspace: () => void;
@@ -503,10 +561,12 @@ export function useAiPaymentsIntegration({ bill, formMethods, paymentModes }: Us
       const processedClientPaymentIds = new Set<string>();
       let processedPaymentsCount = 0;
       let attachmentUpdateFailures = 0;
+      const buildAllocations = createLineItemAllocationBuilder(selectedLineItems);
 
       try {
         for (const row of rowsToProcess) {
-          const paymentPayload = buildBillingPaymentPayload(row);
+          const allocations = buildAllocations(getPaymentAmount(row));
+          const paymentPayload = buildBillingPaymentPayload(row, allocations);
           await addPaymentToBill(bill.uuid, paymentPayload);
           processedPaymentsCount += 1;
 
@@ -590,6 +650,7 @@ export function useAiPaymentsIntegration({ bill, formMethods, paymentModes }: Us
       getValues,
       isSubmittingPayments,
       reset,
+      selectedLineItems,
       trigger,
     ],
   );

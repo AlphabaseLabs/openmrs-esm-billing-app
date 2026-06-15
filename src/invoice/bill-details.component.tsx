@@ -42,17 +42,43 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { sendInvoiceUrl } = useConfig<BillingConfig>();
   const { sessionLocation } = useSession();
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const billLineItemsByUuid = useMemo(
+    () => new Map(bill?.lineItems?.map((item) => [item.uuid, item]) ?? []),
+    [bill?.lineItems],
+  );
   const paidLineItems = useMemo(
     () => bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [],
     [bill?.lineItems],
   );
 
   useEffect(() => {
-    setSelectedLineItems(paidLineItems);
-  }, [paidLineItems]);
+    setSelectedLineItems((currentSelectedLineItems) => {
+      const nextSelectedLineItems = currentSelectedLineItems
+        .flatMap((item) => {
+          const billLineItem = billLineItemsByUuid.get(item.uuid);
+          return billLineItem ? [billLineItem] : [];
+        })
+        .filter((item) => item.paymentStatus !== 'EXEMPTED');
+
+      for (const paidLineItem of paidLineItems) {
+        if (!nextSelectedLineItems.some((item) => item.uuid === paidLineItem.uuid)) {
+          nextSelectedLineItems.push(paidLineItem);
+        }
+      }
+
+      const currentSelectionKey = currentSelectedLineItems
+        .map((item) => `${item.uuid}:${item.paymentStatus}`)
+        .join('|');
+      const nextSelectionKey = nextSelectedLineItems.map((item) => `${item.uuid}:${item.paymentStatus}`).join('|');
+
+      return currentSelectionKey === nextSelectionKey ? currentSelectedLineItems : nextSelectedLineItems;
+    });
+  }, [billLineItemsByUuid, paidLineItems]);
 
   const handleSelectItem = (lineItems: Array<LineItem>) => {
-    const uniqueLineItems = [...new Set([...lineItems, ...paidLineItems])];
+    const uniqueLineItems = Array.from(
+      new Map([...lineItems, ...paidLineItems].map((lineItem) => [lineItem.uuid, lineItem])).values(),
+    );
     setSelectedLineItems(uniqueLineItems);
   };
 
@@ -167,11 +193,16 @@ const BillDetails: React.FC<BillDetailsProps> = ({
             }>
             {t('printBill', 'Print bill')}
           </Button>
-          <InvoiceActions bill={bill} />
+          <InvoiceActions bill={bill} selectedLineItems={selectedLineItems} />
         </div>
       </div>
       <div className={styles.invoiceContent}>
-        <InvoiceTable bill={bill} isLoadingBill={isLoadingBill} onSelectItem={handleSelectItem} />
+        <InvoiceTable
+          bill={bill}
+          isLoadingBill={isLoadingBill}
+          selectedLineItems={selectedLineItems}
+          onSelectItem={handleSelectItem}
+        />
         <Payments
           bill={bill}
           selectedLineItems={selectedLineItems}

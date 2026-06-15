@@ -32,19 +32,25 @@ type InvoiceTableProps = {
   bill: MappedBill;
   isSelectable?: boolean;
   isLoadingBill?: boolean;
+  selectedLineItems?: Array<LineItem>;
   onSelectItem?: (selectedLineItems: LineItem[]) => void;
 };
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, isLoadingBill, onSelectItem }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({
+  bill,
+  isSelectable = true,
+  isLoadingBill,
+  selectedLineItems = [],
+  onSelectItem,
+}) => {
   const { t } = useTranslation();
   const { lineItems } = bill;
-  const paidLineItems = lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [];
   const { billableServices } = useBillableServices();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [selectedLineItems, setSelectedLineItems] = useState(paidLineItems ?? []);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm);
+  const selectedLineItemUuids = useMemo(() => new Set(selectedLineItems.map((item) => item.uuid)), [selectedLineItems]);
   const shortNamesByServiceUuid = useMemo(
     () => new Map(billableServices.map((service) => [service.uuid, `${service.shortName ?? ''}`.trim()])),
     [billableServices],
@@ -195,16 +201,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
     );
   }
 
-  const handleRowSelection = (row, checked: boolean) => {
+  const handleRowSelection = (row, checkedOrEvent: boolean | React.ChangeEvent<HTMLInputElement>) => {
+    const checked = typeof checkedOrEvent === 'boolean' ? checkedOrEvent : checkedOrEvent.target.checked;
     const matchingRow = filteredLineItems.find((item) => item.uuid === row.id);
     let newSelectedLineItems;
 
-    if (checked) {
+    if (checked && matchingRow) {
       newSelectedLineItems = [...selectedLineItems, matchingRow];
     } else {
       newSelectedLineItems = selectedLineItems.filter((item) => item.uuid !== row.id);
     }
-    setSelectedLineItems(newSelectedLineItems);
     onSelectItem?.(newSelectedLineItems);
   };
 
@@ -272,7 +278,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ bill, isSelectable = true, 
                           checked={
                             paymentStatus === PaymentStatus.PAID ||
                             paymentStatus === PaymentStatus.EXEMPTED ||
-                            Boolean(selectedLineItems?.find((item) => item?.uuid === row?.id))
+                            selectedLineItemUuids.has(row.id)
                           }
                         />
                       )}

@@ -131,7 +131,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
     const mobileMoneyOption = screen.getByRole('option', { name: /Mobile Money/i });
     await user.click(mobileMoneyOption);
@@ -181,7 +181,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
     await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
     const cashOption = screen.getByRole('option', { name: /Cash/i });
     await user.click(cashOption);
@@ -203,6 +203,44 @@ describe('Payment', () => {
     });
   });
 
+  test('should include allocations when selected line items are paid', async () => {
+    const user = userEvent.setup();
+    mockAddPaymentToBill.mockResolvedValueOnce({} as any);
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={[updatedMockLineItems[1]]} />);
+    await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
+    const cashOption = screen.getByRole('option', { name: /Cash/i });
+    await user.click(cashOption);
+
+    const amountInput = screen.getByRole('spinbutton', { name: /Amount/i });
+    await user.type(amountInput, '100');
+
+    const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await user.tab();
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+    await user.click(submitButton);
+
+    expect(mockAddPaymentToBill).toHaveBeenCalledTimes(1);
+    expect(mockAddPaymentToBill).toHaveBeenCalledWith('6eb8d678-514d-46ad-9554-51e48d96d567', {
+      amount: 100,
+      amountTendered: 100,
+      attributes: [],
+      instanceType: '63eff7a4-6f82-43c4-a333-dbcc58fe9f74',
+      allocations: [
+        {
+          billLineItem: '60365e7e-d29e-4f13-b64b-9aecb5d36031',
+          allocatedAmount: 100,
+        },
+      ],
+    });
+  });
+
   test('should show a default payment row with cash preselected', () => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
@@ -211,7 +249,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
     expect(screen.queryByRole('button', { name: /Add payment option/i })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Cash/i);
     expect(screen.getByRole('spinbutton', { name: /Amount/i })).toBeInTheDocument();
@@ -230,7 +268,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
     expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i);
   });
@@ -244,7 +282,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
 
@@ -295,7 +333,7 @@ describe('Payment', () => {
       mutate: jest.fn(),
     });
 
-    render(<Payments bill={paymentBill as any} selectedLineItems={updatedMockLineItems} />);
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
     await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
 
