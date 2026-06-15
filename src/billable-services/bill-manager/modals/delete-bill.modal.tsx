@@ -12,6 +12,7 @@ import { z } from 'zod';
 type DeleteBillModalProps = {
   onClose: () => void;
   bill: MappedBill;
+  isForceDelete?: boolean;
 };
 
 const deleteSchema = z.object({
@@ -20,7 +21,7 @@ const deleteSchema = z.object({
 
 type DeleteBillFormData = z.infer<typeof deleteSchema>;
 
-export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill }) => {
+export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill, isForceDelete = false }) => {
   const { t } = useTranslation();
   const {
     handleSubmit,
@@ -28,6 +29,10 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
     formState: { isValid, isSubmitting },
   } = useForm<DeleteBillFormData>({
     resolver: zodResolver(deleteSchema),
+    defaultValues: {
+      reason: '',
+    },
+    mode: 'onChange',
   });
   const onSubmit = async (formData: DeleteBillFormData) => {
     try {
@@ -62,13 +67,20 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
 
   return (
     <React.Fragment>
-      <div className={cancelBillStyles.modalHeaderLabel}>{t('deleteBill', 'Delete bill')}</div>
+      <div className={cancelBillStyles.modalHeaderLabel}>
+        {isForceDelete ? t('forceDeleteBill', 'Force delete bill') : t('deleteBill', 'Delete bill')}
+      </div>
       <ModalBody>
         <p className={cancelBillStyles.modalHeaderHeading}>
-          {t(
-            'deleteBillConfirmation',
-            'Are you sure you want to delete this bill? All line items in this bill will be deleted. This action cannot be undone.',
-          )}
+          {isForceDelete
+            ? t(
+                'forceDeleteBillConfirmation',
+                'Force deleting this bill will permanently delete the bill and all of its line items. This action cannot be undone.',
+              )
+            : t(
+                'deleteBillConfirmation',
+                'Are you sure you want to delete this bill? All line items in this bill will be deleted. This action cannot be undone.',
+              )}
         </p>
         <ResponsiveWrapper>
           <Controller
@@ -78,8 +90,16 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
               <TextArea
                 {...field}
                 className={cancelBillStyles.formField}
-                labelText={t('enterReasonForDeletingBill', 'Enter reason for deleting bill')}
-                placeholder={t('enterReasonForDeletingBill', 'Enter reason for deleting bill')}
+                labelText={
+                  isForceDelete
+                    ? t('enterReasonForForceDeletingBill', 'Enter reason for force deleting bill')
+                    : t('enterReasonForDeletingBill', 'Enter reason for deleting bill')
+                }
+                placeholder={
+                  isForceDelete
+                    ? t('enterReasonForForceDeletingBill', 'Enter reason for force deleting bill')
+                    : t('enterReasonForDeletingBill', 'Enter reason for deleting bill')
+                }
                 invalid={!!error}
                 invalidText={error?.message}
               />
@@ -92,7 +112,7 @@ export const DeleteBillModal: React.FC<DeleteBillModalProps> = ({ onClose, bill 
           {t('cancel', 'Cancel')}
         </Button>
         <Button kind="danger" disabled={!isValid || isSubmitting} onClick={handleSubmit(onSubmit)}>
-          {t('continue', 'Continue')}
+          {isForceDelete ? t('deleteBill', 'Delete bill') : t('continue', 'Continue')}
         </Button>
       </ModalFooter>
     </React.Fragment>

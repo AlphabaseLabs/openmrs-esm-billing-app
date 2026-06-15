@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, IconButton, Popover, PopoverContent } from '@carbon/react';
-import { Close, FolderOpen, OverflowMenuVertical, Printer, Wallet } from '@carbon/react/icons';
+import { Close, FolderOpen, OverflowMenuVertical, Printer, TrashCan, Wallet } from '@carbon/react/icons';
 import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import startCase from 'lodash-es/startCase';
@@ -30,6 +30,15 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
       closeModal: () => dispose(),
       bill,
       action,
+    });
+    setIsOpen(false);
+  };
+
+  const launchDeleteBillModal = () => {
+    const dispose = showModal('delete-bill-modal', {
+      bill,
+      isForceDelete: true,
+      onClose: () => dispose(),
     });
     setIsOpen(false);
   };
@@ -100,6 +109,16 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
               className={styles.actionMenuItem}
               onClick={() => launchBillActionModal(closeAction)}>
               {closeActionLabel}
+            </Button>
+          </UserHasAccess>
+          <UserHasAccess privilege="Force Delete Cashier Bills">
+            <Button
+              kind="danger--ghost"
+              size="sm"
+              renderIcon={TrashCan}
+              className={styles.actionMenuItem}
+              onClick={launchDeleteBillModal}>
+              {t('deleteBill', 'Delete Bill')}
             </Button>
           </UserHasAccess>
         </div>
