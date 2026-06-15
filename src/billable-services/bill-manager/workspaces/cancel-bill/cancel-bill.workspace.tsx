@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { convertToCurrency } from '../../../../helpers';
-import { purgeBillLineItem } from './cance-bill.resource';
+import { purgeBillLineItem } from './cancel-bill.resource';
 import { mutate } from 'swr';
 import { extractErrorMessagesFromResponse } from '../../../../utils';
 
