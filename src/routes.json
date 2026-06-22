@@ -104,12 +104,25 @@
     {
       "name": "order-action-button",
       "component": "orderActionButton",
-      "slots": [
-        "prescription-action-button-slot",
-        "imaging-orders-action",
-        "procedure-orders-action",
-        "tests-ordered-actions-slot"
-      ],
+      "slot": "prescription-action-button-slot",
+      "order": 0
+    },
+    {
+      "name": "imaging-order-action-button",
+      "component": "orderActionButton",
+      "slot": "imaging-orders-action",
+      "order": 0
+    },
+    {
+      "name": "procedure-order-action-button",
+      "component": "orderActionButton",
+      "slot": "procedure-orders-action",
+      "order": 0
+    },
+    {
+      "name": "tests-order-action-button",
+      "component": "orderActionButton",
+      "slot": "tests-ordered-actions-slot",
       "order": 0
     },
     {

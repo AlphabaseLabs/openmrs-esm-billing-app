@@ -44,4 +44,13 @@ describe('createBillingActionItem', () => {
     expect(onSelectAction).not.toHaveBeenCalled();
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
+
+  test('renders when the extension host does not provide state props', () => {
+    render(<BillingHistoryAction />);
+
+    expect(screen.getByRole('link', { name: /billing history/i })).toHaveAttribute(
+      'href',
+      '/openmrs/spa/home/billing/billing-history',
+    );
+  });
 });

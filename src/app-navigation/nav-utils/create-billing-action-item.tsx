@@ -19,7 +19,7 @@ const getBillingActionHref = (route: string) =>
   `${window.getOpenmrsSpaBase()}home/billing${route}`.replaceAll('//', '/');
 
 const createBillingActionItem = (config: BillingActionConfig) => {
-  return ({ onSelect, onSelectAction }: BillingActionProps) => {
+  return ({ onSelect, onSelectAction }: BillingActionProps = {}) => {
     const { t } = useTranslation();
     const title = t(config.title, config.title);
 

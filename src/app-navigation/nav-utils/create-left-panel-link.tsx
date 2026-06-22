@@ -15,7 +15,7 @@ type LinkExtensionProps = {
 };
 
 const createLeftPanelLink = (config: LinkConfig) => {
-  return ({ onSelect }: LinkExtensionProps) => (
+  return ({ onSelect }: LinkExtensionProps = {}) => (
     <BrowserRouter>
       <LinkExtension
         route={config.route}

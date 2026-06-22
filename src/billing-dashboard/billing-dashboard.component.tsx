@@ -92,10 +92,17 @@ function BillingDashboard() {
   const handleActionSelection = useCallback(
     (action: string, title?: string) => {
       const nextAction = action as BillingActionKey;
+      const nextRoute = nextAction === 'overview' ? '/' : billingActionRoutes[nextAction];
+
+      if (!nextRoute) {
+        setIsOptionsOpen(false);
+        return;
+      }
+
       setSelectedAction(nextAction);
       setSelectedActionTitle(title ?? null);
 
-      navigate(nextAction === 'overview' ? '/' : billingActionRoutes[nextAction]);
+      navigate(nextRoute);
     },
     [navigate],
   );

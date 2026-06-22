@@ -11,12 +11,12 @@ type Conf = {
 };
 
 const createDashboardGroup = ({ slotName, title, isExpanded, icon }: Conf) => {
-  const DashboardGroup = ({ basePath }: { basePath: string }) => {
+  const DashboardGroup = ({ basePath }: { basePath?: string } = {}) => {
     return (
       <DashboardGroupExtension
         title={title}
         slotName={slotName}
-        basePath={basePath}
+        basePath={basePath ?? ''}
         isExpanded={isExpanded}
         icon={icon}
       />
