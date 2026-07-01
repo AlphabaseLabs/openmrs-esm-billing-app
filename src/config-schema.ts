@@ -23,7 +23,7 @@ export interface BillingConfig {
   cashierUuid: string;
   defaultPaymentMethodName: string;
   insuranceSchemes: Array<string>;
-  billHistoryDays: number;
+  billHistoryStartDate: string;
   visitAttributeTypes: {
     isPatientExempted: string;
     paymentMethods: string;
@@ -159,10 +159,10 @@ export const configSchema: ConfigSchema = {
     _default: ['SHA', 'Jubilee Insurance', 'AAR Insurance', 'Old Mutual Insurance'],
     _description: 'List of insurance schemes',
   },
-  billHistoryDays: {
-    _type: Type.Number,
-    _default: 365,
-    _description: 'Number of days to look back when fetching patient bill history',
+  billHistoryStartDate: {
+    _type: Type.String,
+    _default: '2020-01-01',
+    _description: 'Start date to use when fetching patient bill history',
   },
   visitAttributeTypes: {
     isPatientExempted: {

@@ -36,6 +36,14 @@ interface BillHistoryProps {
 
 const BILL_HISTORY_SELECTED_BILL_PARAM = 'billUuid';
 const BILL_HISTORY_ROUTING_EVENT = 'single-spa:routing-event';
+const DEFAULT_BILL_HISTORY_START_DATE = '2020-01-01';
+
+const getBillHistoryStartDate = (configuredStartDate?: string) => {
+  const parsedStartDate = dayjs(configuredStartDate || DEFAULT_BILL_HISTORY_START_DATE);
+  const resolvedStartDate = parsedStartDate.isValid() ? parsedStartDate : dayjs(DEFAULT_BILL_HISTORY_START_DATE);
+
+  return resolvedStartDate.startOf('day').toDate();
+};
 
 const getColumnClassName = (columnKey: string) => {
   return columnKey === 'billedItems' ? styles.billedItemsColumn : undefined;
@@ -48,7 +56,7 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { bills, isLoading, error, mutate } = useBills(
     patientUuid,
     '',
-    dayjs().subtract(config.billHistoryDays, 'day').startOf('day').toDate(),
+    getBillHistoryStartDate(config.billHistoryStartDate),
     dayjs().endOf('day').toDate(),
   );
   const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit(patientUuid, 'billing-form');

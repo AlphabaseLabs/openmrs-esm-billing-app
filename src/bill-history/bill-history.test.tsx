@@ -17,6 +17,7 @@ const mockUseLaunchWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringV
   typeof useLaunchBillingWorkspaceRequiringVisit
 >;
 const mockBillsMutate = jest.fn().mockResolvedValue(undefined);
+const mockBillingConfig = { billHistoryStartDate: '2020-01-01', visitRequired: true };
 
 const mockBillsData = [
   {
@@ -206,6 +207,7 @@ describe('BillHistory', () => {
 
   beforeEach(() => {
     mockBillsMutate.mockClear();
+    (useConfig as jest.Mock).mockReturnValue(mockBillingConfig);
     mockUseLaunchWorkspaceRequiringVisit.mockReturnValue(jest.fn());
     mockUseBill.mockReturnValue({
       bill: { uuid: '1', lineItems: [], payments: [], status: PaymentStatus.PENDING, closed: false } as any,
@@ -217,7 +219,6 @@ describe('BillHistory', () => {
   });
 
   test('should render loading datatable skeleton', () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: true, isValidating: false, error: null, bills: [], mutate: jest.fn() });
     renderBillHistory();
     const loadingSkeleton = screen.getByRole('table');
@@ -226,7 +227,6 @@ describe('BillHistory', () => {
   });
 
   test('should render error state when API call fails', () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({
       isLoading: false,
       isValidating: false,
@@ -240,7 +240,6 @@ describe('BillHistory', () => {
   });
 
   test('should render bills table', async () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -281,8 +280,26 @@ describe('BillHistory', () => {
     expect(screen.getByText(/1–10 of 12 items/)).toBeInTheDocument();
   });
 
+  test('should fetch bills from the configured billing history start date', () => {
+    (useConfig as jest.Mock).mockReturnValue({ billHistoryStartDate: '2020-01-01', visitRequired: true });
+    mockbills.mockReturnValueOnce({
+      isLoading: false,
+      isValidating: false,
+      error: null,
+      bills: mockBillsData as any,
+      mutate: mockBillsMutate,
+    });
+
+    renderBillHistory();
+
+    const [, , startDate] = mockbills.mock.calls[0];
+    expect(startDate).toBeInstanceOf(Date);
+    expect(startDate.getFullYear()).toBe(2020);
+    expect(startDate.getMonth()).toBe(0);
+    expect(startDate.getDate()).toBe(1);
+  });
+
   test('should make invoice number and status clickable for every bill status', () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({
       isLoading: false,
       isValidating: false,
@@ -314,7 +331,6 @@ describe('BillHistory', () => {
   });
 
   test('should show bill details below the table when invoice number is clicked and hide it on discard', async () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -351,7 +367,6 @@ describe('BillHistory', () => {
   });
 
   test('should show bill details below the table when status is clicked', async () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -376,7 +391,6 @@ describe('BillHistory', () => {
   });
 
   test('should return to the bills table when billing history is revisited without a bill uuid in the url', async () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     const user = userEvent.setup();
     mockbills.mockReturnValueOnce({
       isLoading: false,
@@ -409,7 +423,6 @@ describe('BillHistory', () => {
   });
 
   test('should render empty state view when there are no bills', async () => {
-    (useConfig as jest.Mock).mockReturnValue({ billHistoryDays: 365, visitRequired: true });
     mockbills.mockReturnValueOnce({ isLoading: false, isValidating: false, error: null, bills: [], mutate: jest.fn() });
     renderBillHistory();
   });
