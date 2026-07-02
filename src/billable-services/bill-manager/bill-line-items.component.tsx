@@ -13,6 +13,7 @@ import { convertToCurrency, extractString } from '../../helpers';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../types';
 import styles from './bill-manager.scss';
 import { ExtensionSlot } from '@openmrs/esm-framework';
+import { isLineItemRefunded } from './bill-line-items.utils';
 
 const BillLineItems: React.FC<{ bill: MappedBill }> = ({ bill }) => {
   const { t } = useTranslation();
@@ -33,7 +34,9 @@ const BillLineItems: React.FC<{ bill: MappedBill }> = ({ bill }) => {
           </StructuredListRow>
         </StructuredListHead>
         <StructuredListBody>
-          {bill?.lineItems.map((lineItem) => <LineItemRow bill={bill} lineItem={lineItem} key={lineItem.uuid} />)}
+          {bill?.lineItems.map((lineItem) => (
+            <LineItemRow bill={bill} lineItem={lineItem} key={lineItem.uuid} />
+          ))}
         </StructuredListBody>
       </StructuredListWrapper>
     </Layer>
@@ -45,13 +48,7 @@ const LineItemRow = ({ lineItem, bill }: { lineItem: LineItem; bill: MappedBill 
   const refundedLineItemUUIDs = bill.lineItems.filter((li) => Math.sign(li.price) === -1).map((li) => li.uuid);
   const isRefundedLineItem = refundedLineItemUUIDs.includes(lineItem.uuid);
 
-  const refundedLineItemBillableServiceUUIDs = bill.lineItems
-    .filter((li) => Math.sign(li.price) === -1)
-    .map((li) => li.billableService.split(':').at(0));
-
-  const isRefundedBillableService = refundedLineItemBillableServiceUUIDs.includes(
-    lineItem.billableService.split(':').at(0),
-  );
+  const isRefundedBillableService = isLineItemRefunded(bill, lineItem);
 
   const extensionHeight = lineItem.paymentStatus === PaymentStatus.PAID ? '3em' : '5em';
 
@@ -62,9 +59,19 @@ const LineItemRow = ({ lineItem, bill }: { lineItem: LineItem; bill: MappedBill 
       </StructuredListCell>
       <StructuredListCell>{lineItem.quantity}</StructuredListCell>
       <StructuredListCell>{convertToCurrency(lineItem.price * lineItem.quantity)}</StructuredListCell>
-      <StructuredListCell>{convertToCurrency(lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0))}</StructuredListCell>
-      <StructuredListCell>{convertToCurrency(lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0))}</StructuredListCell>
-      <StructuredListCell>{convertToCurrency(lineItem.price * lineItem.quantity + lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0) - lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0))}</StructuredListCell>
+      <StructuredListCell>
+        {convertToCurrency(lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0))}
+      </StructuredListCell>
+      <StructuredListCell>
+        {convertToCurrency(lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0))}
+      </StructuredListCell>
+      <StructuredListCell>
+        {convertToCurrency(
+          lineItem.price * lineItem.quantity +
+            lineItem.taxes?.reduce((acc, tax) => acc + tax.amount, 0) -
+            lineItem.discounts?.reduce((acc, discount) => acc + discount.amount, 0),
+        )}
+      </StructuredListCell>
       <StructuredListCell>{lineItem.paymentStatus}</StructuredListCell>
 
       <StructuredListCell>

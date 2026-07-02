@@ -7,6 +7,7 @@ import { processAccountingForLineItemRemoval } from '../../../accounting.resourc
 import { mutate } from 'swr';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import styles from './cancel-bill.scss';
+import { createRefundBillPayload } from './refund-bill.utils';
 
 interface RefundBillModalProps {
   onClose: () => void;
@@ -18,36 +19,8 @@ export const RefundBillModal: React.FC<RefundBillModalProps> = ({ onClose, bill,
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
-  const itemUuid = lineItem.item.split(':')[0];
-  const billableServiceUuid = lineItem.billableService.split(':')[0];
-
   const refundBillItems = useCallback(async () => {
-    const lineItemToBeRefunded = {
-      quantity: lineItem.quantity,
-      price: -lineItem.price,
-      priceName: lineItem.priceName,
-      priceUuid: lineItem.priceUuid,
-      lineItemOrder: lineItem.lineItemOrder,
-      paymentStatus: PaymentStatus.CREDITED,
-      ...(itemUuid && { item: itemUuid }),
-      ...(billableServiceUuid && { billableService: billableServiceUuid }),
-    };
-
-    const billPayments = bill.payments.map((payment) => ({
-      instanceType: payment.instanceType.uuid,
-      attributes: [],
-      amount: payment.amount,
-      amountTendered: payment.amountTendered,
-    }));
-
-    const billWithRefund = {
-      cashPoint: bill.cashPointUuid,
-      cashier: bill.cashier.uuid,
-      lineItems: [lineItemToBeRefunded],
-      payments: billPayments,
-      patient: bill.patientUuid,
-      status: bill.status,
-    };
+    const billWithRefund = createRefundBillPayload(bill, lineItem);
 
     setIsLoading(true);
     onClose();
@@ -107,7 +80,7 @@ export const RefundBillModal: React.FC<RefundBillModalProps> = ({ onClose, bill,
     } finally {
       setIsLoading(false);
     }
-  }, [bill, lineItem, onClose, t, billableServiceUuid, itemUuid]);
+  }, [bill, lineItem, onClose, t]);
 
   return (
     <>
