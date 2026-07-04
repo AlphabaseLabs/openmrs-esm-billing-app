@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import BillingDashboard from './billing-dashboard.component';
@@ -76,10 +76,9 @@ test('renders billing home controls and the bills table by default', () => {
 });
 
 test('launches the create bill workspace flow from the billing home', async () => {
-  const user = userEvent.setup();
   renderBillingDashboard();
 
-  await user.click(screen.getByRole('button', { name: /create bill/i }));
+  fireEvent.click(screen.getByRole('button', { name: /create bill/i }));
 
   expect(launchCreateBillWorkspace).toHaveBeenCalledTimes(1);
 });
