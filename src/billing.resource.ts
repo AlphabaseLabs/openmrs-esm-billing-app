@@ -208,6 +208,8 @@ export const processBillPayment = (payload, billUuid: string) => {
 };
 
 export type BillLineItemUpdate = {
+  billableService?: string;
+  item?: string;
   quantity?: number;
   price?: number;
   priceName?: string;

@@ -7,6 +7,7 @@ import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
 import { InvoiceActions } from './invoice-actions.component';
+import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
@@ -41,14 +42,21 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { t } = useTranslation();
   const { sendInvoiceUrl } = useConfig<BillingConfig>();
   const { sessionLocation } = useSession();
+  const [editableBill, setEditableBill] = useState<MappedBill>(bill);
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const billToRender = editableBill ?? bill;
+
+  useEffect(() => {
+    setEditableBill(bill);
+  }, [bill]);
+
   const billLineItemsByUuid = useMemo(
-    () => new Map(bill?.lineItems?.map((item) => [item.uuid, item]) ?? []),
-    [bill?.lineItems],
+    () => new Map(billToRender?.lineItems?.map((item) => [item.uuid, item]) ?? []),
+    [billToRender?.lineItems],
   );
   const paidLineItems = useMemo(
-    () => bill?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [],
-    [bill?.lineItems],
+    () => billToRender?.lineItems?.filter((item) => item.paymentStatus === 'PAID') ?? [],
+    [billToRender?.lineItems],
   );
 
   useEffect(() => {
@@ -82,6 +90,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setSelectedLineItems(uniqueLineItems);
   };
 
+  const handleLineItemUpdated = (updatedLineItem: LineItem) => {
+    setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
+  };
+
   const openPrintPreview = (documentUrl: string, title: string) => {
     const dispose = showModal('print-preview-modal', {
       onClose: () => dispose(),
@@ -91,13 +103,13 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
 
   const getPatientPhoneNumber = async () => {
-    if (!bill?.patientUuid) {
+    if (!billToRender?.patientUuid) {
       return undefined;
     }
 
     try {
       const response = await openmrsFetch<PatientPhoneResponse>(
-        `${restBaseUrl}/patient/${bill.patientUuid}?v=custom:(person:(attributes:(value,attributeType:(display,name))))`,
+        `${restBaseUrl}/patient/${billToRender.patientUuid}?v=custom:(person:(attributes:(value,attributeType:(display,name))))`,
       );
       const phoneAttribute = response.data?.person?.attributes?.find((attribute) => {
         const attributeName = `${attribute.attributeType?.display ?? ''} ${attribute.attributeType?.name ?? ''}`;
@@ -113,8 +125,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const handleSendInvoice = async () => {
     showSnackbar({
       title: t('sendingInvoice', 'Sending invoice'),
-      subtitle: t('invoiceSendStarted', 'Sending invoice to {{patientName}}', {
-        patientName: bill?.patientName,
+        subtitle: t('invoiceSendStarted', 'Sending invoice to {{patientName}}', {
+        patientName: billToRender?.patientName,
       }),
       kind: 'info',
     });
@@ -128,8 +140,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           billType: 'OPD Bill',
           patientFirstName,
           patientPhoneNumber: await getPatientPhoneNumber(),
-          billUuid: bill?.uuid,
-          billId: bill?.id,
+          billUuid: billToRender?.uuid,
+          billId: billToRender?.id,
         },
       });
 
@@ -139,7 +151,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
 
       showSnackbar({
         title: t('invoiceSent', 'Invoice sent'),
-        subtitle: t('invoiceSentToPatient', 'Invoice sent to {{patientName}}', { patientName: bill?.patientName }),
+        subtitle: t('invoiceSentToPatient', 'Invoice sent to {{patientName}}', { patientName: billToRender?.patientName }),
         kind: 'success',
       });
     } catch {
@@ -155,15 +167,15 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
 
   const invoiceDetails = {
-    [t('totalAmount', 'Total amount')]: convertToCurrency(bill?.totalAmount ?? 0),
-    [t('amountTendered', 'Amount tendered')]: convertToCurrency(bill?.tenderedAmount ?? 0),
-    [t('invoiceNumber', 'Invoice #')]: bill?.receiptNumber,
-    [t('dateAndTime', 'Date and time')]: formatInvoiceDate(bill?.dateCreatedUnformatted),
-    [t('invoiceStatus', 'Invoice status')]: bill?.status,
+    [t('totalAmount', 'Total amount')]: convertToCurrency(billToRender?.totalAmount ?? 0),
+    [t('amountTendered', 'Amount tendered')]: convertToCurrency(billToRender?.tenderedAmount ?? 0),
+    [t('invoiceNumber', 'Invoice #')]: billToRender?.receiptNumber,
+    [t('dateAndTime', 'Date and time')]: formatInvoiceDate(billToRender?.dateCreatedUnformatted),
+    [t('invoiceStatus', 'Invoice status')]: billToRender?.status,
   };
   const dateTimeLabel = t('dateAndTime', 'Date and time');
-  const dateTimeTooltip = formatBillDateTime(bill?.dateCreatedUnformatted);
-  const patientFirstName = bill?.patientName?.trim().split(/\s+/)?.[0];
+  const dateTimeTooltip = formatBillDateTime(billToRender?.dateCreatedUnformatted);
+  const patientFirstName = billToRender?.patientName?.trim().split(/\s+/)?.[0];
 
   return (
     <>
@@ -179,7 +191,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           ))}
         </section>
         <div className={styles.actionsContainer}>
-          <Button kind="secondary" renderIcon={WhatsAppIcon} disabled={!bill?.uuid} onClick={handleSendInvoice}>
+          <Button kind="secondary" renderIcon={WhatsAppIcon} disabled={!billToRender?.uuid} onClick={handleSendInvoice}>
             {t('sendInvoice', 'Send invoice')}
           </Button>
           <Button
@@ -187,24 +199,25 @@ const BillDetails: React.FC<BillDetailsProps> = ({
             renderIcon={Printer}
             onClick={() =>
               openPrintPreview(
-                `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${bill?.id}`,
-                `${t('invoice', 'Invoice')} ${bill?.receiptNumber}`,
+                `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${billToRender?.id}`,
+                `${t('invoice', 'Invoice')} ${billToRender?.receiptNumber}`,
               )
             }>
             {t('printBill', 'Print bill')}
           </Button>
-          <InvoiceActions bill={bill} selectedLineItems={selectedLineItems} />
+          <InvoiceActions bill={billToRender} selectedLineItems={selectedLineItems} />
         </div>
       </div>
       <div className={styles.invoiceContent}>
         <InvoiceTable
-          bill={bill}
+          bill={billToRender}
           isLoadingBill={isLoadingBill}
           selectedLineItems={selectedLineItems}
           onSelectItem={handleSelectItem}
+          onLineItemUpdated={handleLineItemUpdated}
         />
         <Payments
-          bill={bill}
+          bill={billToRender}
           selectedLineItems={selectedLineItems}
           showDiscardButton={showDiscardButton}
           discardDestination={discardDestination}

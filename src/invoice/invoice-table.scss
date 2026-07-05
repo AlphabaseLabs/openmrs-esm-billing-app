@@ -22,6 +22,10 @@
   margin-bottom: 0.5rem;
 }
 
+.loaderContainer {
+  padding: layout.$spacing-05;
+}
+
 .filterEmptyStateHelper {
   @include type.type-style('body-compact-01');
   color: $text-02;
@@ -56,6 +60,120 @@
   td {
     border-bottom: none !important;
   }
+}
+
+.billItemCell {
+  min-width: 16rem;
+}
+
+.billItemHeaderCell {
+  min-width: 16rem;
+}
+
+.editableTextCellRoot,
+.editableTextCellContainer {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem;
+  gap: layout.$spacing-02;
+  min-height: 2.5rem;
+}
+
+.editableTextCellContent {
+  min-width: 0;
+}
+
+.editableTextCellEditor {
+  min-width: 0;
+}
+
+.editableTextCellEditorColumn {
+  min-width: 0;
+  width: 100%;
+}
+
+.editableTextCellAffordanceLane {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  width: 2rem;
+  min-width: 2rem;
+  max-width: 2rem;
+}
+
+.editableTextCellAffordanceButton,
+.editableTextCellAffordancePlaceholder {
+  justify-content: center;
+  max-width: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  width: 2rem;
+}
+
+.editableTextCellAffordancePlaceholder {
+  border: 0;
+  visibility: hidden;
+}
+
+.editableTextCellAffordanceButton {
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.editableTextCellRoot:hover .editableTextCellAffordanceButton,
+.editableTextCellContent:focus-within + .editableTextCellAffordanceLane .editableTextCellAffordanceButton,
+.editableTextCellAffordanceButton:focus-visible {
+  opacity: 1;
+}
+
+.editableTextValueButton {
+  justify-content: flex-start;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  width: 100%;
+}
+
+.editableLineItemEditorActions {
+  display: flex;
+  gap: layout.$spacing-02;
+}
+
+.priceOptionButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: layout.$spacing-02;
+  margin-top: layout.$spacing-02;
+}
+
+.priceOptionButton {
+  min-width: 0;
+}
+
+.priceOptionPopover {
+  position: absolute;
+  z-index: 2;
+  padding: layout.$spacing-02;
+  border: 1px solid $ui-03;
+  background-color: colors.$white;
+}
+
+.inlineErrorMessage {
+  color: colors.$red-60;
+  margin-top: layout.$spacing-02;
+}
+
+.numericCell {
+  text-align: right;
+}
+
+.numericHeaderCell {
+  text-align: right;
+}
+
+.editableNumericCellColumn,
+.editableNumericHeaderCell {
+  min-width: 0;
 }
 
 .tableDescription {

@@ -222,8 +222,13 @@ export interface BillableService {
     display: string;
   };
   servicePrices: Array<{
+    uuid?: string;
     name: string;
     price: number;
+    paymentMode?: {
+      uuid?: string;
+      name?: string;
+    };
   }>;
 }
 

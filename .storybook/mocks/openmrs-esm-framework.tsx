@@ -16,15 +16,113 @@ export const useConfig = () => ({
     en: 'PKR',
     'en-PK': 'PKR',
   },
+  sendInvoiceUrl: '/storybook/send-invoice',
 });
 
-export const openmrsFetch = async () => ({
-  data: {},
-});
+export const openmrsFetch = async (url?: string) => {
+  if (`${url ?? ''}`.includes('/cashier/billableService')) {
+    return {
+      ok: true,
+      data: {
+        results: [
+          {
+            uuid: 'service-consultation',
+            name: 'Consultation',
+            shortName: 'Consultation',
+            serviceStatus: 'ENABLED',
+            serviceType: { display: 'Clinical service' },
+            servicePrices: [
+              { uuid: 'price-consultation', name: 'Default', price: 2000 },
+              { uuid: 'price-consultation-card', name: 'Card', price: 2300 },
+              { uuid: 'price-consultation-panel', name: 'Panel', price: 2500 },
+            ],
+          },
+          {
+            uuid: 'service-clear-aligner',
+            name: 'Clear Aligner',
+            shortName: 'Clear Aligner',
+            serviceStatus: 'ENABLED',
+            serviceType: { display: 'Dental service' },
+            servicePrices: [
+              { uuid: 'price-clear-aligner', name: 'Default', price: 249999 },
+              { uuid: 'price-clear-aligner-card', name: 'Card', price: 259999 },
+              { uuid: 'price-clear-aligner-panel', name: 'Panel', price: 279999 },
+            ],
+          },
+          {
+            uuid: 'service-registration',
+            name: 'Registration',
+            shortName: 'Registration',
+            serviceStatus: 'ENABLED',
+            serviceType: { display: 'Administration' },
+            servicePrices: [
+              { uuid: 'price-registration', name: 'Default', price: 5000 },
+              { uuid: 'price-registration-card', name: 'Card', price: 5500 },
+            ],
+          },
+        ],
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    data: {},
+  };
+};
 
 export const showSnackbar = () => {};
 
+export const showModal = () => () => {};
+
+export const navigate = () => {};
+
+export const launchWorkspace2 = () => {};
+
+export const launchWorkspaceGroup2 = () => {};
+
+export const useVisit = () => ({
+  activeVisit: null,
+  currentVisit: null,
+  isLoading: false,
+});
+
+export const useFeatureFlag = () => false;
+
 export const restBaseUrl = '/ws/rest/v1';
+
+export const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('en', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+
+export const getCoreTranslation = (_key: string, fallback: string) => fallback;
+
+export const useSession = () => ({
+  currentProvider: {
+    uuid: 'provider-storybook',
+    display: 'Storybook Provider',
+  },
+  sessionLocation: {
+    uuid: 'location-storybook',
+    display: 'Alphabase Clinic',
+  },
+});
+
+export const UserHasAccess = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
+export const ExtensionSlot = () => null;
+
+export const ResponsiveWrapper = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
+export const ErrorState = ({ headerTitle, error }: { headerTitle?: string; error?: Error | string }) => (
+  <div role="alert">
+    <strong>{headerTitle ?? 'Error'}</strong>
+    {error ? <p>{typeof error === 'string' ? error : error.message}</p> : null}
+  </div>
+);
 
 export const EditIcon = ({ size = 16, ...props }: IconProps) => (
   <svg

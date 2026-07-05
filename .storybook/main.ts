@@ -1,11 +1,15 @@
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { StorybookConfig } from '@storybook/react-webpack5';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const webpack = require('webpack');
+const patientCommonLibPath = dirname(require.resolve('@openmrs/esm-patient-common-lib/package.json'));
+const appSourcePath = resolve(currentDir, '../src');
+const storybookConfigPath = currentDir;
+const transpiledOpenmrsVisualPackages = [patientCommonLibPath];
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)'],
@@ -21,6 +25,10 @@ const config: StorybookConfig = {
         `${currentDir}/mocks/useBillableServices.ts`,
       ),
       new webpack.NormalModuleReplacementPlugin(/^\.\.\/workspaces$/, `${currentDir}/mocks/workspaces.ts`),
+      new webpack.NormalModuleReplacementPlugin(
+        /^\.\.\/\.\.\/billing\.resource$/,
+        `${currentDir}/mocks/billingResource.ts`,
+      ),
     ];
 
     config.module = {
@@ -29,7 +37,7 @@ const config: StorybookConfig = {
         ...(config.module?.rules ?? []),
         {
           test: /\.[jt]sx?$/,
-          exclude: /node_modules/,
+          include: [appSourcePath, storybookConfigPath, ...transpiledOpenmrsVisualPackages],
           use: {
             loader: require.resolve('swc-loader'),
             options: {
@@ -79,6 +87,8 @@ const config: StorybookConfig = {
         '@openmrs/esm-framework/mock$': `${currentDir}/mocks/openmrs-esm-framework.tsx`,
         '@openmrs/esm-framework$': `${currentDir}/mocks/openmrs-esm-framework.tsx`,
         '@openmrs/esm-framework': `${currentDir}/mocks/openmrs-esm-framework.tsx`,
+        // Re-export real visual patient-common components while mocking only runtime side effects.
+        '@openmrs/esm-patient-common-lib$': `${currentDir}/mocks/openmrs-esm-patient-common-lib.tsx`,
       },
     };
 

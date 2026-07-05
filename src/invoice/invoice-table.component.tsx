@@ -20,13 +20,26 @@ import {
   TableSelectRow,
   Tile,
 } from '@carbon/react';
-import { isDesktop, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-framework';
+import { isDesktop, showSnackbar, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
 import { launchBillingWorkspace } from '../workspaces';
 import { formatBillAmount } from '../helpers';
+import { updateBillLineItem } from '../billing.resource';
+import {
+  canEditLineItem,
+  EditableBillItemCell,
+  EditableDiscountCell,
+  EditablePriceCell,
+  getLineItemDiscountAmount,
+  getLineItemLabel,
+  getLineItemTaxAmount,
+  getLineItemTotal,
+  type ActiveEditorKey,
+  type EditableLineItemCommit,
+} from './editable-line-item-cells';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -34,6 +47,7 @@ type InvoiceTableProps = {
   isLoadingBill?: boolean;
   selectedLineItems?: Array<LineItem>;
   onSelectItem?: (selectedLineItems: LineItem[]) => void;
+  onLineItemUpdated?: (lineItem: LineItem) => void;
 };
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({
@@ -42,6 +56,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   isLoadingBill,
   selectedLineItems = [],
   onSelectItem,
+  onLineItemUpdated,
 }) => {
   const { t } = useTranslation();
   const { lineItems } = bill;
@@ -49,6 +64,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
   const debouncedSearchTerm = useDebounce(searchTerm);
   const selectedLineItemUuids = useMemo(() => new Set(selectedLineItems.map((item) => item.uuid)), [selectedLineItems]);
   const shortNamesByServiceUuid = useMemo(
@@ -133,20 +149,15 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   }, [bill.patientUuid, t]);
 
   const tableRows = useMemo(() => {
-    const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[1];
-    const getLineItemDiscount = (item: LineItem) =>
-      (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0);
-    const getLineItemTax = (item: LineItem) => (item?.taxes ?? []).reduce((sum, tax) => sum + (tax?.amount ?? 0), 0);
-
     return (
       filteredLineItems?.map((item, index) => {
-        const lineItemDiscount = getLineItemDiscount(item);
-        const lineItemTax = getLineItemTax(item);
-        const lineItemTotal = item.price * item.quantity + lineItemTax - lineItemDiscount;
+        const lineItemDiscount = getLineItemDiscountAmount(item);
+        const lineItemTax = getLineItemTaxAmount(item);
+        const lineItemTotal = getLineItemTotal(item);
         return {
           no: `${index + 1}`,
           id: `${item.uuid}`,
-          billItem: processBillItem(item),
+          billItem: getLineItemLabel(item),
           status: item.paymentStatus,
           quantity: item.quantity,
           price: formatBillAmount(item.price),
@@ -193,6 +204,27 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     );
   }, [bill, filteredLineItems, t, handleEditLineItem, handleCancelLineItem, handleCostsWorkspaceLaunch]);
 
+  const handleLineItemCommit: EditableLineItemCommit = useCallback(
+    async (lineItem, updates, optimisticLineItem) => {
+      try {
+        const response = await updateBillLineItem(lineItem.uuid, updates);
+        if (!response.ok) {
+          throw new Error('Line item update failed');
+        }
+        onLineItemUpdated?.(optimisticLineItem);
+      } catch (error) {
+        showSnackbar({
+          title: t('billUpdate', 'Bill update'),
+          subtitle: t('billUpdateError', 'An error occurred while updating the bill'),
+          kind: 'error',
+          timeoutInMs: 5000,
+        });
+        throw error;
+      }
+    },
+    [onLineItemUpdated, t],
+  );
+
   if (isLoadingBill) {
     return (
       <div className={styles.loaderContainer}>
@@ -212,6 +244,75 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       newSelectedLineItems = selectedLineItems.filter((item) => item.uuid !== row.id);
     }
     onSelectItem?.(newSelectedLineItems);
+  };
+
+  const renderCellContent = (cell, matchingItem?: LineItem) => {
+    if (!matchingItem) {
+      return cell.value;
+    }
+
+    const isEditable = canEditLineItem(matchingItem, bill.closed || bill.status === PaymentStatus.PAID);
+
+    switch (cell.info.header) {
+      case 'billItem':
+        return (
+          <EditableBillItemCell
+            lineItem={matchingItem}
+            billableServices={billableServices}
+            isEditable={isEditable}
+            activeEditorKey={activeEditorKey}
+            setActiveEditorKey={setActiveEditorKey}
+            onCommit={handleLineItemCommit}
+          />
+        );
+      case 'price':
+        return (
+          <EditablePriceCell
+            lineItem={matchingItem}
+            billableServices={billableServices}
+            isEditable={isEditable}
+            activeEditorKey={activeEditorKey}
+            setActiveEditorKey={setActiveEditorKey}
+            onCommit={handleLineItemCommit}
+          />
+        );
+      case 'discount':
+        return (
+          <EditableDiscountCell
+            lineItem={matchingItem}
+            isEditable={isEditable}
+            activeEditorKey={activeEditorKey}
+            setActiveEditorKey={setActiveEditorKey}
+            onCommit={handleLineItemCommit}
+          />
+        );
+      default:
+        return cell.value;
+    }
+  };
+
+  const getCellClassName = (cell) => {
+    if (cell.info.header === 'billItem') {
+      return styles.billItemCell;
+    }
+
+    if (['price', 'discount'].includes(cell.info.header)) {
+      return `${styles.numericCell} ${styles.editableNumericCellColumn}`;
+    }
+
+    return ['quantity', 'tax', 'total'].includes(cell.info.header) ? styles.numericCell : undefined;
+  };
+
+  const getHeaderClassName = (header) => {
+    if (header.key === 'billItem') {
+      return styles.billItemHeaderCell;
+    }
+
+    if (['price', 'discount'].includes(header.key)) {
+      return `${styles.numericHeaderCell} ${styles.editableNumericHeaderCell}`;
+    }
+
+    return ['quantity', 'tax', 'total'].includes(header.key) ? styles.numericHeaderCell : undefined;
   };
 
   return (
@@ -253,7 +354,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                 <TableRow>
                   {rows.length > 1 && isSelectable ? <TableHeader /> : null}
                   {headers.map((header) => (
-                    <TableHeader key={header.key}>{header.header}</TableHeader>
+                    <TableHeader key={header.key} className={getHeaderClassName(header)}>
+                      {header.header}
+                    </TableHeader>
                   ))}
                 </TableRow>
               </TableHead>
@@ -283,7 +386,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                         />
                       )}
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id}>{cell.value}</TableCell>
+                        <TableCell key={cell.id} className={getCellClassName(cell)}>
+                          {renderCellContent(cell, matchingItem)}
+                        </TableCell>
                       ))}
                     </TableRow>
                   );
