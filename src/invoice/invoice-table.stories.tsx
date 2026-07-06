@@ -11,6 +11,7 @@ import {
   shortValuePendingBill,
 } from './invoice-story.fixtures';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
+import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY } from './line-item-column-visibility';
 
 type InvoiceTableStoryArgs = React.ComponentProps<typeof InvoiceTable>;
 
@@ -32,6 +33,36 @@ const StatefulInvoiceTable = (args: InvoiceTableStoryArgs) => {
       onLineItemUpdated={(lineItem) => setBill((currentBill) => recomputeBillWithLineItem(currentBill, lineItem))}
     />
   );
+};
+
+const renderStatefulInvoiceTable = (visibleOptionalColumns?: Array<string>) => (args: InvoiceTableStoryArgs) => {
+  if (typeof window !== 'undefined') {
+    if (visibleOptionalColumns) {
+      window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(visibleOptionalColumns));
+    } else {
+      window.localStorage.removeItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY);
+    }
+  }
+
+  return <StatefulInvoiceTable {...args} />;
+};
+
+const getInvoiceTable = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector('table[aria-label="Invoice line items"]') as HTMLTableElement;
+
+const expectInvoiceTableColumnsToAlign = async (canvasElement: HTMLElement) => {
+  const table = getInvoiceTable(canvasElement);
+  const columnCount = table.querySelectorAll('col').length;
+
+  await expect(columnCount).toBe(table.querySelectorAll('thead th').length);
+  await expect(columnCount).toBe(table.querySelector('tbody tr')?.children.length ?? 0);
+};
+
+const expectActionColumnToRemainFixed = async (canvasElement: HTMLElement) => {
+  const table = getInvoiceTable(canvasElement);
+  const columns = Array.from(table.querySelectorAll('col'));
+
+  await expect((columns[columns.length - 1] as HTMLTableColElement).style.width).toBe('144px');
 };
 
 const meta: Meta<typeof InvoiceTable> = {
@@ -60,7 +91,7 @@ export const Default: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const MixedStatusRows: Story = {
@@ -70,7 +101,7 @@ export const MixedStatusRows: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const StableGeometryShortValues: Story = {
@@ -80,7 +111,7 @@ export const StableGeometryShortValues: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const StableGeometryLongValues: Story = {
@@ -90,7 +121,7 @@ export const StableGeometryLongValues: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const SelectedRows: Story = {
@@ -100,7 +131,7 @@ export const SelectedRows: Story = {
     isLoadingBill: false,
     selectedLineItems: selectedUnpaidLineItems,
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const ClosedBill: Story = {
@@ -110,7 +141,7 @@ export const ClosedBill: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
 };
 
 export const Loading: Story = {
@@ -129,7 +160,7 @@ export const PricePickerOpen: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByLabelText(/select price option/i));
@@ -146,7 +177,7 @@ export const DiscountFormOpen: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByLabelText(/open discount editor/i));
@@ -163,7 +194,7 @@ export const BillItemPopoverOpen: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: /clear aligner/i }));
@@ -180,7 +211,7 @@ export const InvalidPriceInlineEdit: Story = {
     isLoadingBill: false,
     selectedLineItems: [],
   },
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: /249,999/i }));
@@ -205,12 +236,114 @@ export const ConstrainedOverflow: Story = {
       </div>
     ),
   ],
-  render: StatefulInvoiceTable,
+  render: renderStatefulInvoiceTable(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByLabelText(/select price option/i));
     await expect(
       await within(canvasElement.ownerDocument.body).findByRole('dialog', { name: /price options/i }),
     ).toBeInTheDocument();
+  },
+};
+
+export const CompactColumnVisibility: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: renderStatefulInvoiceTable(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: /columns/i }));
+    await userEvent.click(await canvas.findByRole('checkbox', { name: /status/i }));
+    await userEvent.click(await canvas.findByRole('checkbox', { name: /discount/i }));
+    await userEvent.click(await canvas.findByRole('checkbox', { name: /tax/i }));
+    await expect(canvas.queryByRole('columnheader', { name: /status/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /bill item/i })).toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /^price$/i })).toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /^total$/i })).toBeInTheDocument();
+  },
+};
+
+export const RestoredPersistedColumnPreferences: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: renderStatefulInvoiceTable(['no', 'quantity']),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('columnheader', { name: /status/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /number/i })).toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /quantity/i })).toBeInTheDocument();
+  },
+};
+
+export const TaxHiddenColumnRedistribution: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: renderStatefulInvoiceTable(['no', 'status', 'quantity', 'discount']),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /discount/i })).toBeInTheDocument();
+    await expectInvoiceTableColumnsToAlign(canvasElement);
+    await expectActionColumnToRemainFixed(canvasElement);
+  },
+};
+
+export const FinancialColumnsHiddenRedistribution: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: renderStatefulInvoiceTable(['no', 'status', 'quantity']),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /^price$/i })).toBeInTheDocument();
+    await expectInvoiceTableColumnsToAlign(canvasElement);
+    await expectActionColumnToRemainFixed(canvasElement);
+  },
+};
+
+export const NarrowCompactColumnRedistribution: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ background: '#f4f4f4', overflow: 'auto', padding: '2rem', width: '48rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
+  render: renderStatefulInvoiceTable(['no', 'quantity']),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('columnheader', { name: /status/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('columnheader', { name: /quantity/i })).toBeInTheDocument();
+    await expectInvoiceTableColumnsToAlign(canvasElement);
+    await expectActionColumnToRemainFixed(canvasElement);
   },
 };

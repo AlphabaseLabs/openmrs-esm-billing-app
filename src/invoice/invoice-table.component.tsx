@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
@@ -41,6 +41,17 @@ import {
   type ActiveEditorKey,
   type EditableLineItemCommit,
 } from './editable-line-item-cells';
+import {
+  getHideableLineItemColumnDefinitions,
+  getLineItemColumnDefinitions,
+  getLineItemTableLayoutColumns,
+  getVisibleOptionalLineItemColumnKeys,
+  calculateLineItemTableColumnLayout,
+  normalizeLineItemVisibleColumnKeys,
+  readLineItemColumnVisibilityPreference,
+  writeLineItemColumnVisibilityPreference,
+  type LineItemColumnKey,
+} from './line-item-column-visibility';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -66,8 +77,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchTerm, setSearchTerm] = useState('');
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
+  const [isColumnVisibilityOpen, setIsColumnVisibilityOpen] = useState(false);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
+    readLineItemColumnVisibilityPreference(),
+  );
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const columnVisibilityControlRef = useRef<HTMLDivElement>(null);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
   const debouncedSearchTerm = useDebounce(searchTerm);
   const selectedLineItemUuids = useMemo(() => new Set(selectedLineItems.map((item) => item.uuid)), [selectedLineItems]);
+  const visibleColumnKeySet = useMemo(() => new Set(visibleColumnKeys), [visibleColumnKeys]);
+  const visibleColumnDefinitions = useMemo(
+    () => getLineItemColumnDefinitions().filter((column) => visibleColumnKeySet.has(column.key)),
+    [visibleColumnKeySet],
+  );
   const shortNamesByServiceUuid = useMemo(
     () => new Map(billableServices.map((service) => [service.uuid, `${service.shortName ?? ''}`.trim()])),
     [billableServices],
@@ -90,22 +113,85 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       .sort((r1, r2) => r1.score - r2.score)
       .map((result) => result.original);
   }, [debouncedSearchTerm, lineItems, shortNamesByServiceUuid]);
+  const shouldRenderSelectionColumn = filteredLineItems.length > 1 && isSelectable;
+  const renderedLayoutColumns = useMemo(
+    () => getLineItemTableLayoutColumns(visibleColumnDefinitions, shouldRenderSelectionColumn),
+    [shouldRenderSelectionColumn, visibleColumnDefinitions],
+  );
+  const columnLayout = useMemo(
+    () => calculateLineItemTableColumnLayout(renderedLayoutColumns, tableContainerWidth),
+    [renderedLayoutColumns, tableContainerWidth],
+  );
 
   const tableHeaders = useMemo(() => {
-    const headers = [
-      { header: t('number', 'Number'), key: 'no' },
-      { header: t('billItem', 'Bill item'), key: 'billItem' },
-      { header: t('status', 'Status'), key: 'status' },
-      { header: t('quantity', 'Quantity'), key: 'quantity' },
-      { header: t('price', 'Price'), key: 'price' },
-      { header: t('discount', 'Discount'), key: 'discount' },
-      { header: t('tax', 'Tax'), key: 'tax' },
-      { header: t('total', 'Total'), key: 'total' },
-      { header: t('action', 'Action'), key: 'actionButton' },
-    ];
+    return visibleColumnDefinitions.map((column) => ({
+      header: t(column.translationKey, column.defaultLabel),
+      key: column.key,
+    }));
+  }, [t, visibleColumnDefinitions]);
 
-    return headers;
-  }, [t]);
+  useEffect(() => {
+    const element = tableContainerRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateContainerWidth = (width: number) => {
+      const nextWidth = Math.floor(width);
+      setTableContainerWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+    };
+
+    updateContainerWidth(element.getBoundingClientRect().width);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+
+      if (entry) {
+        updateContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isColumnVisibilityOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+
+      if (!(target instanceof Node) || columnVisibilityControlRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsColumnVisibilityOpen(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsColumnVisibilityOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isColumnVisibilityOpen]);
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
@@ -148,6 +234,24 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       navigateToBillAfterSave: true,
     });
   }, [bill.patientUuid, t]);
+
+  const handleColumnVisibilityChange = useCallback((columnKey: LineItemColumnKey, checked: boolean) => {
+    setActiveEditorKey(null);
+    setVisibleColumnKeys((currentVisibleColumnKeys) => {
+      const nextVisibleOptionalColumnKeys = new Set(getVisibleOptionalLineItemColumnKeys(currentVisibleColumnKeys));
+
+      if (checked) {
+        nextVisibleOptionalColumnKeys.add(columnKey);
+      } else {
+        nextVisibleOptionalColumnKeys.delete(columnKey);
+      }
+
+      const nextVisibleColumnKeys = normalizeLineItemVisibleColumnKeys(Array.from(nextVisibleOptionalColumnKeys));
+      writeLineItemColumnVisibilityPreference(nextVisibleColumnKeys);
+
+      return nextVisibleColumnKeys;
+    });
+  }, []);
 
   const tableRows = useMemo(() => {
     return (
@@ -252,7 +356,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       return cell.value;
     }
 
-    const isEditable = canEditLineItem(matchingItem, bill.closed || bill.status === PaymentStatus.PAID);
+    const isEditable = canEditLineItem(matchingItem, bill.closed);
 
     switch (cell.info.header) {
       case 'billItem':
@@ -379,7 +483,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   };
 
   return (
-    <div className={styles.invoiceContainer}>
+    <div className={styles.invoiceContainer} ref={tableContainerRef}>
       <DataTable headers={tableHeaders} isSortable rows={tableRows} size={responsiveSize} useZebraStyles>
         {({ rows, headers, getRowProps, getSelectionProps, getTableProps, getToolbarProps }) => (
           <TableContainer
@@ -409,13 +513,51 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                       {t('addBillItem', 'Add bill item')}
                     </Button>
                   ) : null}
+                  <div className={styles.columnVisibilityControl} ref={columnVisibilityControlRef}>
+                    <Button
+                      aria-controls="line-item-column-visibility-menu"
+                      aria-expanded={isColumnVisibilityOpen}
+                      className={styles.columnVisibilityButton}
+                      kind="ghost"
+                      onClick={() => setIsColumnVisibilityOpen((isOpen) => !isOpen)}
+                      size="sm">
+                      {t('columns', 'Columns')}
+                    </Button>
+                    {isColumnVisibilityOpen ? (
+                      <div
+                        aria-label={t('lineItemColumns', 'Line item columns')}
+                        className={styles.columnVisibilityMenu}
+                        id="line-item-column-visibility-menu"
+                        role="group">
+                        {getHideableLineItemColumnDefinitions().map((column) => (
+                          <label className={styles.columnVisibilityOption} key={column.key}>
+                            <input
+                              checked={visibleColumnKeySet.has(column.key)}
+                              onChange={(event) => handleColumnVisibilityChange(column.key, event.target.checked)}
+                              type="checkbox"
+                            />
+                            <span>{t(column.translationKey, column.defaultLabel)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </TableToolbarContent>
               </TableToolbar>
             </div>
-            <Table {...getTableProps()} aria-label="Invoice line items" className={styles.table}>
+            <Table
+              {...getTableProps()}
+              {...({ style: { minInlineSize: `${columnLayout.totalMinWidth}px` } } as any)}
+              aria-label="Invoice line items"
+              className={styles.table}>
+              <colgroup>
+                {columnLayout.columns.map((column) => (
+                  <col key={column.key} style={{ inlineSize: `${column.width}px`, width: `${column.width}px` }} />
+                ))}
+              </colgroup>
               <TableHead>
                 <TableRow>
-                  {rows.length > 1 && isSelectable ? <TableHeader /> : null}
+                  {shouldRenderSelectionColumn ? <TableHeader /> : null}
                   {headers.map((header) => (
                     <TableHeader key={header.key} className={getHeaderClassName(header)}>
                       {header.header}
@@ -435,7 +577,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                       {...getRowProps({
                         row,
                       })}>
-                      {rows.length > 1 && isSelectable && (
+                      {shouldRenderSelectionColumn && (
                         <TableSelectRow
                           aria-label="Select row"
                           {...getSelectionProps({ row })}

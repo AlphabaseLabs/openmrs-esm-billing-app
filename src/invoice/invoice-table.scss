@@ -52,13 +52,39 @@
   }
 }
 
-.addBillItemButton {
-  margin-inline-start: auto;
+.columnVisibilityControl {
+  position: relative;
+}
+
+.columnVisibilityButton {
+  white-space: nowrap;
+}
+
+.columnVisibilityMenu {
+  background-color: colors.$white;
+  border: 1px solid $ui-03;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.16);
+  display: grid;
+  gap: layout.$spacing-03;
+  inline-size: 13rem;
+  inset-block-start: calc(100% + #{layout.$spacing-02});
+  inset-inline-end: 0;
+  padding: layout.$spacing-04;
+  position: absolute;
+  z-index: 4;
+}
+
+.columnVisibilityOption {
+  @include type.type-style('body-compact-01');
+  align-items: center;
+  color: var(--cds-text-primary, #161616);
+  column-gap: layout.$spacing-03;
+  display: flex;
+  white-space: nowrap;
 }
 
 .table {
   inline-size: 100%;
-  min-inline-size: 82rem;
   table-layout: fixed;
 
   th,
@@ -66,54 +92,9 @@
     box-sizing: border-box;
   }
 
-  th:first-child,
-  td:first-child {
-    width: 3rem;
-  }
-
   td {
     border-bottom: none !important;
   }
-}
-
-.numberCell,
-.numberHeaderCell {
-  width: 5rem;
-}
-
-.billItemCell,
-.billItemHeaderCell {
-  width: 18rem;
-  min-width: 16rem;
-}
-
-.statusCell,
-.statusHeaderCell {
-  width: 8.5rem;
-}
-
-.quantityCell,
-.quantityHeaderCell {
-  width: 7rem;
-}
-
-.priceCell,
-.priceHeaderCell,
-.discountCell,
-.discountHeaderCell,
-.totalCell,
-.totalHeaderCell {
-  width: 9rem;
-}
-
-.taxCell,
-.taxHeaderCell {
-  width: 5rem;
-}
-
-.actionCell,
-.actionHeaderCell {
-  width: 9rem;
 }
 
 .editableTextCellRoot,
