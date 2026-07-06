@@ -85,7 +85,7 @@ describe('BillDetails inline editing integration', () => {
     expect(screen.getByText(/PKR 249,999.00/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /249,999/i }));
-    const input = screen.getByRole('spinbutton', { name: /price/i });
+    const input = screen.getByRole('textbox', { name: /price/i });
     await user.clear(input);
     await user.type(input, '250000{Enter}');
 

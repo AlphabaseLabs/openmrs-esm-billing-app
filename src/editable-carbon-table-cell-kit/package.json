@@ -1,0 +1,12 @@
+{
+  "name": "@alphabase/editable-carbon-table-cell-kit",
+  "version": "0.0.0-local",
+  "private": true,
+  "description": "Reusable editable Carbon table cell primitives for Alphabase/OpenMRS frontend apps.",
+  "type": "module",
+  "peerDependencies": {
+    "@carbon/react": "^1.83.0",
+    "react": "18.x",
+    "react-dom": "18.x"
+  }
+}

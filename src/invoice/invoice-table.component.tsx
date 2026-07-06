@@ -296,11 +296,37 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       return styles.billItemCell;
     }
 
-    if (['price', 'discount'].includes(cell.info.header)) {
-      return `${styles.numericCell} ${styles.editableNumericCellColumn}`;
+    if (cell.info.header === 'no') {
+      return styles.numberCell;
     }
 
-    return ['quantity', 'tax', 'total'].includes(cell.info.header) ? styles.numericCell : undefined;
+    if (cell.info.header === 'status') {
+      return styles.statusCell;
+    }
+
+    if (['price', 'discount'].includes(cell.info.header)) {
+      return `${styles.numericCell} ${styles.editableNumericCellColumn} ${
+        cell.info.header === 'price' ? styles.priceCell : styles.discountCell
+      }`;
+    }
+
+    if (cell.info.header === 'quantity') {
+      return `${styles.numericCell} ${styles.quantityCell}`;
+    }
+
+    if (cell.info.header === 'tax') {
+      return `${styles.numericCell} ${styles.taxCell}`;
+    }
+
+    if (cell.info.header === 'total') {
+      return `${styles.numericCell} ${styles.totalCell}`;
+    }
+
+    if (cell.info.header === 'actionButton') {
+      return styles.actionCell;
+    }
+
+    return undefined;
   };
 
   const getHeaderClassName = (header) => {
@@ -308,11 +334,37 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       return styles.billItemHeaderCell;
     }
 
-    if (['price', 'discount'].includes(header.key)) {
-      return `${styles.numericHeaderCell} ${styles.editableNumericHeaderCell}`;
+    if (header.key === 'no') {
+      return styles.numberHeaderCell;
     }
 
-    return ['quantity', 'tax', 'total'].includes(header.key) ? styles.numericHeaderCell : undefined;
+    if (header.key === 'status') {
+      return styles.statusHeaderCell;
+    }
+
+    if (['price', 'discount'].includes(header.key)) {
+      return `${styles.numericHeaderCell} ${styles.editableNumericHeaderCell} ${
+        header.key === 'price' ? styles.priceHeaderCell : styles.discountHeaderCell
+      }`;
+    }
+
+    if (header.key === 'quantity') {
+      return `${styles.numericHeaderCell} ${styles.quantityHeaderCell}`;
+    }
+
+    if (header.key === 'tax') {
+      return `${styles.numericHeaderCell} ${styles.taxHeaderCell}`;
+    }
+
+    if (header.key === 'total') {
+      return `${styles.numericHeaderCell} ${styles.totalHeaderCell}`;
+    }
+
+    if (header.key === 'actionButton') {
+      return styles.actionHeaderCell;
+    }
+
+    return undefined;
   };
 
   return (

@@ -11305,7 +11305,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"downshift@npm:9.0.10":
+"downshift@npm:9.0.10, downshift@npm:^9.0.10":
   version: 9.0.10
   resolution: "downshift@npm:9.0.10"
   dependencies:

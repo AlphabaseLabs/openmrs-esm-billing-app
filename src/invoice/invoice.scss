@@ -18,27 +18,34 @@
 }
 
 .detailsContainer {
-  display: flex;
-  justify-content: space-between;
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: layout.$spacing-05;
   margin: 0 layout.$spacing-05 layout.$spacing-05;
   padding: layout.$spacing-05;
 }
 
 .details {
-  display: flex;
-  flex: 1;
-  flex-flow: row wrap;
   align-items: center;
-  justify-content: space-between;
+  column-gap: layout.$spacing-05;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(8rem, 1fr));
+  min-width: 0;
   row-gap: layout.$spacing-06;
+  width: 100%;
+}
+
+.details > div {
+  min-width: 0;
 }
 
 .actionsContainer {
-  display: flex;
   align-items: center;
+  display: flex;
   gap: layout.$spacing-03;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .buttonSpinner {
@@ -88,6 +95,7 @@
 :global(.omrs-breakpoint-lt-desktop) {
   .detailsContainer {
     align-items: flex-start;
+    display: flex;
     flex-direction: column;
   }
 

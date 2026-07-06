@@ -57,17 +57,63 @@
 }
 
 .table {
+  inline-size: 100%;
+  min-inline-size: 82rem;
+  table-layout: fixed;
+
+  th,
+  td {
+    box-sizing: border-box;
+  }
+
+  th:first-child,
+  td:first-child {
+    width: 3rem;
+  }
+
   td {
     border-bottom: none !important;
   }
 }
 
-.billItemCell {
+.numberCell,
+.numberHeaderCell {
+  width: 5rem;
+}
+
+.billItemCell,
+.billItemHeaderCell {
+  width: 18rem;
   min-width: 16rem;
 }
 
-.billItemHeaderCell {
-  min-width: 16rem;
+.statusCell,
+.statusHeaderCell {
+  width: 8.5rem;
+}
+
+.quantityCell,
+.quantityHeaderCell {
+  width: 7rem;
+}
+
+.priceCell,
+.priceHeaderCell,
+.discountCell,
+.discountHeaderCell,
+.totalCell,
+.totalHeaderCell {
+  width: 9rem;
+}
+
+.taxCell,
+.taxHeaderCell {
+  width: 5rem;
+}
+
+.actionCell,
+.actionHeaderCell {
+  width: 9rem;
 }
 
 .editableTextCellRoot,
@@ -165,10 +211,12 @@
 
 .numericCell {
   text-align: right;
+  white-space: nowrap;
 }
 
 .numericHeaderCell {
   text-align: right;
+  white-space: nowrap;
 }
 
 .editableNumericCellColumn,

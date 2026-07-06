@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import EditablePriceCell from './editable-price-cell.component';
 import { EditableCellHarness, testBillableServices, testLineItem } from './editable-cell-test-utils';
 import { PaymentStatus } from '../../types';
-import styles from './editable-line-item-cells.scss';
+import { editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -12,8 +12,8 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('@openmrs/esm-framework', () => ({
-  EditIcon: () => <span>Edit</span>,
+jest.mock('@carbon/react/icons', () => ({
+  ChevronDown: () => <span>Chevron down</span>,
 }));
 
 describe('EditablePriceCell', () => {
@@ -38,6 +38,11 @@ describe('EditablePriceCell', () => {
 
     await user.click(screen.getByTestId('editable-numeric-content'));
     const input = screen.getByRole('textbox', { name: /price/i });
+    const editor = screen.getByTestId('editable-inline-numeric-editor');
+    expect(editor).toHaveClass(styles.numericEditor);
+    expect(editor).toHaveClass(styles.inlineNumericEditor);
+    expect(input.closest(`.${styles.inlineNumericInput}`)).toBeTruthy();
+    expect(input.closest('[data-testid="editable-inline-numeric-editor"]')).toBe(editor);
     expect(screen.queryByRole('spinbutton', { name: /price/i })).not.toBeInTheDocument();
     await user.clear(input);
     await user.type(input, '2,100{Enter}');
@@ -67,9 +72,15 @@ describe('EditablePriceCell', () => {
 
     await user.click(screen.getByLabelText(/select price option/i));
     expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/current price/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/select price option/i)).toHaveClass(styles.popoverTitle);
     expect(screen.getByTestId('editable-cell-overlay-layer')).toHaveAttribute('data-align', 'bottom-right');
     expect(screen.getByTestId('editable-numeric-cell')).toHaveClass(styles.activeEditableCell);
-    await user.click(screen.getByRole('button', { name: /card.*2,300/i }));
+    expect(screen.getByText('Default - (2,000)')).toHaveClass(styles.priceOptionText);
+    expect(screen.getByText('Card - (2,300)')).toHaveClass(styles.priceOptionText);
+    expect(screen.getByRole('button', { current: true })).toContainElement(screen.getByText('✓'));
+    expect(screen.getByRole('button', { name: /card - \(2,300\)/i })).toHaveClass(styles.priceOptionButton);
+    await user.click(screen.getByRole('button', { name: /card - \(2,300\)/i }));
 
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
     expect(onCommit).toHaveBeenCalledWith(
@@ -83,7 +94,7 @@ describe('EditablePriceCell', () => {
     );
   });
 
-  it('places numeric price affordance as a floating overlay before right-aligned full-width content', () => {
+  it('places numeric price content first with the affordance as a right-side floating overlay', () => {
     render(
       <EditableCellHarness>
         {({ activeEditorKey, setActiveEditorKey, onCommit }) => (
@@ -112,6 +123,7 @@ describe('EditablePriceCell', () => {
     expect(content).not.toHaveClass(styles.textContent);
     expect(content.tagName).toBe('BUTTON');
     expect(content).toHaveTextContent('2,000');
+    expect(screen.getByLabelText(/select price option/i)).toHaveTextContent('Chevron down');
   });
 
   it('portals the rich price picker outside the table overflow boundary while preserving the floating trigger contract', async () => {
@@ -140,6 +152,7 @@ describe('EditablePriceCell', () => {
     const dialog = screen.getByRole('dialog', { name: /price options/i });
 
     expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass(styles.priceOptionsPopover);
     expect(screen.queryByRole('textbox', { name: /price/i })).not.toBeInTheDocument();
     expect(within(boundary).queryByRole('dialog', { name: /price options/i })).not.toBeInTheDocument();
     expect(screen.getByTestId('editable-numeric-affordance')).toContainElement(

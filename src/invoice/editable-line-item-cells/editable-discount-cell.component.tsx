@@ -1,19 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { TextInput } from '@carbon/react';
-import { EditIcon } from '@openmrs/esm-framework';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ComboBox } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { formatBillAmount } from '../../helpers';
 import { type LineItem } from '../../types';
+import { EditableNumericCell, editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 import { type ActiveEditorKey, type EditableLineItemCommit, getEditorKey } from './types';
 import {
   createDiscountUpdate,
   getLineItemDiscountAmount,
-  getLineItemSubtotal,
   parseEditableNumber,
   recalculateLineItem,
 } from './utils';
-import EditableCellOverlay from './editable-cell-overlay.component';
-import styles from './editable-line-item-cells.scss';
 
 type EditableDiscountCellProps = {
   lineItem: LineItem;
@@ -21,6 +18,34 @@ type EditableDiscountCellProps = {
   activeEditorKey: ActiveEditorKey;
   setActiveEditorKey: (key: ActiveEditorKey) => void;
   onCommit: EditableLineItemCommit;
+};
+
+const defaultSponsor = 'Practice and doctor';
+const sponsorOptions = [defaultSponsor, 'Practice', 'Doctor'];
+
+const normalizeNumber = (value: number) => (Number.isFinite(value) ? value : 0);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const formatDiscountAmount = (value: number) => formatBillAmount(Math.round(normalizeNumber(value)));
+const percentPrecision = 4;
+const minimumVisiblePercent = 1 / 10 ** percentPrecision;
+const formatDiscountPercent = (value: number) => {
+  const percent = clamp(normalizeNumber(value), 0, 100);
+
+  if (percent > 0 && percent < minimumVisiblePercent) {
+    return `<${minimumVisiblePercent.toFixed(percentPrecision)}`;
+  }
+
+  return percent.toFixed(percentPrecision).replace(/\.?0+$/, '');
+};
+const normalizeSponsor = (value?: string) => {
+  const normalizedValue = value?.trim() ?? '';
+
+  if (/practice\s*&\s*doctor/i.test(normalizedValue)) {
+    return defaultSponsor;
+  }
+
+  const nextSponsor = normalizedValue || defaultSponsor;
+  return sponsorOptions.includes(nextSponsor) ? nextSponsor : defaultSponsor;
 };
 
 const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
@@ -34,56 +59,75 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   const editorKey = getEditorKey(lineItem.uuid, 'discount');
   const isActive = activeEditorKey === editorKey;
   const currentDiscount = useMemo(() => getLineItemDiscountAmount(lineItem), [lineItem]);
-  const subtotal = useMemo(() => getLineItemSubtotal(lineItem), [lineItem]);
+  const priceBase = useMemo(() => Math.max(0, Number(lineItem.price ?? 0) || 0), [lineItem.price]);
+  const currentSponsor = useMemo(() => normalizeSponsor(lineItem.discounts?.[0]?.sponsor), [lineItem.discounts]);
+  const currentComment = useMemo(() => lineItem.discounts?.[0]?.description ?? '', [lineItem.discounts]);
   const [mode, setMode] = useState<'inline' | 'form' | null>(null);
-  const [amount, setAmount] = useState(formatBillAmount(currentDiscount));
-  const [percent, setPercent] = useState(subtotal ? String((currentDiscount / subtotal) * 100) : '0');
-  const [sponsor, setSponsor] = useState(lineItem.discounts?.[0]?.sponsor ?? '');
-  const [comment, setComment] = useState(lineItem.discounts?.[0]?.description ?? '');
+  const [amount, setAmount] = useState(formatDiscountAmount(currentDiscount));
+  const [percent, setPercent] = useState(formatDiscountPercent(priceBase ? (currentDiscount / priceBase) * 100 : 0));
+  const [sponsor, setSponsor] = useState(currentSponsor);
+  const [comment, setComment] = useState(currentComment);
   const [error, setError] = useState('');
-  const editorRef = useRef<HTMLDivElement>(null);
-  const cellRef = useRef<HTMLDivElement>(null);
 
-  const getPercentFromAmount = (nextAmount: number) => (subtotal ? (nextAmount / subtotal) * 100 : 0);
-  const getAmountFromPercent = (nextPercent: number) => (subtotal * nextPercent) / 100;
+  const getPercentFromAmount = (nextAmount: number) => (priceBase ? (nextAmount / priceBase) * 100 : 0);
+  const getAmountFromPercent = (nextPercent: number) => (priceBase * nextPercent) / 100;
+  const clampDiscountAmount = (nextAmount: number) => clamp(Math.round(normalizeNumber(nextAmount)), 0, priceBase);
+  const clampPercent = (nextPercent: number) => clamp(normalizeNumber(nextPercent), 0, 100);
+  const getCurrentDraftAmount = () => {
+    const parsedAmount = parseEditableNumber(amount);
+    return parsedAmount === null ? null : clampDiscountAmount(parsedAmount);
+  };
+  const selectedSponsor = sponsor || defaultSponsor;
 
   useEffect(() => {
     if (!isActive) {
+      const nextDraft = {
+        amount: currentDiscount,
+        sponsor: currentSponsor,
+        comment: currentComment,
+      };
       setMode(null);
-      setAmount(formatBillAmount(currentDiscount));
-      setPercent(subtotal ? String((currentDiscount / subtotal) * 100) : '0');
-      setSponsor(lineItem.discounts?.[0]?.sponsor ?? '');
-      setComment(lineItem.discounts?.[0]?.description ?? '');
+      setAmount(formatDiscountAmount(nextDraft.amount));
+      setPercent(formatDiscountPercent(getPercentFromAmount(nextDraft.amount)));
+      setSponsor(nextDraft.sponsor);
+      setComment(nextDraft.comment);
       setError('');
     }
-  }, [currentDiscount, isActive, lineItem.discounts, subtotal]);
+  }, [currentComment, currentDiscount, currentSponsor, isActive, priceBase]);
 
-  useEffect(() => {
-    if (isActive && mode === 'inline') {
-      const input = editorRef.current?.querySelector('input');
-      input?.focus();
-      input?.select();
+  const syncDraftAmount = (nextAmount: number, options: { syncPercent?: boolean } = {}) => {
+    const clampedAmount = clampDiscountAmount(nextAmount);
+    setAmount(formatDiscountAmount(clampedAmount));
+    if (options.syncPercent ?? true) {
+      setPercent(formatDiscountPercent(getPercentFromAmount(clampedAmount)));
     }
-  }, [isActive, mode]);
-
-  const validateAmount = (nextAmount: number | null) => {
-    if (nextAmount === null || nextAmount < 0 || nextAmount > subtotal) {
-      setError(t('discountValidationError', 'Enter a discount between 0 and the line subtotal'));
-      return false;
-    }
-
-    setError('');
-    return true;
+    return clampedAmount;
   };
 
-  const validatePercent = (nextPercent: number | null) => {
-    if (nextPercent === null || nextPercent < 0 || nextPercent > 100) {
+  const resolvePercentInput = (nextValue: string) => {
+    const parsedPercent = parseEditableNumber(nextValue);
+    setPercent(nextValue);
+
+    if (parsedPercent === null) {
       setError(t('discountPercentValidationError', 'Enter a discount percent between 0 and 100'));
-      return false;
+      return null;
     }
 
+    const nextPercent = clampPercent(parsedPercent);
+    const nextAmount = syncDraftAmount(getAmountFromPercent(nextPercent), { syncPercent: false });
     setError('');
-    return true;
+    return nextAmount;
+  };
+
+  const normalizePercentInput = () => {
+    const parsedPercent = parseEditableNumber(percent);
+
+    if (parsedPercent === null) {
+      setPercent(formatDiscountPercent(getPercentFromAmount(currentDiscount)));
+      return;
+    }
+
+    setPercent(formatDiscountPercent(clampPercent(parsedPercent)));
   };
 
   const openInlineEditor = () => {
@@ -91,19 +135,26 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       return;
     }
 
-    setAmount(formatBillAmount(currentDiscount));
+    setAmount(formatDiscountAmount(currentDiscount));
     setMode('inline');
     setActiveEditorKey(editorKey);
   };
 
-  const openForm = (event: React.MouseEvent) => {
+  const openForm = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!isEditable) {
       return;
     }
 
-    setAmount(String(currentDiscount));
-    setPercent(subtotal ? String((currentDiscount / subtotal) * 100) : '0');
+    const openingDraft = {
+      amount: currentDiscount,
+      sponsor: currentSponsor,
+      comment: currentComment,
+    };
+    setAmount(formatDiscountAmount(openingDraft.amount));
+    setPercent(formatDiscountPercent(getPercentFromAmount(openingDraft.amount)));
+    setSponsor(openingDraft.sponsor);
+    setComment(openingDraft.comment);
     setError('');
     setMode('form');
     setActiveEditorKey(editorKey);
@@ -116,25 +167,20 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
 
   const commitDiscount = async (
     nextAmount: number,
-    nextRate?: number,
     options: {
       closeOnCommit?: boolean;
       commentValue?: string;
       sponsorValue?: string;
     } = {},
   ) => {
-    if (!validateAmount(nextAmount)) {
-      return false;
-    }
-
+    const discountAmount = clampDiscountAmount(nextAmount);
+    const nextSponsor = options.sponsorValue ?? selectedSponsor;
+    const nextComment = options.commentValue ?? comment;
     const discounts =
-      createDiscountUpdate(
-        lineItem,
-        nextAmount,
-        nextRate,
-        options.sponsorValue ?? sponsor,
-        options.commentValue ?? comment,
-      ).discounts ?? [];
+      createDiscountUpdate(lineItem, discountAmount, getPercentFromAmount(discountAmount) / 100, nextSponsor, nextComment)
+        .discounts ?? [];
+
+    setError('');
     await onCommit(
       lineItem,
       { discounts },
@@ -149,195 +195,157 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
     return true;
   };
 
-  const autoCommitDiscount = (nextAmount: number, nextRate: number, nextSponsor = sponsor, nextComment = comment) => {
-    void commitDiscount(nextAmount, nextRate, {
+  const autoCommitDiscount = (nextAmount: number, nextSponsor = selectedSponsor, nextComment = comment) => {
+    void commitDiscount(nextAmount, {
       closeOnCommit: false,
       commentValue: nextComment,
       sponsorValue: nextSponsor,
     });
   };
 
-  const resetDiscount = () => {
-    setAmount('0');
-    setPercent('0');
-    setSponsor('');
+  const clearDiscount = () => {
+    setAmount(formatDiscountAmount(0));
+    setPercent(formatDiscountPercent(0));
+    setSponsor(defaultSponsor);
     setComment('');
     setError('');
-    autoCommitDiscount(0, 0, '', '');
+    autoCommitDiscount(0, defaultSponsor, '');
   };
 
-  if (!isEditable) {
-    return (
-      <span
-        className={`${styles.editableCell} ${styles.numeric} ${styles.staticValue}`}
-        data-testid="editable-numeric-cell">
-        <span
-          className={`${styles.editableCellContent} ${styles.numericContent}`}
-          data-testid="editable-numeric-content">
-          {formatBillAmount(currentDiscount)}
-        </span>
-      </span>
-    );
-  }
-
   return (
-    <div
-      className={`${styles.editableCell} ${styles.numeric} ${
-        isActive && mode === 'form' ? styles.activeEditableCell : ''
-      }`}
-      data-testid="editable-numeric-cell"
-      ref={cellRef}
+    <EditableNumericCell
+      activeMode={mode}
+      className={`${styles.discountEditableCell} ${isActive && mode === 'form' ? styles.activeEditableCell : ''}`}
+      error={error}
+      inputId={`discount-${lineItem.uuid}`}
+      inputLabelText={t('discount', 'Discount')}
+      inputMode="decimal"
+      inputValue={amount}
+      isActive={isActive}
+      isEditable={isEditable}
+      onInlineOpen={openInlineEditor}
+      onInputChange={setAmount}
+      onInputKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          const nextAmount = parseEditableNumber(amount);
+          if (nextAmount !== null) {
+            void commitDiscount(nextAmount);
+          } else {
+            setError(t('discountValidationError', 'Enter a discount between 0 and the line item price'));
+          }
+        }
+        if (event.key === 'Escape') {
+          close();
+        }
+      }}
       onBlur={(event) => {
         if (mode === 'inline' && !event.currentTarget.contains(event.relatedTarget as Node)) {
           const nextAmount = parseEditableNumber(amount);
           if (nextAmount !== null) {
-            void commitDiscount(nextAmount, getPercentFromAmount(nextAmount) / 100);
+            void commitDiscount(nextAmount);
           } else {
-            validateAmount(nextAmount);
+            setError(t('discountValidationError', 'Enter a discount between 0 and the line subtotal'));
           }
         }
-      }}>
-      <span
-        className={`${styles.floatingAffordance} ${styles.numericAffordance}`}
-        data-testid="editable-numeric-affordance"
-        aria-hidden={mode === 'inline'}>
-        {mode !== 'inline' ? (
-          <EditableCellOverlay
-            anchorRef={cellRef}
-            trigger={
-              <button
-                type="button"
-                className={`${styles.optionsButton} ${isActive && mode === 'form' ? styles.optionsButtonOpen : ''}`}
-                aria-label={t('editDiscount', 'Edit discount')}
-                onClick={openForm}>
-                <EditIcon size={14} />
-              </button>
-            }
-            isOpen={isActive && mode === 'form'}
-            onClose={close}
-            align="bottom-right">
-            <div className={styles.popover} role="dialog" aria-label={t('discountForm', 'Discount form')}>
-              <div className={styles.discountPopoverHeader}>
-                <span>{t('discount', 'Discount')}</span>
-                <button type="button" className={styles.inlineResetButton} onClick={resetDiscount}>
-                  {t('reset', 'Reset')}
-                </button>
-              </div>
-              <div className={styles.formGrid}>
-                <TextInput
-                  id={`discount-amount-${lineItem.uuid}`}
-                  inputMode="decimal"
-                  labelText={t('amount', 'Amount')}
-                  size="sm"
-                  value={amount}
-                  invalid={!!error}
-                  invalidText={error}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    const nextAmount = parseEditableNumber(nextValue);
-                    setAmount(nextValue);
-                    if (nextAmount === null || !validateAmount(nextAmount)) {
-                      return;
-                    }
-
-                    const nextPercent = getPercentFromAmount(nextAmount);
-                    setPercent(String(nextPercent));
-                    autoCommitDiscount(nextAmount, nextPercent / 100);
-                  }}
-                />
-                <TextInput
+      }}
+      popover={{
+        align: 'bottom-left',
+        ariaLabel: t('discountForm', 'Discount form'),
+        buttonClassName: isActive && mode === 'form' ? styles.discountOptionsButtonHidden : undefined,
+        className: styles.discountPopover,
+        content: (
+          <div className={styles.discountForm}>
+            <div className={styles.discountValueGroup}>
+              <label className={styles.discountGroupLabel} htmlFor={`discount-percent-${lineItem.uuid}`}>
+                {t('enterDiscountPercent', 'Enter discount percent:')}
+              </label>
+              <div className={styles.discountInlineField}>
+                <input
                   id={`discount-percent-${lineItem.uuid}`}
+                  className={styles.discountInlineFieldInput}
                   inputMode="decimal"
-                  labelText={t('percent', 'Percent')}
-                  size="sm"
+                  aria-label={t('percent', 'Percent')}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? `discount-error-${lineItem.uuid}` : undefined}
                   value={percent}
-                  invalid={!!error}
-                  invalidText={error}
                   onChange={(event) => {
-                    const nextValue = event.target.value;
-                    const nextPercent = parseEditableNumber(nextValue);
-                    setPercent(nextValue);
-                    if (nextPercent === null || !validatePercent(nextPercent)) {
-                      return;
-                    }
-
-                    const nextAmount = getAmountFromPercent(nextPercent);
-                    setAmount(String(nextAmount));
-                    autoCommitDiscount(nextAmount, nextPercent / 100);
-                  }}
-                />
-                <TextInput
-                  id={`discount-sponsor-${lineItem.uuid}`}
-                  labelText={t('discountSponsor', 'Discount sponsor')}
-                  value={sponsor}
-                  onChange={(event) => {
-                    const nextSponsor = event.target.value;
-                    const nextAmount = parseEditableNumber(amount);
-                    setSponsor(nextSponsor);
-                    if (nextAmount !== null && validateAmount(nextAmount)) {
-                      autoCommitDiscount(nextAmount, getPercentFromAmount(nextAmount) / 100, nextSponsor, comment);
+                    const nextAmount = resolvePercentInput(event.target.value);
+                    if (nextAmount !== null) {
+                      autoCommitDiscount(nextAmount);
                     }
                   }}
+                  onBlur={normalizePercentInput}
                 />
-                <TextInput
-                  id={`discount-comment-${lineItem.uuid}`}
-                  labelText={t('comment', 'Comment')}
-                  value={comment}
-                  onChange={(event) => {
-                    const nextComment = event.target.value;
-                    const nextAmount = parseEditableNumber(amount);
-                    setComment(nextComment);
-                    if (nextAmount !== null && validateAmount(nextAmount)) {
-                      autoCommitDiscount(nextAmount, getPercentFromAmount(nextAmount) / 100, sponsor, nextComment);
-                    }
-                  }}
-                />
+                <span className={styles.discountInlineUnit} aria-hidden="true">
+                  <span className={styles.discountInlineUnitDivider}>|</span>
+                  {t('percentUnit', 'percent')}
+                </span>
               </div>
+              {error ? (
+                <p id={`discount-error-${lineItem.uuid}`} className={styles.errorText} role="alert">
+                  {error}
+                </p>
+              ) : null}
             </div>
-          </EditableCellOverlay>
-        ) : null}
-      </span>
-      {isActive && mode === 'inline' ? (
-        <span
-          className={`${styles.editableCellContent} ${styles.numericContent}`}
-          data-testid="editable-numeric-content">
-          <div ref={editorRef} className={`${styles.numericEditor} ${styles.inlineNumericEditor}`}>
-            <TextInput
-              id={`discount-${lineItem.uuid}`}
-              hideLabel
-              inputMode="decimal"
-              labelText={t('discount', 'Discount')}
-              size="sm"
-              value={amount}
-              invalid={!!error}
-              invalidText={error}
-              onChange={(event) => setAmount(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  const nextAmount = parseEditableNumber(amount);
-                  if (nextAmount !== null) {
-                    void commitDiscount(nextAmount, getPercentFromAmount(nextAmount) / 100);
-                  } else {
-                    validateAmount(nextAmount);
+            <div className={styles.discountFieldGroup}>
+              <ComboBox
+                className={styles.discountSponsorCombobox}
+                id={`discount-sponsor-${lineItem.uuid}`}
+                itemToString={(item) => item ?? ''}
+                items={sponsorOptions}
+                onChange={({ selectedItem }) => {
+                  if (!selectedItem) {
+                    return;
                   }
-                }
-                if (event.key === 'Escape') {
-                  close();
-                }
-              }}
-            />
+
+                  const nextAmount = getCurrentDraftAmount();
+                  setSponsor(selectedItem);
+                  if (nextAmount !== null) {
+                    autoCommitDiscount(nextAmount, selectedItem, comment);
+                  }
+                }}
+                placeholder={t('selectDiscountSponsor', 'Select discount sponsor')}
+                selectedItem={selectedSponsor}
+                size="sm"
+                titleText={t('discountSponsor', 'Discount sponsor')}
+              />
+            </div>
+            <div className={styles.discountFieldGroup}>
+              <label className={styles.discountFieldLabel} htmlFor={`discount-comment-${lineItem.uuid}`}>
+                {t('comment', 'Comment')}
+              </label>
+              <textarea
+                id={`discount-comment-${lineItem.uuid}`}
+                className={styles.discountTextarea}
+                aria-label={t('comment', 'Comment')}
+                rows={3}
+                value={comment}
+                onChange={(event) => {
+                  const nextComment = event.target.value;
+                  const nextAmount = getCurrentDraftAmount();
+                  setComment(nextComment);
+                  if (nextAmount !== null) {
+                    autoCommitDiscount(nextAmount, selectedSponsor, nextComment);
+                  }
+                }}
+              />
+            </div>
+            <div className={styles.discountFormFooter}>
+              <button type="button" className={styles.clearDiscountButton} onClick={clearDiscount}>
+                {t('clear', 'Clear')}
+              </button>
+            </div>
           </div>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className={`${styles.editableCellContent} ${styles.numericContent} ${styles.cellSurfaceButton}`}
-          data-testid="editable-numeric-content"
-          onClick={openInlineEditor}>
-          {formatBillAmount(currentDiscount)}
-        </button>
-      )}
-    </div>
+        ),
+        isOpen: isActive && mode === 'form',
+        onClose: close,
+        onOpen: openForm,
+        trigger: <span className={styles.discountPercentAffordance}>%</span>,
+        triggerLabel: t('openDiscountEditor', 'Open discount editor'),
+      }}
+      sizingValue={formatBillAmount(currentDiscount)}
+      value={formatBillAmount(currentDiscount)}
+    />
   );
 };
 

@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import InvoiceTable from './invoice-table.component';
-import styles from './invoice-table.scss';
 import { mockBillData } from '../../__mocks__/bill.mock';
 import { openPendingBill } from './invoice-story.fixtures';
 import { launchBillingWorkspace } from '../workspaces';
@@ -110,7 +109,7 @@ describe('InvoiceTable', () => {
     expect(screen.getByText('General Consultation')).toBeInTheDocument();
   });
 
-  it('keeps the bill-item edit affordance lane stable between read and edit mode', async () => {
+  it('keeps the bill-item edit affordance layout-neutral between read and edit mode', async () => {
     const user = userEvent.setup();
 
     mockUseBillableServices.mockReturnValue({
@@ -130,36 +129,27 @@ describe('InvoiceTable', () => {
     render(<InvoiceTable bill={openPendingBill} />);
 
     const valueCellButton = screen.getByRole('button', { name: /clear aligner/i });
-    const editableRoot = valueCellButton.closest(`.${styles.editableTextCellContainer}`);
-    expect(editableRoot).toHaveClass(styles.editableTextCellContainer);
-    expect(editableRoot?.querySelector(`.${styles.editableTextCellContent}`)).toBeInTheDocument();
-    expect(editableRoot?.querySelector(`.${styles.editableTextCellAffordanceLane}`)).toBeInTheDocument();
+    const editableRoot = valueCellButton.closest('[data-testid="editable-text-cell"]');
+    expect(editableRoot).toBeInTheDocument();
+    expect(within(editableRoot as HTMLElement).getByTestId('editable-text-content')).toBeInTheDocument();
+    expect(within(editableRoot as HTMLElement).getByTestId('editable-text-affordance')).toBeInTheDocument();
 
     await user.click(valueCellButton);
 
-    const editor = await screen.findByRole('combobox', { name: /bill item/i });
-    const activeCell = editor.closest(`.${styles.editableTextCellContainer}`);
-    expect(activeCell).toHaveClass(styles.editableTextCellContainer);
-    expect(activeCell?.querySelector(`.${styles.editableTextCellContent}`)).toBeInTheDocument();
-
-    const cancelButton = within(activeCell as HTMLElement).getByRole('button', { name: /cancel/i });
-    await user.click(cancelButton);
-
-    expect(screen.queryByRole('combobox', { name: /bill item/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /bill item options/i })).toBeInTheDocument();
+    expect(within(editableRoot as HTMLElement).getByTestId('editable-text-content')).toBeInTheDocument();
   });
 
-  it('opens bill-item editor only for editable rows and preserves a reserved affordance in read-only rows', async () => {
+  it('opens bill-item editor only for editable rows and renders read-only rows without an affordance', async () => {
     const user = userEvent.setup();
 
     render(<InvoiceTable bill={{ ...openPendingBill, closed: true, status: PaymentStatus.PAID }} />);
 
-    const closedBillItemButton = screen.getByRole('button', { name: /clear aligner/i });
-    await user.click(closedBillItemButton);
+    const closedBillItem = screen.getByText(/clear aligner/i);
+    await user.click(closedBillItem);
 
-    expect(screen.queryByRole('combobox', { name: /bill item/i })).not.toBeInTheDocument();
-
-    const readOnlyRoot = closedBillItemButton.closest(`.${styles.editableTextCellContainer}`);
-    expect(readOnlyRoot?.querySelector(`.${styles.editableTextCellAffordancePlaceholder}`)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /bill item options/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /select bill item/i })).not.toBeInTheDocument();
   });
 
   it('commits a bill-item edit using the production inline path', async () => {
@@ -184,11 +174,8 @@ describe('InvoiceTable', () => {
 
     await user.click(screen.getByRole('button', { name: /clear aligner/i }));
 
-    const editorCell = (await screen.findByRole('combobox', { name: /bill item/i })).closest(
-      `.${styles.editableTextCellContainer}`,
-    );
-    const saveButton = within(editorCell as HTMLElement).getByRole('button', { name: /save/i });
-    await user.click(saveButton);
+    const dialog = await screen.findByRole('dialog', { name: /bill item options/i });
+    await user.click(within(dialog).getByRole('button', { name: /clear aligner/i }));
 
     expect(mockUpdateBillLineItem).toHaveBeenCalledWith(
       'line-item-clear-aligner',

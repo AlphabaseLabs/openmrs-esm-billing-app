@@ -5,6 +5,13 @@ import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-
 import { mockBillData } from '../../__mocks__/bill.mock';
 import BillDetails from './bill-details.component';
 
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (_key: string, fallback: string, values?: Record<string, string>) =>
+      fallback.replace(/\{\{(\w+)\}\}/g, (_match, key) => values?.[key] ?? `{{${key}}}`),
+  }),
+}));
+
 jest.mock('@openmrs/esm-framework', () => ({
   openmrsFetch: jest.fn(),
   restBaseUrl: '/ws/rest/v1',

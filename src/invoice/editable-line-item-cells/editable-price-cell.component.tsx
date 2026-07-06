@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { TextInput } from '@carbon/react';
-import { EditIcon } from '@openmrs/esm-framework';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { formatBillAmount } from '../../helpers';
 import { type BillableService, type LineItem } from '../../types';
+import { EditableNumericCell, editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 import { type ActiveEditorKey, type EditableLineItemCommit, getEditorKey } from './types';
 import {
   createPriceUpdate,
@@ -12,8 +12,6 @@ import {
   parseEditableNumber,
   recalculateLineItem,
 } from './utils';
-import EditableCellOverlay from './editable-cell-overlay.component';
-import styles from './editable-line-item-cells.scss';
 
 type EditablePriceCellProps = {
   lineItem: LineItem;
@@ -38,8 +36,6 @@ const EditablePriceCell: React.FC<EditablePriceCellProps> = ({
   const [mode, setMode] = useState<'inline' | 'picker' | null>(null);
   const [draft, setDraft] = useState(formatBillAmount(lineItem.price));
   const [error, setError] = useState('');
-  const editorRef = useRef<HTMLDivElement>(null);
-  const cellRef = useRef<HTMLDivElement>(null);
   const service = useMemo(() => findServiceForLineItem(lineItem, billableServices), [billableServices, lineItem]);
   const selectedPrice = useMemo(() => findSelectedServicePrice(lineItem, service), [lineItem, service]);
 
@@ -50,14 +46,6 @@ const EditablePriceCell: React.FC<EditablePriceCellProps> = ({
       setError('');
     }
   }, [isActive, lineItem.price]);
-
-  useEffect(() => {
-    if (isActive && mode === 'inline') {
-      const input = editorRef.current?.querySelector('input');
-      input?.focus();
-      input?.select();
-    }
-  }, [isActive, mode]);
 
   const openInlineEditor = () => {
     if (!isEditable) {
@@ -70,7 +58,7 @@ const EditablePriceCell: React.FC<EditablePriceCellProps> = ({
     setActiveEditorKey(editorKey);
   };
 
-  const openPicker = (event: React.MouseEvent) => {
+  const openPicker = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!isEditable) {
       return;
@@ -102,132 +90,89 @@ const EditablePriceCell: React.FC<EditablePriceCellProps> = ({
     close();
   };
 
-  if (!isEditable) {
-    return (
-      <span
-        className={`${styles.editableCell} ${styles.numeric} ${styles.staticValue}`}
-        data-testid="editable-numeric-cell">
-        <span
-          className={`${styles.editableCellContent} ${styles.numericContent}`}
-          data-testid="editable-numeric-content">
-          {formatBillAmount(lineItem.price)}
-        </span>
-      </span>
-    );
-  }
-
   return (
-    <div
-      className={`${styles.editableCell} ${styles.numeric} ${
-        isActive && mode === 'picker' ? styles.activeEditableCell : ''
-      }`}
-      data-testid="editable-numeric-cell"
-      ref={cellRef}
+    <EditableNumericCell
+      activeMode={mode}
+      className={isActive && mode === 'picker' ? styles.activeEditableCell : undefined}
+      error={error}
+      inputId={`price-${lineItem.uuid}`}
+      inputLabelText={t('price', 'Price')}
+      inputMode="decimal"
+      inputValue={draft}
+      isActive={isActive}
+      isEditable={isEditable}
+      onInlineOpen={openInlineEditor}
+      onInputChange={setDraft}
+      onInputKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          void commitDraft();
+        }
+        if (event.key === 'Escape') {
+          close();
+        }
+      }}
       onBlur={(event) => {
         if (mode === 'inline' && !event.currentTarget.contains(event.relatedTarget as Node)) {
           void commitDraft();
         }
-      }}>
-      <span
-        className={`${styles.floatingAffordance} ${styles.numericAffordance}`}
-        data-testid="editable-numeric-affordance"
-        aria-hidden={mode === 'inline'}>
-        {mode !== 'inline' ? (
-          <EditableCellOverlay
-            anchorRef={cellRef}
-            trigger={
-              <button
-                type="button"
-                className={`${styles.optionsButton} ${isActive && mode === 'picker' ? styles.optionsButtonOpen : ''}`}
-                aria-label={t('selectPriceOption', 'Select price option')}
-                onClick={openPicker}>
-                <EditIcon size={14} />
-              </button>
-            }
-            isOpen={isActive && mode === 'picker'}
-            onClose={close}
-            align="bottom-right">
-            <div className={styles.popover} role="dialog" aria-label={t('priceOptions', 'Price options')}>
-              <p className={styles.currentPrice}>
-                {t('currentPrice', 'Current price')}: {formatBillAmount(lineItem.price)}
-              </p>
-              <p className={styles.popoverTitle}>{t('selectAnOption', 'Select an option')}</p>
-              <div className={styles.optionList}>
-                {(service?.servicePrices ?? []).map((priceOption) => {
-                  const isSelected =
-                    selectedPrice?.uuid === priceOption.uuid || Number(priceOption.price) === Number(lineItem.price);
-                  return (
-                    <button
-                      type="button"
-                      key={priceOption.uuid ?? `${priceOption.name}-${priceOption.price}`}
-                      className={`${styles.optionButton} ${isSelected ? styles.selectedOption : ''}`}
-                      aria-current={isSelected ? 'true' : undefined}
-                      onClick={async () => {
-                        const price = Number(priceOption.price) || 0;
-                        await onCommit(
-                          lineItem,
-                          createPriceUpdate(price, priceOption),
-                          recalculateLineItem({
-                            ...lineItem,
-                            price,
-                            priceName: priceOption.name,
-                            priceUuid: priceOption.uuid ?? '',
-                          }),
-                        );
-                        close();
-                      }}>
-                      <span>{priceOption.name}</span>
-                      <span className={styles.optionAmount}>{formatBillAmount(Number(priceOption.price) || 0)}</span>
-                      {isSelected ? (
-                        <span className={styles.optionCheck} aria-hidden="true">
-                          ✓
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-                {!service?.servicePrices?.length ? <span>{t('noPriceOptions', 'No price options')}</span> : null}
-              </div>
+      }}
+      popover={{
+        align: 'bottom-right',
+        ariaLabel: t('priceOptions', 'Price options'),
+        className: styles.priceOptionsPopover,
+        content: (
+          <>
+            <p className={styles.popoverTitle}>{t('selectPriceOption', 'Select price option')}</p>
+            <div className={styles.optionList}>
+              {(service?.servicePrices ?? []).map((priceOption) => {
+                const isSelected =
+                  selectedPrice?.uuid === priceOption.uuid || Number(priceOption.price) === Number(lineItem.price);
+                return (
+                  <button
+                    type="button"
+                    key={priceOption.uuid ?? `${priceOption.name}-${priceOption.price}`}
+                    className={`${styles.optionButton} ${styles.priceOptionButton} ${
+                      isSelected ? styles.selectedOption : ''
+                    }`}
+                    aria-current={isSelected ? 'true' : undefined}
+                    onClick={async () => {
+                      const price = Number(priceOption.price) || 0;
+                      await onCommit(
+                        lineItem,
+                        createPriceUpdate(price, priceOption),
+                        recalculateLineItem({
+                          ...lineItem,
+                          price,
+                          priceName: priceOption.name,
+                          priceUuid: priceOption.uuid ?? '',
+                        }),
+                      );
+                      close();
+                    }}>
+                    <span className={styles.priceOptionText}>
+                      {priceOption.name} - ({formatBillAmount(Number(priceOption.price) || 0)})
+                    </span>
+                    {isSelected ? (
+                      <span className={styles.optionCheck} aria-hidden="true">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+              {!service?.servicePrices?.length ? <span>{t('noPriceOptions', 'No price options')}</span> : null}
             </div>
-          </EditableCellOverlay>
-        ) : null}
-      </span>
-      {isActive && mode === 'inline' ? (
-        <span
-          className={`${styles.editableCellContent} ${styles.numericContent}`}
-          data-testid="editable-numeric-content">
-          <div ref={editorRef} className={`${styles.numericEditor} ${styles.inlineNumericEditor}`}>
-            <TextInput
-              id={`price-${lineItem.uuid}`}
-              hideLabel
-              inputMode="decimal"
-              labelText={t('price', 'Price')}
-              size="sm"
-              value={draft}
-              invalid={!!error}
-              invalidText={error}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  void commitDraft();
-                }
-                if (event.key === 'Escape') {
-                  close();
-                }
-              }}
-            />
-          </div>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className={`${styles.editableCellContent} ${styles.numericContent} ${styles.cellSurfaceButton}`}
-          data-testid="editable-numeric-content"
-          onClick={openInlineEditor}>
-          {formatBillAmount(lineItem.price)}
-        </button>
-      )}
-    </div>
+          </>
+        ),
+        isOpen: isActive && mode === 'picker',
+        onClose: close,
+        onOpen: openPicker,
+        trigger: <ChevronDown size={12} />,
+        triggerLabel: t('selectPriceOption', 'Select price option'),
+      }}
+      sizingValue={formatBillAmount(lineItem.price)}
+      value={formatBillAmount(lineItem.price)}
+    />
   );
 };
 

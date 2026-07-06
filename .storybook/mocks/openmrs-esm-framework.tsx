@@ -44,9 +44,9 @@ export const openmrsFetch = async (url?: string) => {
             serviceStatus: 'ENABLED',
             serviceType: { display: 'Dental service' },
             servicePrices: [
-              { uuid: 'price-clear-aligner', name: 'Default', price: 249999 },
+              { uuid: 'price-clear-aligner', name: 'Cash', price: 249999 },
               { uuid: 'price-clear-aligner-card', name: 'Card', price: 259999 },
-              { uuid: 'price-clear-aligner-panel', name: 'Panel', price: 279999 },
+              { uuid: 'price-clear-aligner-insurance', name: 'Insurance', price: 279999 },
             ],
           },
           {

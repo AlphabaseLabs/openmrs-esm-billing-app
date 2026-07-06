@@ -27,9 +27,21 @@ const billableServices = [
     servicePrices: [
       {
         uuid: 'price-clear-aligner',
-        name: 'Default',
+        name: 'Cash',
         price: 249999,
         paymentMode: 'Cash',
+      },
+      {
+        uuid: 'price-clear-aligner-card',
+        name: 'Card',
+        price: 259999,
+        paymentMode: 'Card',
+      },
+      {
+        uuid: 'price-clear-aligner-insurance',
+        name: 'Insurance',
+        price: 279999,
+        paymentMode: 'Insurance',
       },
     ],
   },

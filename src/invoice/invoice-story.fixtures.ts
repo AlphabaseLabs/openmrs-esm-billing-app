@@ -91,6 +91,27 @@ export const clearAlignerPendingLineItem = createLineItem({
   total: 249999,
 });
 
+export const discountedConsultationPendingLineItem = createLineItem({
+  uuid: 'line-item-discounted-consultation',
+  display: 'Consultation',
+  item: 'service-consultation:Consultation',
+  billableService: 'service-consultation:Consultation',
+  quantity: 1,
+  price: 2000,
+  priceUuid: 'price-consultation',
+  lineItemOrder: 1,
+  paymentStatus: PaymentStatus.PENDING,
+  discounts: [
+    {
+      amount: 234,
+      baseAmount: 2000,
+      description: 'value',
+      sponsor: 'provider-storybook',
+    },
+  ],
+  total: 1766,
+});
+
 export const registrationPendingLineItem = createLineItem({
   uuid: 'line-item-registration',
   display: 'Registration',
@@ -235,6 +256,20 @@ export const pendingBillWithCashPayment = {
   totalPayments: 100,
   totalActualPayments: 100,
   balance: 249899,
+} as MappedBill;
+
+export const shortValuePendingBill = {
+  ...openPendingBill,
+  uuid: 'bill-short-value-pending',
+  lineItems: [paidConsultationLineItem, discountedConsultationPendingLineItem],
+  billingService: 'Consultation Consultation',
+  totalAmount: 1766,
+  totalPayments: 0,
+  totalActualPayments: 0,
+  balance: 1766,
+  billLineItemDiscounts: 2234,
+  totalDiscounts: 2234,
+  totalAmountWithoutTaxAndDiscount: 4000,
 } as MappedBill;
 
 export const discountedPendingBill = {

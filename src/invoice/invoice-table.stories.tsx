@@ -3,7 +3,13 @@ import type { Meta, StoryObj } from '@storybook/react-webpack5';
 import { expect, userEvent, within } from 'storybook/test';
 import InvoiceTable from './invoice-table.component';
 import { type LineItem, type MappedBill } from '../types';
-import { closedBill, discountedPendingBill, openPendingBill, selectedUnpaidLineItems } from './invoice-story.fixtures';
+import {
+  closedBill,
+  discountedPendingBill,
+  openPendingBill,
+  selectedUnpaidLineItems,
+  shortValuePendingBill,
+} from './invoice-story.fixtures';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
 
 type InvoiceTableStoryArgs = React.ComponentProps<typeof InvoiceTable>;
@@ -67,6 +73,26 @@ export const MixedStatusRows: Story = {
   render: StatefulInvoiceTable,
 };
 
+export const StableGeometryShortValues: Story = {
+  args: {
+    bill: shortValuePendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: StatefulInvoiceTable,
+};
+
+export const StableGeometryLongValues: Story = {
+  args: {
+    bill: openPendingBill,
+    isSelectable: true,
+    isLoadingBill: false,
+    selectedLineItems: [],
+  },
+  render: StatefulInvoiceTable,
+};
+
 export const SelectedRows: Story = {
   args: {
     bill: discountedPendingBill,
@@ -123,7 +149,7 @@ export const DiscountFormOpen: Story = {
   render: StatefulInvoiceTable,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByLabelText(/edit discount/i));
+    await userEvent.click(await canvas.findByLabelText(/open discount editor/i));
     await expect(
       await within(canvasElement.ownerDocument.body).findByRole('dialog', { name: /discount form/i }),
     ).toBeInTheDocument();
