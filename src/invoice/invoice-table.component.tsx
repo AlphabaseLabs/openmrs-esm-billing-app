@@ -33,6 +33,7 @@ import {
   EditableBillItemCell,
   EditableDiscountCell,
   EditablePriceCell,
+  EditableQuantityCell,
   getLineItemDiscountAmount,
   getLineItemLabel,
   getLineItemTaxAmount,
@@ -279,6 +280,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       case 'discount':
         return (
           <EditableDiscountCell
+            lineItem={matchingItem}
+            isEditable={isEditable}
+            activeEditorKey={activeEditorKey}
+            setActiveEditorKey={setActiveEditorKey}
+            onCommit={handleLineItemCommit}
+          />
+        );
+      case 'quantity':
+        return (
+          <EditableQuantityCell
             lineItem={matchingItem}
             isEditable={isEditable}
             activeEditorKey={activeEditorKey}

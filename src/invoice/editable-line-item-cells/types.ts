@@ -1,7 +1,7 @@
 import { type BillLineItemUpdate } from '../../billing.resource';
 import { type LineItem } from '../../types';
 
-export type EditableLineItemField = 'billItem' | 'price' | 'discount';
+export type EditableLineItemField = 'billItem' | 'price' | 'discount' | 'quantity';
 
 export type ActiveEditorKey = string | null;
 

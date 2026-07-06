@@ -26,6 +26,28 @@
   min-width: 0;
 }
 
+.quantityEditableCell {
+  justify-content: flex-start;
+  text-align: left;
+
+  .numericContent,
+  .numericContent.cellSurfaceButton {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .inlineNumericSizingValue {
+    text-align: left;
+    width: 100%;
+  }
+
+  .inlineNumericEditor {
+    :global(.cds--text-input) {
+      text-align: left;
+    }
+  }
+}
+
 .textEditableCell {
   text-align: left;
 }
