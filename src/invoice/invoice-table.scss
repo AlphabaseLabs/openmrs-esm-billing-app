@@ -84,11 +84,27 @@
 .toolbarWrapper {
   position: relative;
   width: 100%;
+  height: layout.$spacing-07;
+
+  :global(.cds--table-toolbar.cds--table-toolbar) {
+    min-height: layout.$spacing-07;
+    height: layout.$spacing-07;
+    position: relative;
+    top: 0;
+  }
+
+  :global(.cds--toolbar-content),
+  :global(.cds--search),
+  :global(.cds--search-input),
+  :global(.cds--btn) {
+    min-height: layout.$spacing-07;
+    height: layout.$spacing-07;
+  }
 }
 
 :global(.omrs-breakpoint-lt-desktop) {
   .toolbarWrapper {
-    height: layout.$spacing-09;
+    height: layout.$spacing-07;
   }
 
   .headerContainer {
