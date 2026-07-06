@@ -48,6 +48,10 @@ const getInvoiceTable = () => screen.getByRole('table', { name: /^line items$/i 
 const getColumnWidths = (table: HTMLElement) =>
   Array.from(table.querySelectorAll('col')).map((column) => (column as HTMLTableColElement).style.width);
 
+const getAddItemRow = () => screen.getByTestId('invoice-table-add-item-row');
+
+const getAddItemCell = () => getAddItemRow().querySelector('td') as HTMLTableCellElement;
+
 describe('InvoiceTable', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -65,8 +69,9 @@ describe('InvoiceTable', () => {
 
     render(<InvoiceTable bill={mockBillData[0]} />);
 
-    const addBillItemButton = screen.getByRole('button', { name: /add bill item/i });
+    const addBillItemButton = screen.getByRole('button', { name: /^add bill item$/i });
     expect(addBillItemButton).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^add item$/i })).toBeInTheDocument();
 
     await user.click(addBillItemButton);
 
@@ -76,10 +81,28 @@ describe('InvoiceTable', () => {
     );
   });
 
-  it('hides add bill item button for closed bills', () => {
+  it('launches bill form from the final add item row', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    const addItemButton = screen.getByRole('button', { name: /^add item$/i });
+    expect(getAddItemRow()).toContainElement(addItemButton);
+
+    await user.click(addItemButton);
+
+    expect(mockLaunchBillingWorkspace).toHaveBeenCalledWith(
+      'billing-form',
+      addBillItemWorkspaceExpectation(openPendingBill.patientUuid),
+    );
+  });
+
+  it('hides add bill item actions for closed bills', () => {
     render(<InvoiceTable bill={{ ...mockBillData[0], closed: true }} />);
 
     expect(screen.queryByRole('button', { name: /add bill item/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^add item$/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-table-add-item-row')).not.toBeInTheDocument();
   });
 
   it('searches invoice line items by billable service short name', async () => {
@@ -256,6 +279,16 @@ describe('InvoiceTable', () => {
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
 
+  it('spans the final add item row across rendered columns when selection is present', () => {
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    const table = getInvoiceTable();
+    const renderedColumnCount = table.querySelectorAll('col').length;
+
+    expect(getAddItemRow().children).toHaveLength(1);
+    expect(getAddItemCell().colSpan).toBe(renderedColumnCount);
+  });
+
   it('omits the synthetic selection column width when selection is absent', () => {
     render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [openPendingBill.lineItems[0]] }} />);
 
@@ -282,6 +315,41 @@ describe('InvoiceTable', () => {
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
     expect(columnWidths[columnWidths.length - 1]).toBe('144px');
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
+  });
+
+  it('keeps the final add item row colspan aligned when optional columns are hidden', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    const table = getInvoiceTable();
+
+    await user.click(screen.getByRole('button', { name: /columns/i }));
+    const columnOptions = screen.getByRole('group', { name: /line item columns/i });
+    await user.click(within(columnOptions).getByRole('checkbox', { name: /discount/i }));
+    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
+
+    expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    expect(getAddItemCell().colSpan).toBe(table.querySelectorAll('col').length);
+  });
+
+  it('keeps the final add item row non-selectable and outside line item numbering', () => {
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    const table = getInvoiceTable();
+    const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    const addItemRow = getAddItemRow();
+
+    expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 1);
+    expect(bodyRows[bodyRows.length - 1]).toBe(addItemRow);
+    expect(within(addItemRow).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(addItemRow).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
+    expect(within(addItemRow).queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
+    expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length);
+    expect(bodyRows[0].children[1]).toHaveTextContent(/^1$/);
+    expect(bodyRows[1].children[1]).toHaveTextContent(/^2$/);
+    expect(addItemRow).not.toHaveTextContent(/^3$/);
   });
 
   it('keeps computed column widths stable while an editable cell is active', async () => {
