@@ -384,6 +384,7 @@
   "providerShareRefundWarning": "Provider share reversal warning",
   "providerShareRefundWarningSubtitle": "Refund completed, but an error occurred while reversing provider shares.",
   "quantity": "Quantity",
+  "quantityValidationError": "Enter a valid quantity greater than 0",
   "reason": "Reason for {{action}} bill",
   "reasonForCancellation": "Reason for cancellation",
   "reasonForDeletion": "Reason for deletion",
