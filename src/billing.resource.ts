@@ -25,6 +25,9 @@ import {
 } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
+  const lineItems = bill?.lineItems?.filter((li) => !li?.voided) ?? [];
+  const additionalDiscount = bill?.additionalDiscount ?? 0;
+  const billLineItemDiscounts = bill?.totalDiscount ?? 0;
   // create base object
   const mappedBill: MappedBill = {
     id: bill?.id,
@@ -40,23 +43,23 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     cashPointLocation: bill?.cashPoint?.location?.display,
     dateCreated: formatBillDateTime(bill?.dateCreated),
     dateCreatedUnformatted: bill?.dateCreated,
-    lineItems: bill?.lineItems.filter((li) => !li?.voided),
+    lineItems,
     billingService: extractString(
-      bill?.lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  '),
+      lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  '),
     ),
     payments: bill?.payments,
     display: bill?.display,
     totalAmount:
-      bill?.lineItems?.reduce((sum, item) => {
+      lineItems.reduce((sum, item) => {
         const subtotal = (item?.price ?? 0) * (item?.quantity ?? 0);
         const tax = (item?.taxes ?? []).reduce((acc, t) => acc + (t?.amount ?? 0), 0);
         const discount = (item?.discounts ?? []).reduce((acc, d) => acc + (d?.amount ?? 0), 0);
-        return sum + subtotal + tax - discount;
+        return sum + (item?.total ?? subtotal + tax - discount);
       }, 0) ?? 0,
-    tenderedAmount: bill?.payments?.map((item) => item?.amountTendered).reduce((prev, curr) => prev + curr, 0),
-    referenceCodes: bill?.payments
+    tenderedAmount: bill?.payments?.map((item) => item?.amountTendered).reduce((prev, curr) => prev + curr, 0) ?? 0,
+    referenceCodes: (bill?.payments ?? [])
       .map((payment) =>
-        payment.attributes
+        (payment.attributes ?? [])
           .filter((attr) => attr.attributeType.description === 'Reference Number')
           .map((attr) => {
             return {
@@ -76,13 +79,14 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
     totalActualPayments: bill?.totalActualPayments ?? 0,
+    additionalDiscount,
     totalTax: bill?.totalTax ?? 0,
-    billLineItemDiscounts: bill?.totalDiscount ?? 0,
-    totalAmountWithoutTaxAndDiscount: bill?.lineItems
+    billLineItemDiscounts,
+    totalAmountWithoutTaxAndDiscount: lineItems
       ?.map((item) => item?.price * item?.quantity)
       .reduce((prev, curr) => prev + curr, 0),
   };
-  mappedBill.totalDiscounts = (mappedBill.billLineItemDiscounts ?? 0) + (mappedBill.totalWaived ?? 0);
+  mappedBill.totalDiscounts = billLineItemDiscounts + additionalDiscount;
   return mappedBill;
 };
 
@@ -372,6 +376,15 @@ export const billingFormSchema = z.object({
 export const addPaymentToBill = (billUuid: string, payload: Record<string, any>) => {
   const url = `${restBaseUrl}/cashier/bill/${billUuid}/payment`;
   return openmrsFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+};
+
+export const updateBillAdditionalDiscount = (billUuid: string, additionalDiscount: number) => {
+  const url = `${restBaseUrl}/kenyaemr-cashier/bill/${billUuid}/additional-discount`;
+  return openmrsFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { additionalDiscount },
+  });
 };
 
 export const updateBillItems = (payload) => {
