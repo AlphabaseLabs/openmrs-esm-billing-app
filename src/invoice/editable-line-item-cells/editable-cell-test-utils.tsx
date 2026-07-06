@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { type ActiveEditorKey, type EditableLineItemCommit } from './types';
 import { type BillableService, type LineItem, PaymentStatus } from '../../types';
+import { type ProviderOption } from '../../payment-points/payment-points.resource';
 
 export const testLineItem = {
   uuid: 'line-item-consultation',
@@ -30,11 +31,29 @@ export const testDiscountedLineItem = {
       amount: 500,
       baseAmount: 2000,
       rate: 0.25,
-      sponsor: 'Practice & doctor',
+      sponsor: 'provider-alternate',
       description: 'Existing discount',
     },
   ],
 } as LineItem;
+
+export const testCurrentProvider = {
+  uuid: 'provider-current',
+  display: 'Current Provider',
+};
+
+export const testProviderOptions = [
+  {
+    id: 'provider-current',
+    uuid: 'provider-current',
+    label: 'Current Provider',
+  },
+  {
+    id: 'provider-alternate',
+    uuid: 'provider-alternate',
+    label: 'Alternate Provider',
+  },
+] as Array<ProviderOption>;
 
 export const testBillableServices = [
   {

@@ -1,11 +1,13 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useSession } from '@openmrs/esm-framework';
 import InvoiceTable from './invoice-table.component';
 import { mockBillData } from '../../__mocks__/bill.mock';
 import { discountedPendingBill, openPendingBill, paidBill } from './invoice-story.fixtures';
 import { launchBillingWorkspace } from '../workspaces';
 import useBillableServices from '../hooks/useBillableServices';
+import { useProviderOptions } from '../payment-points/payment-points.resource';
 import { updateBillLineItem } from '../billing.resource';
 import { PaymentStatus } from '../types';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY } from './line-item-column-visibility';
@@ -22,6 +24,12 @@ jest.mock('@openmrs/esm-framework', () => ({
   showSnackbar: jest.fn(),
   useDebounce: (value: string) => value,
   useLayoutType: jest.fn(() => 'desktop'),
+  useSession: jest.fn(() => ({
+    currentProvider: {
+      uuid: 'provider-current',
+      display: 'Current Provider',
+    },
+  })),
 }));
 
 jest.mock('../workspaces', () => ({
@@ -29,12 +37,17 @@ jest.mock('../workspaces', () => ({
 }));
 
 jest.mock('../hooks/useBillableServices');
+jest.mock('../payment-points/payment-points.resource', () => ({
+  useProviderOptions: jest.fn(),
+}));
 jest.mock('../billing.resource', () => ({
   updateBillLineItem: jest.fn(),
 }));
 
 const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
+const mockUseProviderOptions = useProviderOptions as jest.MockedFunction<typeof useProviderOptions>;
+const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
 const addBillItemWorkspaceExpectation = (patientUuid: string) => ({
@@ -57,6 +70,23 @@ describe('InvoiceTable', () => {
     jest.clearAllMocks();
     window.localStorage.removeItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY);
     mockUpdateBillLineItem.mockResolvedValue({ ok: true } as any);
+    mockUseSession.mockReturnValue({
+      currentProvider: {
+        uuid: 'provider-current',
+        display: 'Current Provider',
+      },
+    } as unknown as ReturnType<typeof useSession>);
+    mockUseProviderOptions.mockReturnValue({
+      providerOptions: [
+        {
+          id: 'provider-storybook',
+          uuid: 'provider-storybook',
+          label: 'Storybook Provider',
+        },
+      ],
+      error: null,
+      isLoading: false,
+    } as ReturnType<typeof useProviderOptions>);
     mockUseBillableServices.mockReturnValue({
       billableServices: [],
       error: null,
@@ -190,6 +220,13 @@ describe('InvoiceTable', () => {
     await user.click(screen.getByRole('button', { name: /249,999/i }));
 
     expect(await screen.findByRole('textbox', { name: /price/i })).toHaveValue('249,999');
+  });
+
+  it('loads provider options and the current provider for inline discount cells', () => {
+    render(<InvoiceTable bill={discountedPendingBill} />);
+
+    expect(mockUseProviderOptions).toHaveBeenCalled();
+    expect(mockUseSession).toHaveBeenCalled();
   });
 
   it('commits a bill-item edit using the production inline path', async () => {

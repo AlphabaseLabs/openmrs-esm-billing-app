@@ -2,19 +2,61 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EditableDiscountCell from './editable-discount-cell.component';
-import { EditableCellHarness, testDiscountedLineItem, testLineItem } from './editable-cell-test-utils';
-import { PaymentStatus } from '../../types';
+import {
+  EditableCellHarness,
+  testCurrentProvider,
+  testDiscountedLineItem,
+  testLineItem,
+  testProviderOptions,
+} from './editable-cell-test-utils';
+import { type LineItem, PaymentStatus } from '../../types';
 import { editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_key: string, fallback: string, options?: Record<string, string | number>) =>
-      Object.entries(options ?? {}).reduce(
-        (text, [key, value]) => text.replace(`{{${key}}}`, String(value)),
-        fallback,
-      ),
+      Object.entries(options ?? {}).reduce((text, [key, value]) => text.replace(`{{${key}}}`, String(value)), fallback),
   }),
 }));
+
+const defaultDiscountProviderProps = {
+  providerOptions: testProviderOptions,
+  isLoadingProviders: false,
+  currentProvider: testCurrentProvider,
+};
+
+const renderProviderDiscountCell = ({
+  lineItem = testLineItem,
+  onCommit = jest.fn(async () => {}),
+  providerProps = {},
+}: {
+  lineItem?: LineItem;
+  onCommit?: jest.Mock;
+  providerProps?: Partial<
+    Pick<
+      React.ComponentProps<typeof EditableDiscountCell>,
+      'providerOptions' | 'isLoadingProviders' | 'currentProvider'
+    >
+  >;
+} = {}) => {
+  render(
+    <EditableCellHarness>
+      {({ activeEditorKey, setActiveEditorKey }) => (
+        <EditableDiscountCell
+          {...defaultDiscountProviderProps}
+          {...providerProps}
+          lineItem={lineItem}
+          isEditable
+          activeEditorKey={activeEditorKey}
+          setActiveEditorKey={setActiveEditorKey}
+          onCommit={onCommit}
+        />
+      )}
+    </EditableCellHarness>,
+  );
+
+  return { onCommit };
+};
 
 describe('EditableDiscountCell', () => {
   it('commits a valid inline discount edit', async () => {
@@ -62,6 +104,7 @@ describe('EditableDiscountCell', () => {
       <EditableCellHarness>
         {({ activeEditorKey, setActiveEditorKey }) => (
           <EditableDiscountCell
+            {...defaultDiscountProviderProps}
             lineItem={testDiscountedLineItem}
             isEditable
             activeEditorKey={activeEditorKey}
@@ -191,6 +234,7 @@ describe('EditableDiscountCell', () => {
       <EditableCellHarness>
         {({ activeEditorKey, setActiveEditorKey, onCommit }) => (
           <EditableDiscountCell
+            {...defaultDiscountProviderProps}
             lineItem={testDiscountedLineItem}
             isEditable
             activeEditorKey={activeEditorKey}
@@ -209,13 +253,109 @@ describe('EditableDiscountCell', () => {
     expect(screen.queryByText(/total discount/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^clear$/i })).toBeInTheDocument();
     const sponsorSelect = screen.getByRole('combobox', { name: /discount sponsor/i });
-    expect(sponsorSelect).toHaveValue('Practice and doctor');
+    expect(sponsorSelect).toHaveValue('Alternate Provider');
     expect(screen.getByRole('textbox', { name: /comment/i }).tagName).toBe('TEXTAREA');
 
     await user.click(sponsorSelect);
     expect(screen.getByRole('listbox', { name: /discount sponsor/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Practice' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Doctor' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Current Provider' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Alternate Provider' })).toBeInTheDocument();
+  });
+
+  it('selects an existing provider sponsor UUID and submits it on percent edits', async () => {
+    const user = userEvent.setup();
+    const onCommit = jest.fn(async () => {});
+    const lineItem = {
+      ...testLineItem,
+      price: 100,
+      discounts: [
+        {
+          amount: 20,
+          baseAmount: 100,
+          rate: 0.2,
+          sponsor: 'provider-alternate',
+        },
+      ],
+    } as LineItem;
+
+    renderProviderDiscountCell({ lineItem, onCommit });
+
+    await user.click(screen.getByLabelText(/open discount editor/i));
+    expect(screen.getByRole('combobox', { name: /discount sponsor/i })).toHaveValue('Alternate Provider');
+    await user.clear(screen.getByRole('textbox', { name: /percent/i }));
+    await user.type(screen.getByRole('textbox', { name: /percent/i }), '30');
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    expect(onCommit).toHaveBeenLastCalledWith(
+      lineItem,
+      { discounts: [expect.objectContaining({ amount: 30, rate: 0.3, sponsor: 'provider-alternate' })] },
+      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 30 })] }),
+    );
+  });
+
+  it('defaults new inline discounts to the current provider UUID', async () => {
+    const user = userEvent.setup();
+    const onCommit = jest.fn(async () => {});
+
+    renderProviderDiscountCell({ lineItem: testLineItem, onCommit });
+
+    await user.click(screen.getByTestId('editable-numeric-content'));
+    const input = screen.getByRole('textbox', { name: /discount/i });
+    await user.clear(input);
+    await user.type(input, '100{Enter}');
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    expect(onCommit).toHaveBeenLastCalledWith(
+      testLineItem,
+      { discounts: [expect.objectContaining({ amount: 100, sponsor: 'provider-current' })] },
+      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 100 })] }),
+    );
+  });
+
+  it('falls back to the current provider when provider options are unavailable', async () => {
+    const user = userEvent.setup();
+
+    renderProviderDiscountCell({
+      lineItem: testLineItem,
+      providerProps: {
+        providerOptions: [],
+        isLoadingProviders: true,
+      },
+    });
+
+    await user.click(screen.getByLabelText(/open discount editor/i));
+
+    expect(screen.getByRole('combobox', { name: /discount sponsor/i })).toHaveValue('Current Provider');
+  });
+
+  it('does not submit invalid legacy sponsor labels as sponsor payload values', async () => {
+    const user = userEvent.setup();
+    const onCommit = jest.fn(async () => {});
+    const lineItem = {
+      ...testLineItem,
+      price: 100,
+      discounts: [
+        {
+          amount: 20,
+          baseAmount: 100,
+          rate: 0.2,
+          sponsor: 'Practice and doctor',
+        },
+      ],
+    } as LineItem;
+
+    renderProviderDiscountCell({ lineItem, onCommit });
+
+    await user.click(screen.getByLabelText(/open discount editor/i));
+    expect(screen.getByRole('combobox', { name: /discount sponsor/i })).toHaveValue('Current Provider');
+    await user.clear(screen.getByRole('textbox', { name: /percent/i }));
+    await user.type(screen.getByRole('textbox', { name: /percent/i }), '30');
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    const lastCommitCall = onCommit.mock.calls[onCommit.mock.calls.length - 1] as any[];
+    const lastDiscount = lastCommitCall[1].discounts[0];
+    expect(lastDiscount).toEqual(expect.objectContaining({ amount: 30, sponsor: 'provider-current' }));
+    expect(lastDiscount.sponsor).not.toBe('Practice and doctor');
   });
 
   it('places numeric discount content first with the affordance as a right-side floating overlay', () => {

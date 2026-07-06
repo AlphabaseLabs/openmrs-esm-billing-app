@@ -3,14 +3,10 @@ import { ComboBox } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { formatBillAmount } from '../../helpers';
 import { type LineItem } from '../../types';
+import { type ProviderOption } from '../../payment-points/payment-points.resource';
 import { EditableNumericCell, editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 import { type ActiveEditorKey, type EditableLineItemCommit, getEditorKey } from './types';
-import {
-  createDiscountUpdate,
-  getLineItemDiscountAmount,
-  parseEditableNumber,
-  recalculateLineItem,
-} from './utils';
+import { createDiscountUpdate, getLineItemDiscountAmount, parseEditableNumber, recalculateLineItem } from './utils';
 
 type EditableDiscountCellProps = {
   lineItem: LineItem;
@@ -18,10 +14,21 @@ type EditableDiscountCellProps = {
   activeEditorKey: ActiveEditorKey;
   setActiveEditorKey: (key: ActiveEditorKey) => void;
   onCommit: EditableLineItemCommit;
+  providerOptions?: Array<ProviderOption>;
+  isLoadingProviders?: boolean;
+  currentProvider?: CurrentProvider;
 };
 
-const defaultSponsor = 'Practice and doctor';
-const sponsorOptions = [defaultSponsor, 'Practice', 'Doctor'];
+type CurrentProvider =
+  | {
+      uuid?: string;
+      display?: string;
+      person?: {
+        display?: string;
+      };
+    }
+  | null
+  | undefined;
 
 const normalizeNumber = (value: number) => (Number.isFinite(value) ? value : 0);
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -37,15 +44,33 @@ const formatDiscountPercent = (value: number) => {
 
   return percent.toFixed(percentPrecision).replace(/\.?0+$/, '');
 };
-const normalizeSponsor = (value?: string) => {
-  const normalizedValue = value?.trim() ?? '';
 
-  if (/practice\s*&\s*doctor/i.test(normalizedValue)) {
-    return defaultSponsor;
+const getCurrentProviderOption = (currentProvider: CurrentProvider): ProviderOption | null => {
+  if (!currentProvider?.uuid) {
+    return null;
   }
 
-  const nextSponsor = normalizedValue || defaultSponsor;
-  return sponsorOptions.includes(nextSponsor) ? nextSponsor : defaultSponsor;
+  return {
+    id: currentProvider.uuid,
+    uuid: currentProvider.uuid,
+    label: currentProvider.display || currentProvider.person?.display || currentProvider.uuid,
+  };
+};
+
+const getProviderSponsorOptions = (
+  providerOptions: Array<ProviderOption>,
+  currentProviderOption: ProviderOption | null,
+) => {
+  if (!currentProviderOption || providerOptions.some((provider) => provider.uuid === currentProviderOption.uuid)) {
+    return providerOptions;
+  }
+
+  return [currentProviderOption, ...providerOptions];
+};
+
+const findProviderOptionByUuid = (providerOptions: Array<ProviderOption>, uuid?: string) => {
+  const normalizedUuid = uuid?.trim();
+  return normalizedUuid ? (providerOptions.find((provider) => provider.uuid === normalizedUuid) ?? null) : null;
 };
 
 const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
@@ -54,13 +79,27 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   activeEditorKey,
   setActiveEditorKey,
   onCommit,
+  providerOptions = [],
+  isLoadingProviders = false,
+  currentProvider,
 }) => {
   const { t } = useTranslation();
   const editorKey = getEditorKey(lineItem.uuid, 'discount');
   const isActive = activeEditorKey === editorKey;
   const currentDiscount = useMemo(() => getLineItemDiscountAmount(lineItem), [lineItem]);
   const priceBase = useMemo(() => Math.max(0, Number(lineItem.price ?? 0) || 0), [lineItem.price]);
-  const currentSponsor = useMemo(() => normalizeSponsor(lineItem.discounts?.[0]?.sponsor), [lineItem.discounts]);
+  const currentProviderOption = useMemo(() => getCurrentProviderOption(currentProvider), [currentProvider]);
+  const sponsorOptions = useMemo(
+    () => getProviderSponsorOptions(providerOptions, currentProviderOption),
+    [currentProviderOption, providerOptions],
+  );
+  const currentSponsor = useMemo(
+    () =>
+      findProviderOptionByUuid(sponsorOptions, lineItem.discounts?.[0]?.sponsor) ??
+      findProviderOptionByUuid(sponsorOptions, currentProviderOption?.uuid) ??
+      currentProviderOption,
+    [currentProviderOption, lineItem.discounts, sponsorOptions],
+  );
   const currentComment = useMemo(() => lineItem.discounts?.[0]?.description ?? '', [lineItem.discounts]);
   const [mode, setMode] = useState<'inline' | 'form' | null>(null);
   const [amount, setAmount] = useState(formatDiscountAmount(currentDiscount));
@@ -77,7 +116,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
     const parsedAmount = parseEditableNumber(amount);
     return parsedAmount === null ? null : clampDiscountAmount(parsedAmount);
   };
-  const selectedSponsor = sponsor || defaultSponsor;
+  const selectedSponsor = sponsor ?? currentSponsor;
 
   useEffect(() => {
     if (!isActive) {
@@ -88,12 +127,18 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       };
       setMode(null);
       setAmount(formatDiscountAmount(nextDraft.amount));
-      setPercent(formatDiscountPercent(getPercentFromAmount(nextDraft.amount)));
+      setPercent(formatDiscountPercent(priceBase ? (nextDraft.amount / priceBase) * 100 : 0));
       setSponsor(nextDraft.sponsor);
       setComment(nextDraft.comment);
       setError('');
     }
   }, [currentComment, currentDiscount, currentSponsor, isActive, priceBase]);
+
+  useEffect(() => {
+    if (isActive && !sponsor && currentSponsor) {
+      setSponsor(currentSponsor);
+    }
+  }, [currentSponsor, isActive, sponsor]);
 
   const syncDraftAmount = (nextAmount: number, options: { syncPercent?: boolean } = {}) => {
     const clampedAmount = clampDiscountAmount(nextAmount);
@@ -170,15 +215,20 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
     options: {
       closeOnCommit?: boolean;
       commentValue?: string;
-      sponsorValue?: string;
+      sponsorValue?: ProviderOption | null;
     } = {},
   ) => {
     const discountAmount = clampDiscountAmount(nextAmount);
     const nextSponsor = options.sponsorValue ?? selectedSponsor;
     const nextComment = options.commentValue ?? comment;
     const discounts =
-      createDiscountUpdate(lineItem, discountAmount, getPercentFromAmount(discountAmount) / 100, nextSponsor, nextComment)
-        .discounts ?? [];
+      createDiscountUpdate(
+        lineItem,
+        discountAmount,
+        getPercentFromAmount(discountAmount) / 100,
+        nextSponsor?.uuid,
+        nextComment,
+      ).discounts ?? [];
 
     setError('');
     await onCommit(
@@ -206,10 +256,10 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   const clearDiscount = () => {
     setAmount(formatDiscountAmount(0));
     setPercent(formatDiscountPercent(0));
-    setSponsor(defaultSponsor);
+    setSponsor(currentSponsor);
     setComment('');
     setError('');
-    autoCommitDiscount(0, defaultSponsor, '');
+    autoCommitDiscount(0, currentSponsor, '');
   };
 
   return (
@@ -291,7 +341,8 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
               <ComboBox
                 className={styles.discountSponsorCombobox}
                 id={`discount-sponsor-${lineItem.uuid}`}
-                itemToString={(item) => item ?? ''}
+                disabled={!sponsorOptions.length}
+                itemToString={(item) => item?.label ?? ''}
                 items={sponsorOptions}
                 onChange={({ selectedItem }) => {
                   if (!selectedItem) {
@@ -304,7 +355,11 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
                     autoCommitDiscount(nextAmount, selectedItem, comment);
                   }
                 }}
-                placeholder={t('selectDiscountSponsor', 'Select discount sponsor')}
+                placeholder={
+                  isLoadingProviders
+                    ? t('loadingProviders', 'Loading providers...')
+                    : t('selectDiscountSponsor', 'Select discount sponsor')
+                }
                 selectedItem={selectedSponsor}
                 size="sm"
                 titleText={t('discountSponsor', 'Discount sponsor')}

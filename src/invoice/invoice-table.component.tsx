@@ -19,11 +19,12 @@ import {
   TableSelectRow,
   Tile,
 } from '@carbon/react';
-import { isDesktop, showSnackbar, useDebounce, useLayoutType } from '@openmrs/esm-framework';
+import { isDesktop, showSnackbar, useDebounce, useLayoutType, useSession } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
+import { useProviderOptions } from '../payment-points/payment-points.resource';
 import { launchBillingWorkspace } from '../workspaces';
 import { formatBillAmount } from '../helpers';
 import { updateBillLineItem } from '../billing.resource';
@@ -72,6 +73,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const { t } = useTranslation();
   const { lineItems } = bill;
   const { billableServices } = useBillableServices();
+  const { providerOptions, isLoading: isLoadingProviders } = useProviderOptions();
+  const { currentProvider } = useSession();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchTerm, setSearchTerm] = useState('');
@@ -364,6 +367,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
             activeEditorKey={activeEditorKey}
             setActiveEditorKey={setActiveEditorKey}
             onCommit={handleLineItemCommit}
+            providerOptions={providerOptions}
+            isLoadingProviders={isLoadingProviders}
+            currentProvider={currentProvider}
           />
         );
       case 'quantity':

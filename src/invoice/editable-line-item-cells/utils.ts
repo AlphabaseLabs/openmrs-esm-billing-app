@@ -107,9 +107,9 @@ export const createDiscountUpdate = (
       {
         amount,
         baseAmount: getLineItemSubtotal(lineItem),
-        rate,
-        sponsor,
-        description,
+        ...(rate !== undefined ? { rate } : {}),
+        ...(sponsor ? { sponsor } : {}),
+        ...(description !== undefined ? { description } : {}),
       },
     ],
   };
