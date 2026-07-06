@@ -228,6 +228,28 @@
   width: 100%;
 }
 
+.addItemRow {
+  background-color: colors.$white;
+}
+
+.addItemCell {
+  border-bottom: 1px solid $ui-03 !important;
+  border-top: 1px solid $ui-03;
+  height: 2rem;
+  padding: 0 layout.$spacing-05;
+}
+
+.addItemButton {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+  min-height: 2rem;
+  padding-inline: 0;
+}
+
+.addItemButtonPrefix {
+  margin-inline-end: layout.$spacing-02;
+}
+
 .toolbarWrapper {
   position: relative;
   width: 100%;

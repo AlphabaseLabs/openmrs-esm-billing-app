@@ -573,6 +573,24 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                     </TableRow>
                   );
                 })}
+                {!bill.closed ? (
+                  <TableRow className={styles.addItemRow} data-testid="invoice-table-add-item-row">
+                    <TableCell className={styles.addItemCell} colSpan={columnLayout.columns.length}>
+                      <Button
+                        aria-label={t('addItem', 'Add item')}
+                        className={styles.addItemButton}
+                        kind="ghost"
+                        onClick={handleAddBillItem}
+                        size="sm"
+                        type="button">
+                        <span aria-hidden="true" className={styles.addItemButtonPrefix}>
+                          +
+                        </span>
+                        {t('addItem', 'Add item')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
           </TableContainer>
