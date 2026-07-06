@@ -405,6 +405,42 @@ describe('Payment', () => {
     expect(screen.queryByText(/Incomplete payment/i)).not.toBeInTheDocument();
   });
 
+  test('should validate selected edited paid lines against remaining amount due', async () => {
+    const user = userEvent.setup();
+    const editedPaidLineGap = {
+      ...updatedMockLineItems[0],
+      price: 220,
+      quantity: 1,
+      total: 220,
+      totalAllocated: 150,
+      paymentStatus: PaymentStatus.POSTED,
+    };
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            balance: 70,
+            lineItems: [editedPaidLineGap, updatedMockLineItems[1]],
+          } as any
+        }
+        selectedLineItems={[editedPaidLineGap]}
+      />,
+    );
+
+    await user.type(screen.getByRole('spinbutton', { name: /Amount/i }), '70');
+
+    expect(screen.queryByText(/Incomplete payment/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Process Payment/i })).not.toBeDisabled();
+  });
+
   test('should navigate back to home when the invoice was opened from home', async () => {
     const user = userEvent.setup();
     mockUsePaymentModes.mockReturnValue({

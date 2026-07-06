@@ -23,6 +23,7 @@ import {
   type PaymentFormValue,
   type PaymentMethod,
 } from '../../types';
+import { getLineItemAmountDue } from '../editable-line-item-cells/utils';
 
 export interface BillingInvoiceContext {
   patientUuid: string;
@@ -69,15 +70,6 @@ function getPaymentAmount(row?: Pick<FormPayment, 'amount'> | null) {
 
 function roundPaymentAmount(value: number) {
   return parseFloat(value.toFixed(2));
-}
-
-function getLineItemAmountDue(lineItem: LineItem) {
-  const taxAmount = (lineItem.taxes ?? []).reduce((sum, tax) => sum + Number(tax?.amount ?? 0), 0);
-  const discountAmount = (lineItem.discounts ?? []).reduce((sum, discount) => sum + Number(discount?.amount ?? 0), 0);
-  const lineItemTotal = Number(lineItem.total ?? lineItem.price * lineItem.quantity + taxAmount - discountAmount);
-  const totalAllocated = Number(lineItem.totalAllocated ?? 0);
-
-  return roundPaymentAmount(Math.max(lineItemTotal - totalAllocated, 0));
 }
 
 function createStableId() {

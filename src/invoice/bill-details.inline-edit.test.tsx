@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BillDetails from './bill-details.component';
-import { openPendingBill } from './invoice-story.fixtures';
+import { openPendingBill, paidBill } from './invoice-story.fixtures';
 import useBillableServices from '../hooks/useBillableServices';
 import { updateBillLineItem, usePaymentModes } from '../billing.resource';
 
@@ -89,7 +89,28 @@ describe('BillDetails inline editing integration', () => {
     await user.clear(input);
     await user.type(input, '250000{Enter}');
 
-    await waitFor(() => expect(mockUpdateBillLineItem).toHaveBeenCalledWith('line-item-clear-aligner', { price: 250000 }));
+    await waitFor(() =>
+      expect(mockUpdateBillLineItem).toHaveBeenCalledWith('line-item-clear-aligner', { price: 250000 }),
+    );
     await waitFor(() => expect(screen.getByText(/PKR 250,000.00/i)).toBeInTheDocument());
+  });
+
+  it('saves a paid line edit and exposes the resulting payment gap locally', async () => {
+    const user = userEvent.setup();
+
+    render(<BillDetails bill={paidBill} showDiscardButton={false} />);
+
+    expect(screen.getAllByText('PAID').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /249,999/i }));
+    const input = screen.getByRole('textbox', { name: /price/i });
+    await user.clear(input);
+    await user.type(input, '250000{Enter}');
+
+    await waitFor(() =>
+      expect(mockUpdateBillLineItem).toHaveBeenCalledWith('line-item-clear-aligner', { price: 250000 }),
+    );
+    await waitFor(() => expect(screen.getAllByText('POSTED').length).toBeGreaterThan(0));
+    expect(screen.getByText(/PKR 254,750.00/i)).toBeInTheDocument();
   });
 });

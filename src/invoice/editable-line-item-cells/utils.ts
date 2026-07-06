@@ -34,11 +34,38 @@ export const getLineItemTaxAmount = (lineItem: LineItem) =>
 export const getLineItemTotal = (lineItem: LineItem) =>
   getLineItemSubtotal(lineItem) - getLineItemDiscountAmount(lineItem) + getLineItemTaxAmount(lineItem);
 
+const roundLineItemAmount = (value: number) => parseFloat(value.toFixed(2));
+
+export const getLineItemAmountDue = (lineItem: LineItem) => {
+  const total = Number(lineItem.total ?? getLineItemTotal(lineItem));
+  const totalAllocated = Number(lineItem.totalAllocated ?? 0);
+  return roundLineItemAmount(Math.max(total - totalAllocated, 0));
+};
+
+export const getLineItemPaymentStatus = (lineItem: LineItem) => {
+  if (
+    lineItem.paymentStatus === PaymentStatus.EXEMPTED ||
+    lineItem.paymentStatus === PaymentStatus.CANCELLED ||
+    lineItem.paymentStatus === PaymentStatus.ADJUSTED
+  ) {
+    return lineItem.paymentStatus;
+  }
+
+  const total = Number(lineItem.total ?? getLineItemTotal(lineItem));
+  const totalAllocated = Number(lineItem.totalAllocated ?? 0);
+
+  if (total <= 0 || totalAllocated >= total) {
+    return PaymentStatus.PAID;
+  }
+
+  return totalAllocated > 0 ? PaymentStatus.POSTED : PaymentStatus.PENDING;
+};
+
 export const canEditLineItem = (lineItem: LineItem, isBillFinalized?: boolean) =>
   !isBillFinalized &&
-  lineItem.paymentStatus !== PaymentStatus.PAID &&
   lineItem.paymentStatus !== PaymentStatus.EXEMPTED &&
-  lineItem.paymentStatus !== PaymentStatus.CANCELLED;
+  lineItem.paymentStatus !== PaymentStatus.CANCELLED &&
+  lineItem.paymentStatus !== PaymentStatus.ADJUSTED;
 
 export const findServiceForLineItem = (lineItem: LineItem, billableServices: Array<BillableService>) =>
   billableServices.find((service) => {
@@ -88,32 +115,46 @@ export const createDiscountUpdate = (
   };
 };
 
-export const recalculateLineItem = (lineItem: LineItem): LineItem => ({
-  ...lineItem,
-  amount: getLineItemSubtotal(lineItem),
-  totalDiscount: getLineItemDiscountAmount(lineItem),
-  totalTax: getLineItemTaxAmount(lineItem),
-  total: getLineItemTotal(lineItem),
-});
+export const recalculateLineItem = (lineItem: LineItem): LineItem => {
+  const recalculatedLineItem = {
+    ...lineItem,
+    amount: getLineItemSubtotal(lineItem),
+    totalDiscount: getLineItemDiscountAmount(lineItem),
+    totalTax: getLineItemTaxAmount(lineItem),
+    total: getLineItemTotal(lineItem),
+  };
+
+  return {
+    ...recalculatedLineItem,
+    paymentStatus: getLineItemPaymentStatus(recalculatedLineItem),
+  };
+};
 
 export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: LineItem): MappedBill => {
   const lineItems = (bill.lineItems ?? []).map((lineItem) =>
     lineItem.uuid === updatedLineItem.uuid ? recalculateLineItem(updatedLineItem) : recalculateLineItem(lineItem),
   );
-  const totalAmountWithoutTaxAndDiscount = lineItems.reduce((total, lineItem) => total + getLineItemSubtotal(lineItem), 0);
+  const totalAmountWithoutTaxAndDiscount = lineItems.reduce(
+    (total, lineItem) => total + getLineItemSubtotal(lineItem),
+    0,
+  );
   const totalTax = lineItems.reduce((total, lineItem) => total + getLineItemTaxAmount(lineItem), 0);
   const billLineItemDiscounts = lineItems.reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0);
   const totalAmount = totalAmountWithoutTaxAndDiscount + totalTax - billLineItemDiscounts;
   const totalActualPayments = bill.totalActualPayments ?? bill.totalPayments ?? bill.tenderedAmount ?? 0;
+  const balance = totalAmount - totalActualPayments;
+  const status =
+    balance <= 0 ? PaymentStatus.PAID : totalActualPayments > 0 ? PaymentStatus.POSTED : PaymentStatus.PENDING;
 
   return {
     ...bill,
+    status,
     lineItems,
     totalAmount,
     totalTax,
     billLineItemDiscounts,
     totalDiscounts: billLineItemDiscounts + (bill.totalWaived ?? 0),
     totalAmountWithoutTaxAndDiscount,
-    balance: totalAmount - totalActualPayments,
+    balance,
   };
 };

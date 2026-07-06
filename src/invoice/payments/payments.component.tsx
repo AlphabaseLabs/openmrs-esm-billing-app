@@ -19,6 +19,7 @@ import {
   PaymentAiWorkspaceHeaderAction,
   useAiPaymentsIntegration,
 } from './ai-payments.integration';
+import { getLineItemAmountDue } from '../editable-line-item-cells/utils';
 
 type PaymentProps = {
   bill: MappedBill;
@@ -72,16 +73,7 @@ const Payments: React.FC<PaymentProps> = ({
 
   const selectedLineItemsAmountDue = useMemo(
     () =>
-      selectedUnpaidLineItems.reduce(
-        (currentAmount, lineItem) =>
-          currentAmount +
-          Number(lineItem.price * lineItem.quantity) +
-          Number(
-            lineItem.taxes?.reduce((accumulator, tax) => accumulator + tax.amount, 0) -
-              Number(lineItem.discounts?.reduce((accumulator, discount) => accumulator + discount.amount, 0)),
-          ),
-        0,
-      ),
+      selectedUnpaidLineItems.reduce((currentAmount, lineItem) => currentAmount + getLineItemAmountDue(lineItem), 0),
     [selectedUnpaidLineItems],
   );
 
