@@ -5,7 +5,6 @@ import {
   Button,
   DataTable,
   DataTableSkeleton,
-  IconButton,
   Layer,
   Table,
   TableBody,
@@ -20,7 +19,7 @@ import {
   TableSelectRow,
   Tile,
 } from '@carbon/react';
-import { isDesktop, showSnackbar, useDebounce, useLayoutType, EditIcon } from '@openmrs/esm-framework';
+import { isDesktop, showSnackbar, useDebounce, useLayoutType } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
@@ -203,19 +202,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     [bill],
   );
 
-  const handleEditLineItem = useCallback(
-    (row: LineItem) => {
-      // Create a bill object without the computed status to avoid triggering rounding logic
-      // The status is calculated in mapBillProperties and may differ from the backend status
-      const { status, ...billWithoutStatus } = bill;
-      launchBillingWorkspace('edit-bill-form', {
-        lineItem: row,
-        bill: billWithoutStatus,
-      });
-    },
-    [bill],
-  );
-
   const handleCostsWorkspaceLaunch = useCallback(
     (row: LineItem) => {
       launchBillingWorkspace('costs-workspace', {
@@ -271,29 +257,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           total: formatBillAmount(lineItemTotal),
           actionButton: (
             <div className={styles.actionButtons}>
-              {bill.status !== PaymentStatus.PAID && (
-                <>
-                  <IconButton
-                    size="sm"
-                    data-testid={`edit-button-${item.uuid}`}
-                    label={t('editItem', 'Edit item')}
-                    kind="ghost"
-                    onClick={() => handleEditLineItem(item)}
-                    disabled={item.paymentStatus !== PaymentStatus.PENDING}>
-                    <EditIcon size={16} />
-                  </IconButton>
-                  <Button
-                    size="sm"
-                    hasIconOnly
-                    data-testid={`cancel-button-${item.uuid}`}
-                    renderIcon={(props) => <TrashCan size={16} {...props} />}
-                    iconDescription={t('cancelItem', 'Cancel item')}
-                    kind="ghost"
-                    onClick={() => handleCancelLineItem(item)}
-                    disabled={item.paymentStatus !== PaymentStatus.PENDING}
-                  />
-                </>
-              )}
               <Button
                 size="sm"
                 hasIconOnly
@@ -302,12 +265,24 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                 kind="ghost"
                 onClick={() => handleCostsWorkspaceLaunch(item)}
               />
+              {bill.status !== PaymentStatus.PAID && (
+                <Button
+                  size="sm"
+                  hasIconOnly
+                  data-testid={`cancel-button-${item.uuid}`}
+                  renderIcon={(props) => <TrashCan size={16} {...props} />}
+                  iconDescription={t('cancelItem', 'Cancel item')}
+                  kind="ghost"
+                  onClick={() => handleCancelLineItem(item)}
+                  disabled={item.paymentStatus !== PaymentStatus.PENDING}
+                />
+              )}
             </div>
           ),
         };
       }) ?? []
     );
-  }, [bill, filteredLineItems, t, handleEditLineItem, handleCancelLineItem, handleCostsWorkspaceLaunch]);
+  }, [bill, filteredLineItems, t, handleCancelLineItem, handleCostsWorkspaceLaunch]);
 
   const handleLineItemCommit: EditableLineItemCommit = useCallback(
     async (lineItem, updates, optimisticLineItem) => {
