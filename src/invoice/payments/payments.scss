@@ -24,6 +24,20 @@
   padding-top: layout.$spacing-07;
 }
 
+.additionalDiscountForm {
+  display: flex;
+  align-items: flex-end;
+  gap: layout.$spacing-03;
+  margin-bottom: layout.$spacing-05;
+  padding-bottom: layout.$spacing-05;
+  border-bottom: 1px solid colors.$cool-gray-20;
+}
+
+.additionalDiscountInput {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .paymentHeader {
   > div {
     align-items: center;

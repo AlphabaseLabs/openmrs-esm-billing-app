@@ -117,4 +117,32 @@ describe('editable line item utils', () => {
     expect(updatedBill.balance).toBe(500);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
+
+  it('keeps additional discount in bill settlement math after a line item change', () => {
+    const bill = {
+      uuid: 'bill',
+      lineItems: [testDiscountedLineItem],
+      payments: [],
+      status: PaymentStatus.PENDING,
+      additionalDiscount: 100,
+      totalActualPayments: 200,
+      totalWaived: 50,
+      totalDeposits: 25,
+    } as MappedBill;
+
+    const updatedBill = recomputeBillWithLineItem(bill, {
+      ...testDiscountedLineItem,
+      price: 2000,
+      quantity: 1,
+      discounts: [{ amount: 250, baseAmount: 2000 }],
+      taxes: [{ amount: 50, baseAmount: 1750 }],
+    });
+
+    expect(updatedBill.totalAmount).toBe(1800);
+    expect(updatedBill.billLineItemDiscounts).toBe(250);
+    expect(updatedBill.additionalDiscount).toBe(100);
+    expect(updatedBill.totalDiscounts).toBe(350);
+    expect(updatedBill.balance).toBe(1425);
+    expect(updatedBill.status).toBe(PaymentStatus.POSTED);
+  });
 });

@@ -27,7 +27,11 @@ import {
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   const lineItems = bill?.lineItems?.filter((li) => !li?.voided) ?? [];
   const additionalDiscount = bill?.additionalDiscount ?? 0;
-  const billLineItemDiscounts = bill?.totalDiscount ?? 0;
+  const lineItemDiscountTotal = lineItems.reduce(
+    (total, item) => total + (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0),
+    0,
+  );
+  const billLineItemDiscounts = bill?.totalDiscount ?? lineItemDiscountTotal;
   // create base object
   const mappedBill: MappedBill = {
     id: bill?.id,
@@ -44,10 +48,8 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     dateCreated: formatBillDateTime(bill?.dateCreated),
     dateCreatedUnformatted: bill?.dateCreated,
     lineItems,
-    billingService: extractString(
-      lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  '),
-    ),
-    payments: bill?.payments,
+    billingService: extractString(lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  ')),
+    payments: bill?.payments ?? [],
     display: bill?.display,
     totalAmount:
       lineItems.reduce((sum, item) => {
@@ -56,14 +58,14 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
         const discount = (item?.discounts ?? []).reduce((acc, d) => acc + (d?.amount ?? 0), 0);
         return sum + (item?.total ?? subtotal + tax - discount);
       }, 0) ?? 0,
-    tenderedAmount: bill?.payments?.map((item) => item?.amountTendered).reduce((prev, curr) => prev + curr, 0) ?? 0,
+    tenderedAmount: (bill?.payments ?? []).reduce((total, item) => total + (item?.amountTendered ?? 0), 0),
     referenceCodes: (bill?.payments ?? [])
       .map((payment) =>
         (payment.attributes ?? [])
-          .filter((attr) => attr.attributeType.description === 'Reference Number')
+          .filter((attr) => attr.attributeType?.description === 'Reference Number')
           .map((attr) => {
             return {
-              paymentMode: payment.instanceType.name,
+              paymentMode: payment.instanceType?.name,
               value: attr.value,
             };
           }),
@@ -82,9 +84,10 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     additionalDiscount,
     totalTax: bill?.totalTax ?? 0,
     billLineItemDiscounts,
-    totalAmountWithoutTaxAndDiscount: lineItems
-      ?.map((item) => item?.price * item?.quantity)
-      .reduce((prev, curr) => prev + curr, 0),
+    totalAmountWithoutTaxAndDiscount: lineItems.reduce(
+      (sum, item) => sum + (item?.price ?? 0) * (item?.quantity ?? 0),
+      0,
+    ),
   };
   mappedBill.totalDiscounts = billLineItemDiscounts + additionalDiscount;
   return mappedBill;

@@ -3,11 +3,16 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
-import { addPaymentToBill, usePaymentModes } from '../../billing.resource';
+import { addPaymentToBill, updateBillAdditionalDiscount, usePaymentModes } from '../../billing.resource';
+import { convertToCurrency } from '../../helpers';
 import Payments from './payments.component';
 import { type LineItem, type PaymentMethod, PaymentStatus } from '../../types';
+import { mutate } from 'swr';
 
 const mockAddPaymentToBill = addPaymentToBill as jest.MockedFunction<typeof addPaymentToBill>;
+const mockUpdateBillAdditionalDiscount = updateBillAdditionalDiscount as jest.MockedFunction<
+  typeof updateBillAdditionalDiscount
+>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
 const mockLaunchWorkspace2 = launchWorkspace2 as jest.MockedFunction<typeof launchWorkspace2>;
 const mockNavigate = navigate as jest.MockedFunction<typeof navigate>;
@@ -15,6 +20,7 @@ const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
+const mockMutate = mutate as jest.MockedFunction<typeof mutate>;
 
 jest.mock('@openmrs/esm-framework', () => ({
   ...jest.requireActual('@openmrs/esm-framework'),
@@ -28,7 +34,12 @@ jest.mock('@openmrs/esm-framework', () => ({
 
 jest.mock('../../billing.resource', () => ({
   addPaymentToBill: jest.fn(),
+  updateBillAdditionalDiscount: jest.fn(),
   usePaymentModes: jest.fn(),
+}));
+
+jest.mock('swr', () => ({
+  mutate: jest.fn(),
 }));
 
 const updatedMockPaymentModes: PaymentMethod[] = mockPaymentModes.map((mode) => {
@@ -96,6 +107,14 @@ const paymentBill = {
   totalTax: 0,
   totalActualPayments: 0,
   totalDeposits: 0,
+  additionalDiscount: 0,
+};
+
+const normalizeWhitespace = (value: string) => value.replace(/\s/g, ' ');
+
+const expectCurrencyValue = (amount: number) => {
+  const expectedValue = normalizeWhitespace(convertToCurrency(amount));
+  expect(screen.getByText((content) => normalizeWhitespace(content) === expectedValue)).toBeInTheDocument();
 };
 
 describe('Payment', () => {
@@ -271,6 +290,126 @@ describe('Payment', () => {
     render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
     expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i);
+  });
+
+  test('should display payment summary with bill-level additional discount', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            totalAmount: 300,
+            totalAmountWithoutTaxAndDiscount: 320,
+            totalTax: 10,
+            billLineItemDiscounts: 20,
+            additionalDiscount: 50,
+            totalDiscounts: 70,
+            totalActualPayments: 100,
+            totalWaived: 25,
+            balance: 150,
+          } as any
+        }
+        selectedLineItems={[]}
+      />,
+    );
+
+    expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
+    expectCurrencyValue(300);
+    expect(screen.getByText(/Discount:/i)).toBeInTheDocument();
+    expectCurrencyValue(70);
+    expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
+    expectCurrencyValue(100);
+    expect(screen.getByText(/Amount due:/i)).toBeInTheDocument();
+    expectCurrencyValue(150);
+    expect(screen.getByRole('spinbutton', { name: /Additional discount/i })).toHaveValue(50);
+  });
+
+  test('should validate payment amount against discounted amount due', async () => {
+    const user = userEvent.setup();
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            totalAmount: 300,
+            additionalDiscount: 50,
+            totalDiscounts: 50,
+            balance: 250,
+          } as any
+        }
+        selectedLineItems={[]}
+      />,
+    );
+
+    const amountInput = screen.getByRole('spinbutton', { name: /^Amount$/i });
+    await user.type(amountInput, '251');
+
+    expect(screen.getByText(/Over payment/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Process Payment/i })).toBeDisabled();
+
+    await user.clear(amountInput);
+    await user.type(amountInput, '250');
+
+    expect(screen.queryByText(/Over payment/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Process Payment/i })).not.toBeDisabled());
+  });
+
+  test('should update additional discount and refresh bill data', async () => {
+    const user = userEvent.setup();
+    mockUpdateBillAdditionalDiscount.mockResolvedValueOnce({ ok: true } as any);
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            lineItems: [{ ...updatedMockLineItems[0], total: 300, totalAllocated: 0 }],
+            totalAmount: 300,
+            balance: 300,
+            additionalDiscount: 0,
+            totalDiscounts: 0,
+          } as any
+        }
+        selectedLineItems={[]}
+      />,
+    );
+
+    const additionalDiscountInput = screen.getByRole('spinbutton', { name: /Additional discount/i });
+    await user.clear(additionalDiscountInput);
+    await user.type(additionalDiscountInput, '50');
+
+    const applyButton = screen.getByRole('button', { name: /Apply/i });
+    await waitFor(() => expect(applyButton).not.toBeDisabled());
+    await user.click(applyButton);
+
+    await waitFor(() => expect(mockUpdateBillAdditionalDiscount).toHaveBeenCalledWith(paymentBill.uuid, 50));
+    expect(mockMutate).toHaveBeenCalledWith(expect.any(Function), undefined, { revalidate: true });
+    expect(mockShowSnackbar).toHaveBeenCalledWith({
+      title: 'Additional discount saved',
+      subtitle: 'Invoice additional discount was updated successfully',
+      kind: 'success',
+      timeoutInMs: 3000,
+    });
   });
 
   test('should launch the AI payments workspace from the billing payment header', async () => {
