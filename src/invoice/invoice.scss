@@ -70,37 +70,47 @@
 
 .additionalDiscountRow {
   align-items: center;
-  border-block-start: 1px solid colors.$gray-30;
-  display: flex;
-  justify-content: flex-end;
-  min-height: layout.$spacing-09;
-  padding: layout.$spacing-03 layout.$spacing-05;
+  column-gap: layout.$spacing-07;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px 20rem;
+  padding: layout.$spacing-03 0;
 }
 
 .additionalDiscountControl {
   align-items: center;
-  display: flex;
-  gap: layout.$spacing-04;
-  justify-content: flex-end;
+  display: grid;
+  grid-column: 3;
+  grid-template-columns: 1fr 1fr;
   min-width: 0;
 }
 
 .additionalDiscountLabel {
-  @include type.type-style('heading-compact-01');
-  color: colors.$gray-70;
+  @include type.type-style('legal-02');
+  color: colors.$gray-100;
   white-space: nowrap;
 }
 
 .additionalDiscountEditorShell {
-  min-width: 10rem;
+  margin-left: layout.$spacing-03;
+  min-width: 0;
 }
 
 .additionalDiscountEditor {
-  background: colors.$white;
-  box-shadow: inset 0 -1px 0 0 colors.$gray-20;
-  min-height: layout.$spacing-07;
-  min-width: 10rem;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 0 colors.$gray-50;
+  color: colors.$gray-100;
+  font-weight: 700;
+  min-height: layout.$spacing-08;
+  min-width: 0;
   padding-inline-end: layout.$spacing-05;
+
+  > [data-testid='editable-numeric-content'] {
+    @include type.type-style('heading-01');
+    align-items: center;
+    font-weight: inherit;
+    min-height: layout.$spacing-08;
+    padding-inline: 0;
+  }
 }
 
 .actionMenuContent {
@@ -140,12 +150,11 @@
   }
 
   .additionalDiscountRow {
-    justify-content: flex-start;
-    padding-inline: layout.$spacing-03;
+    display: block;
   }
 
   .additionalDiscountControl {
-    justify-content: flex-start;
+    grid-column: auto;
     width: 100%;
   }
 
