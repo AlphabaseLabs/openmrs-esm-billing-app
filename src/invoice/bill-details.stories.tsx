@@ -39,6 +39,20 @@ export const WithExistingLineItemDiscounts: Story = {
   },
 };
 
+export const WithExistingAdditionalDiscount: Story = {
+  args: {
+    bill: {
+      ...discountedPendingBill,
+      uuid: 'bill-additional-discount',
+      additionalDiscount: 2000,
+      totalDiscounts: (discountedPendingBill.totalDiscounts ?? 0) + 2000,
+      balance: (discountedPendingBill.balance ?? 0) - 2000,
+    },
+    isLoadingBill: false,
+    showDiscardButton: true,
+  },
+};
+
 export const PaidBill: Story = {
   args: {
     bill: paidBill,
@@ -50,6 +64,19 @@ export const PaidBill: Story = {
 export const ClosedBill: Story = {
   args: {
     bill: closedBill,
+    isLoadingBill: false,
+    showDiscardButton: true,
+  },
+};
+
+export const ClosedBillWithAdditionalDiscount: Story = {
+  args: {
+    bill: {
+      ...closedBill,
+      additionalDiscount: 2000,
+      totalDiscounts: (closedBill.totalDiscounts ?? 0) + 2000,
+      balance: (closedBill.balance ?? 0) - 2000,
+    },
     isLoadingBill: false,
     showDiscardButton: true,
   },

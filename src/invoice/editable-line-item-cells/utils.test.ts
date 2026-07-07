@@ -7,6 +7,7 @@ import {
   getLineItemTotal,
   parseEditableNumber,
   recalculateLineItem,
+  recomputeBillWithAdditionalDiscount,
   recomputeBillWithLineItem,
 } from './utils';
 import { testDiscountedLineItem, testLineItem } from './editable-cell-test-utils';
@@ -143,6 +144,36 @@ describe('editable line item utils', () => {
     expect(updatedBill.additionalDiscount).toBe(100);
     expect(updatedBill.totalDiscounts).toBe(350);
     expect(updatedBill.balance).toBe(1425);
+    expect(updatedBill.status).toBe(PaymentStatus.POSTED);
+  });
+
+  it('recomputes bill totals after an additional discount change without mutating line items', () => {
+    const lineItem = {
+      ...testDiscountedLineItem,
+      discounts: [{ amount: 250, baseAmount: 2000 }],
+      total: 1750,
+    };
+    const bill = {
+      uuid: 'bill',
+      lineItems: [lineItem],
+      payments: [],
+      status: PaymentStatus.PENDING,
+      totalAmount: 1750,
+      billLineItemDiscounts: 250,
+      totalActualPayments: 200,
+      totalWaived: 50,
+      totalDeposits: 25,
+      additionalDiscount: 0,
+      totalDiscounts: 250,
+      balance: 1475,
+    } as MappedBill;
+
+    const updatedBill = recomputeBillWithAdditionalDiscount(bill, 100);
+
+    expect(updatedBill.lineItems[0]).toBe(lineItem);
+    expect(updatedBill.additionalDiscount).toBe(100);
+    expect(updatedBill.totalDiscounts).toBe(350);
+    expect(updatedBill.balance).toBe(1375);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 });

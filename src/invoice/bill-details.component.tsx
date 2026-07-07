@@ -6,8 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
+import AdditionalDiscountControl from './additional-discount-control.component';
 import { InvoiceActions } from './invoice-actions.component';
-import { recomputeBillWithLineItem } from './editable-line-item-cells';
+import { recomputeBillWithAdditionalDiscount, recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
@@ -94,6 +95,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
   };
 
+  const handleAdditionalDiscountUpdated = (additionalDiscount: number) => {
+    setEditableBill((currentBill) => recomputeBillWithAdditionalDiscount(currentBill ?? bill, additionalDiscount));
+  };
+
   const openPrintPreview = (documentUrl: string, title: string) => {
     const dispose = showModal('print-preview-modal', {
       onClose: () => dispose(),
@@ -125,7 +130,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const handleSendInvoice = async () => {
     showSnackbar({
       title: t('sendingInvoice', 'Sending invoice'),
-        subtitle: t('invoiceSendStarted', 'Sending invoice to {{patientName}}', {
+      subtitle: t('invoiceSendStarted', 'Sending invoice to {{patientName}}', {
         patientName: billToRender?.patientName,
       }),
       kind: 'info',
@@ -151,7 +156,9 @@ const BillDetails: React.FC<BillDetailsProps> = ({
 
       showSnackbar({
         title: t('invoiceSent', 'Invoice sent'),
-        subtitle: t('invoiceSentToPatient', 'Invoice sent to {{patientName}}', { patientName: billToRender?.patientName }),
+        subtitle: t('invoiceSentToPatient', 'Invoice sent to {{patientName}}', {
+          patientName: billToRender?.patientName,
+        }),
         kind: 'success',
       });
     } catch {
@@ -216,6 +223,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           onSelectItem={handleSelectItem}
           onLineItemUpdated={handleLineItemUpdated}
         />
+        <AdditionalDiscountControl bill={billToRender} onAdditionalDiscountUpdated={handleAdditionalDiscountUpdated} />
         <Payments
           bill={billToRender}
           selectedLineItems={selectedLineItems}

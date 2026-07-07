@@ -68,6 +68,41 @@
   margin: 0 layout.$spacing-05 layout.$spacing-05;
 }
 
+.additionalDiscountRow {
+  align-items: center;
+  border-block-start: 1px solid colors.$gray-30;
+  display: flex;
+  justify-content: flex-end;
+  min-height: layout.$spacing-09;
+  padding: layout.$spacing-03 layout.$spacing-05;
+}
+
+.additionalDiscountControl {
+  align-items: center;
+  display: flex;
+  gap: layout.$spacing-04;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.additionalDiscountLabel {
+  @include type.type-style('heading-compact-01');
+  color: colors.$gray-70;
+  white-space: nowrap;
+}
+
+.additionalDiscountEditorShell {
+  min-width: 10rem;
+}
+
+.additionalDiscountEditor {
+  background: colors.$white;
+  box-shadow: inset 0 -1px 0 0 colors.$gray-20;
+  min-height: layout.$spacing-07;
+  min-width: 10rem;
+  padding-inline-end: layout.$spacing-05;
+}
+
 .actionMenuContent {
   display: flex;
   flex-direction: column;
@@ -102,5 +137,20 @@
   .details,
   .actionsContainer {
     width: 100%;
+  }
+
+  .additionalDiscountRow {
+    justify-content: flex-start;
+    padding-inline: layout.$spacing-03;
+  }
+
+  .additionalDiscountControl {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .additionalDiscountEditorShell {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
