@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import BillHistory from './bill-history.component';
 import { useBill, useBills } from '../billing.resource';
 import userEvent from '@testing-library/user-event';
@@ -239,8 +239,7 @@ describe('BillHistory', () => {
     expect(errorState).toBeInTheDocument();
   });
 
-  test('should render bills table', async () => {
-    const user = userEvent.setup();
+  test('should render bills table', () => {
     mockbills.mockReturnValueOnce({
       isLoading: false,
       isValidating: false,
@@ -274,9 +273,9 @@ describe('BillHistory', () => {
     expect(prevPageButton).toBeInTheDocument();
 
     expect(screen.getByText(/1–10 of 12 items/)).toBeInTheDocument();
-    await user.click(nextPageButton);
+    fireEvent.click(nextPageButton);
     expect(screen.getByText(/11–12 of 12 items/)).toBeInTheDocument();
-    await user.click(prevPageButton);
+    fireEvent.click(prevPageButton);
     expect(screen.getByText(/1–10 of 12 items/)).toBeInTheDocument();
   });
 

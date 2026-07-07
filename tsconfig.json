@@ -8,9 +8,18 @@
       "dom.iterable",
       "esnext"
     ],
+    "baseUrl": ".",
     "module": "esnext",
     "moduleResolution": "node",
     "noEmit": true,
+    "paths": {
+      "@openmrs/esm-globals/src/*": [
+        "node_modules/@openmrs/esm-globals/dist/*"
+      ],
+      "@openmrs/esm-styleguide/src/*": [
+        "node_modules/@openmrs/esm-styleguide/dist/*"
+      ]
+    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "target": "esnext"
