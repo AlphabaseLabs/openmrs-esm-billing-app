@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mutate } from 'swr';
@@ -140,6 +140,54 @@ describe('BillDetails', () => {
     });
     expect(screen.getByTestId('payments')).toHaveTextContent('Discount total: 50');
     expect(screen.getByTestId('payments')).toHaveTextContent('Amount due: 50');
+  });
+
+  it('clears a fixed amount additional discount when the blank draft is submitted with Enter', async () => {
+    const user = userEvent.setup();
+    mockUpdateBillAdditionalDiscount.mockResolvedValueOnce({ ok: true } as any);
+
+    render(
+      <BillDetails
+        bill={{
+          ...billWithAdditionalDiscountBase,
+          additionalDiscount: 50,
+          totalDiscounts: 50,
+          balance: 50,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    const input = screen.getByRole('textbox', { name: /Additional discount/i });
+    await user.clear(input);
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(mockUpdateBillAdditionalDiscount).toHaveBeenCalledWith('test-uuid-1', 0));
+    expect(screen.queryByText(/Enter a discount between 0 and PKR/i)).not.toBeInTheDocument();
+  });
+
+  it('clears a fixed amount additional discount when the blank draft loses focus', async () => {
+    const user = userEvent.setup();
+    mockUpdateBillAdditionalDiscount.mockResolvedValueOnce({ ok: true } as any);
+
+    render(
+      <BillDetails
+        bill={{
+          ...billWithAdditionalDiscountBase,
+          additionalDiscount: 50,
+          totalDiscounts: 50,
+          balance: 50,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    const input = screen.getByRole('textbox', { name: /Additional discount/i });
+    await user.clear(input);
+    fireEvent.blur(input, { relatedTarget: document.body });
+
+    await waitFor(() => expect(mockUpdateBillAdditionalDiscount).toHaveBeenCalledWith('test-uuid-1', 0));
+    expect(screen.queryByText(/Enter a discount between 0 and PKR/i)).not.toBeInTheDocument();
   });
 
   it('shows error feedback and keeps server-confirmed value when additional discount update fails', async () => {

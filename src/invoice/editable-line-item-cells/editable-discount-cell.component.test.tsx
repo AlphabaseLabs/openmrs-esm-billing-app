@@ -96,6 +96,46 @@ describe('EditableDiscountCell', () => {
     );
   });
 
+  it('clears an inline discount amount when the blank draft is submitted with Enter', async () => {
+    const user = userEvent.setup();
+    const onCommit = jest.fn(async () => {});
+
+    renderProviderDiscountCell({ lineItem: testDiscountedLineItem, onCommit });
+
+    await user.click(screen.getByTestId('editable-numeric-content'));
+    const input = screen.getByRole('textbox', { name: /discount/i });
+    await user.clear(input);
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    expect(onCommit).toHaveBeenLastCalledWith(
+      testDiscountedLineItem,
+      { discounts: [] },
+      expect.objectContaining({ discounts: [] }),
+    );
+    expect(screen.queryByText(/Enter a discount between 0 and the line item price/i)).not.toBeInTheDocument();
+  });
+
+  it('clears an inline discount amount when the blank draft loses focus', async () => {
+    const user = userEvent.setup();
+    const onCommit = jest.fn(async () => {});
+
+    renderProviderDiscountCell({ lineItem: testDiscountedLineItem, onCommit });
+
+    await user.click(screen.getByTestId('editable-numeric-content'));
+    const input = screen.getByRole('textbox', { name: /discount/i });
+    await user.clear(input);
+    fireEvent.blur(input, { relatedTarget: document.body });
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalled());
+    expect(onCommit).toHaveBeenLastCalledWith(
+      testDiscountedLineItem,
+      { discounts: [] },
+      expect.objectContaining({ discounts: [] }),
+    );
+    expect(screen.queryByText(/Enter a discount between 0 and the line subtotal/i)).not.toBeInTheDocument();
+  });
+
   it('auto-commits valid percent edits as actual discount amounts without save or cancel actions', async () => {
     const user = userEvent.setup();
     const onCommit = jest.fn(async () => {});

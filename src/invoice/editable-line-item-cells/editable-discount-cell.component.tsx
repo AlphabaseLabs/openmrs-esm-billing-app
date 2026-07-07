@@ -116,6 +116,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
     const parsedAmount = parseEditableNumber(amount);
     return parsedAmount === null ? null : clampDiscountAmount(parsedAmount);
   };
+  const getCommittedAmountDraft = () => (amount.trim() === '' ? 0 : parseEditableNumber(amount));
   const selectedSponsor = sponsor ?? currentSponsor;
 
   useEffect(() => {
@@ -277,7 +278,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       onInputChange={setAmount}
       onInputKeyDown={(event) => {
         if (event.key === 'Enter') {
-          const nextAmount = parseEditableNumber(amount);
+          const nextAmount = getCommittedAmountDraft();
           if (nextAmount !== null) {
             void commitDiscount(nextAmount);
           } else {
@@ -290,7 +291,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       }}
       onBlur={(event) => {
         if (mode === 'inline' && !event.currentTarget.contains(event.relatedTarget as Node)) {
-          const nextAmount = parseEditableNumber(amount);
+          const nextAmount = getCommittedAmountDraft();
           if (nextAmount !== null) {
             void commitDiscount(nextAmount);
           } else {

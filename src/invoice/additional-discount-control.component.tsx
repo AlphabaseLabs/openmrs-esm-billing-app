@@ -159,7 +159,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
   };
 
   const commitAmountDraft = () => {
-    const parsedAmount = parseEditableNumber(amount);
+    const parsedAmount = amount.trim() === '' ? 0 : parseEditableNumber(amount);
 
     if (parsedAmount === null) {
       setError(
