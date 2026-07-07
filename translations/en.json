@@ -230,7 +230,6 @@
   "forceDeleteBillConfirmation": "Force deleting this bill will permanently delete the bill and all of its line items. This action cannot be undone.",
   "formError": "Please check the form for errors",
   "grandTotal": "Grand Total",
-  "grossLineItemTotals": "Line item total before displayed discounts, plus tax",
   "home": "Home",
   "identifier": "Identifier",
   "import": "Import",

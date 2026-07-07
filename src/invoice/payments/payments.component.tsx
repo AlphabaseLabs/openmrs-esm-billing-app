@@ -151,11 +151,7 @@ const Payments: React.FC<PaymentProps> = ({
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
-          <InvoiceBreakDown
-            label={t('totalAmount', 'Total amount')}
-            value={convertToCurrency(summaryTotalAmount)}
-            tooltip={t('grossLineItemTotals', 'Line item total before displayed discounts, plus tax')}
-          />
+          <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={convertToCurrency(summaryTotalAmount)} />
           <InvoiceBreakDown label={t('discount', 'Discount')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
           <InvoiceBreakDown
             label={t('totalTendered', 'Total tendered')}
