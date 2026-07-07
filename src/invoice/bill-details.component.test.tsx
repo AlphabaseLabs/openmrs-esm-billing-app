@@ -119,7 +119,7 @@ describe('BillDetails', () => {
     expect(screen.getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
   });
 
-  it('commits a fixed amount additional discount and refreshes bill data', async () => {
+  it('commits a fixed amount additional discount and updates local totals', async () => {
     const user = userEvent.setup();
     mockUpdateBillAdditionalDiscount.mockResolvedValueOnce({ ok: true } as any);
 
@@ -131,7 +131,7 @@ describe('BillDetails', () => {
     await user.type(input, '50{Enter}');
 
     await waitFor(() => expect(mockUpdateBillAdditionalDiscount).toHaveBeenCalledWith('test-uuid-1', 50));
-    expect(mockMutate).toHaveBeenCalledWith(expect.any(Function), undefined, { revalidate: true });
+    expect(mockMutate).not.toHaveBeenCalled();
     expect(mockShowSnackbar).toHaveBeenCalledWith({
       title: 'Additional discount saved',
       subtitle: 'Invoice additional discount was updated successfully',
@@ -245,7 +245,7 @@ describe('BillDetails', () => {
     await user.click(screen.getByRole('button', { name: /Open additional discount editor/i }));
     const percentInput = screen.getByRole('textbox', { name: /Percent/i });
     await user.clear(percentInput);
-    await user.type(percentInput, '10');
+    await user.type(percentInput, '10{Enter}');
 
     await waitFor(() => expect(mockUpdateBillAdditionalDiscount).toHaveBeenLastCalledWith('test-uuid-1', 30));
     expect(screen.getByTestId('payments')).toHaveTextContent('Discount total: 30');

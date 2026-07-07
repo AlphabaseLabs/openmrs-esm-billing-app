@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { restBaseUrl, showSnackbar } from '@openmrs/esm-framework';
+import { showSnackbar } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
-import { mutate } from 'swr';
 import { updateBillAdditionalDiscount } from '../billing.resource';
 import { EditableNumericCell, editableCellStyles } from '../editable-carbon-table-cell-kit';
 import { convertToCurrency, formatBillAmount } from '../helpers';
@@ -65,11 +64,6 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     }
   }, [currentAdditionalDiscount, discountableAmount, isActive]);
 
-  const refreshBillData = () =>
-    mutate((key) => typeof key === 'string' && key.startsWith(`${restBaseUrl}/cashier/bill`), undefined, {
-      revalidate: true,
-    });
-
   const close = () => {
     setMode(null);
     setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
@@ -125,7 +119,6 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     try {
       await updateBillAdditionalDiscount(bill.uuid, validatedAmount);
       onAdditionalDiscountUpdated?.(validatedAmount);
-      await refreshBillData();
       showSnackbar({
         title: t('additionalDiscountSaved', 'Additional discount saved'),
         subtitle: t('additionalDiscountSavedSubtitle', 'Invoice additional discount was updated successfully'),
@@ -210,7 +203,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     return nextAmount;
   };
 
-  const normalizePercentInput = () => {
+  const commitPercentDraft = () => {
     const parsedPercent = parseEditableNumber(percent);
 
     if (parsedPercent === null) {
@@ -220,7 +213,14 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
       return;
     }
 
-    setPercent(formatDiscountPercent(clamp(normalizeNumber(parsedPercent), 0, 100)));
+    const clampedPercent = clamp(normalizeNumber(parsedPercent), 0, 100);
+    setPercent(formatDiscountPercent(clampedPercent));
+    const nextAmount = syncDraftAmount((discountableAmount * clampedPercent) / 100, { syncPercent: false });
+    void commitAdditionalDiscount(nextAmount, { closeOnCommit: false });
+  };
+
+  const normalizePercentInput = () => {
+    commitPercentDraft();
   };
 
   const clearDiscount = () => {
@@ -284,12 +284,14 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
                         aria-label={t('percent', 'Percent')}
                         className={editableCellStyles.discountInlineFieldInput}
                         inputMode="decimal"
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            commitPercentDraft();
+                          }
+                        }}
                         onBlur={normalizePercentInput}
                         onChange={(event) => {
-                          const nextAmount = resolvePercentInput(event.target.value);
-                          if (nextAmount !== null) {
-                            void commitAdditionalDiscount(nextAmount, { closeOnCommit: false });
-                          }
+                          resolvePercentInput(event.target.value);
                         }}
                         value={percent}
                       />
