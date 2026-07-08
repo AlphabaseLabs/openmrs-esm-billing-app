@@ -4,7 +4,7 @@ import { showSnackbar, useSession } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { updateBillLineItem } from '../billing.resource';
 import { EditableNumericCell, editableCellStyles } from '../editable-carbon-table-cell-kit';
-import { convertToCurrency, formatBillAmount } from '../helpers';
+import { convertToCurrency } from '../helpers';
 import { type ProviderOption, useProviderOptions } from '../payment-points/payment-points.resource';
 import { type LineItem, type MappedBill } from '../types';
 import { extractErrorMessagesFromResponse } from '../utils';
@@ -14,8 +14,13 @@ import {
   getBulkDiscountMaximum,
   getBulkDiscountTotal,
   getLineItemDiscountAmount,
-  parseEditableNumber,
 } from './editable-line-item-cells';
+import {
+  formatDiscountAmount,
+  formatDiscountPercent,
+  validateFixedDiscountInput,
+  validatePercentDiscountInput,
+} from './editable-line-item-cells/discount-amount-validation';
 import styles from './invoice.scss';
 
 type BulkDiscountControlProps = {
@@ -43,24 +48,7 @@ type SponsorConflict = {
   sponsorLabel: string;
 };
 
-const normalizeNumber = (value: number) => (Number.isFinite(value) ? value : 0);
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const percentPrecision = 4;
-const minimumVisiblePercent = 1 / 10 ** percentPrecision;
-
-const roundDiscountAmount = (value: number) => Number(normalizeNumber(value).toFixed(2));
-
-const formatDiscountAmountDraft = (value: number) => formatBillAmount(roundDiscountAmount(value));
-
-const formatDiscountPercent = (value: number) => {
-  const percent = clamp(normalizeNumber(value), 0, 100);
-
-  if (percent > 0 && percent < minimumVisiblePercent) {
-    return `<${minimumVisiblePercent.toFixed(percentPrecision)}`;
-  }
-
-  return percent.toFixed(percentPrecision).replace(/\.?0+$/, '');
-};
+const formatDiscountAmountDraft = formatDiscountAmount;
 
 type CurrentProvider =
   | {
@@ -128,6 +116,13 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
   const isActive = mode !== null;
   const amountDisplay = convertToCurrency(currentDiscounts);
   const bulkDiscountLabel = t('bulkDiscount', 'Bulk discount');
+  const amountValidationError = () =>
+    t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
+      amount: convertToCurrency(discountableAmount),
+    });
+  const percentValidationError = () =>
+    t('discountPercentValidationError', 'Enter a discount percent between 0 and 100');
+
   useEffect(() => {
     if (!isActive) {
       setAmount(formatDiscountAmountDraft(currentDiscounts));
@@ -178,30 +173,27 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
   };
 
   const validateAmount = (nextAmount: number) => {
-    const roundedAmount = roundDiscountAmount(nextAmount);
+    const validation = validateFixedDiscountInput(nextAmount, discountableAmount);
 
-    if (roundedAmount < 0 || roundedAmount > discountableAmount) {
-      setError(
-        t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
-          amount: convertToCurrency(discountableAmount),
-        }),
-      );
+    if (!validation.valid) {
+      setError(amountValidationError());
       return null;
     }
 
     setError('');
-    return roundedAmount;
+    return validation.amount;
   };
 
   const syncDraftAmount = (nextAmount: number, options: { syncPercent?: boolean } = {}) => {
-    const roundedAmount = roundDiscountAmount(nextAmount);
-    setAmount(formatDiscountAmountDraft(roundedAmount));
+    const validation = validateFixedDiscountInput(nextAmount, discountableAmount);
+    const validatedAmount = validation.valid ? validation.amount : 0;
+    setAmount(formatDiscountAmountDraft(validatedAmount));
 
     if (options.syncPercent ?? true) {
-      setPercent(formatDiscountPercent(discountableAmount ? (roundedAmount / discountableAmount) * 100 : 0));
+      setPercent(formatDiscountPercent(discountableAmount ? (validatedAmount / discountableAmount) * 100 : 0));
     }
 
-    return roundedAmount;
+    return validatedAmount;
   };
 
   const saveBulkDiscount = async (
@@ -282,33 +274,26 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
   };
 
   const commitAmountDraft = () => {
-    const parsedAmount = amount.trim() === '' ? 0 : parseEditableNumber(amount);
+    const validation = validateFixedDiscountInput(amount, discountableAmount);
 
-    if (parsedAmount === null) {
-      setError(
-        t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
-          amount: convertToCurrency(discountableAmount),
-        }),
-      );
+    if (!validation.valid) {
+      setError(amountValidationError());
       return;
     }
 
-    void commitBulkDiscount(parsedAmount);
+    void commitBulkDiscount(validation.amount);
   };
 
   const updateAmountDraft = (nextValue: string) => {
     setAmount(nextValue);
-    const parsedAmount = nextValue.trim() === '' ? 0 : parseEditableNumber(nextValue);
+    const validation = validateFixedDiscountInput(nextValue, discountableAmount);
 
-    if (parsedAmount === null) {
+    if (!validation.valid) {
       return;
     }
 
-    const roundedAmount = roundDiscountAmount(parsedAmount);
-    if (roundedAmount >= 0 && roundedAmount <= discountableAmount) {
-      setPercent(formatDiscountPercent(discountableAmount ? (roundedAmount / discountableAmount) * 100 : 0));
-      setError('');
-    }
+    setPercent(formatDiscountPercent(discountableAmount ? (validation.amount / discountableAmount) * 100 : 0));
+    setError('');
   };
 
   const openInlineEditor = () => {
@@ -338,31 +323,30 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
   };
 
   const resolvePercentInput = (nextValue: string) => {
-    const parsedPercent = parseEditableNumber(nextValue);
     setPercent(nextValue);
+    const validation = validatePercentDiscountInput(nextValue, discountableAmount);
 
-    if (parsedPercent === null) {
-      setError(t('discountPercentValidationError', 'Enter a discount percent between 0 and 100'));
+    if (!validation.valid) {
+      setError(percentValidationError());
       return null;
     }
 
-    const nextPercent = clamp(normalizeNumber(parsedPercent), 0, 100);
-    const nextAmount = syncDraftAmount((discountableAmount * nextPercent) / 100, { syncPercent: false });
+    const nextAmount = syncDraftAmount(validation.amount, { syncPercent: false });
     setError('');
     return nextAmount;
   };
 
   const commitPercentDraft = () => {
-    const parsedPercent = parseEditableNumber(percent);
+    const validation = validatePercentDiscountInput(percent, discountableAmount);
 
-    if (parsedPercent === null) {
+    if (!validation.valid) {
+      setError(percentValidationError());
       setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
       return;
     }
 
-    const clampedPercent = clamp(normalizeNumber(parsedPercent), 0, 100);
-    setPercent(formatDiscountPercent(clampedPercent));
-    const nextAmount = syncDraftAmount((discountableAmount * clampedPercent) / 100, { syncPercent: false });
+    setPercent(formatDiscountPercent(validation.percent));
+    const nextAmount = syncDraftAmount(validation.amount, { syncPercent: false });
     void commitBulkDiscount(nextAmount, { closeOnCommit: false });
   };
 

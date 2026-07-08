@@ -1,19 +1,14 @@
 import { type BillLineItemUpdate } from '../../billing.resource';
 import { type BillableService, type LineItem, type MappedBill, PaymentStatus } from '../../types';
+import {
+  getBulkDiscountMaximum,
+  getLineDiscountMaximum,
+  isBulkDiscountableLineItem,
+  parseEditableNumber,
+  roundMoneyAmount,
+} from './discount-amount-validation';
 
-export const parseEditableNumber = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const normalizedValue = String(value).replace(/,/g, '').trim();
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const parsedValue = Number(normalizedValue);
-  return Number.isFinite(parsedValue) ? parsedValue : null;
-};
+export { getBulkDiscountMaximum, getLineDiscountMaximum, parseEditableNumber, roundMoneyAmount };
 
 export const getLineItemLabel = (lineItem: LineItem) => {
   const itemLabel = lineItem.item || lineItem.billableService || lineItem.display || '';
@@ -21,7 +16,7 @@ export const getLineItemLabel = (lineItem: LineItem) => {
   return label || itemLabel || '--';
 };
 
-export const getLineItemSubtotal = (lineItem: LineItem) => (lineItem.price ?? 0) * (lineItem.quantity ?? 0);
+export const getLineItemSubtotal = (lineItem: LineItem) => getLineDiscountMaximum(lineItem);
 
 export const getLineItemDiscountAmount = (lineItem: LineItem) =>
   lineItem.discounts
@@ -34,7 +29,7 @@ export const getLineItemTaxAmount = (lineItem: LineItem) =>
 export const getLineItemTotal = (lineItem: LineItem) =>
   getLineItemSubtotal(lineItem) - getLineItemDiscountAmount(lineItem) + getLineItemTaxAmount(lineItem);
 
-const roundLineItemAmount = (value: number) => parseFloat(value.toFixed(2));
+const roundLineItemAmount = roundMoneyAmount;
 
 export const getLineItemAmountDue = (lineItem: LineItem) => {
   const total = Number(lineItem.total ?? getLineItemTotal(lineItem));
@@ -42,24 +37,11 @@ export const getLineItemAmountDue = (lineItem: LineItem) => {
   return roundLineItemAmount(Math.max(total - totalAllocated, 0));
 };
 
-const settlementStatuses = [PaymentStatus.PENDING, PaymentStatus.POSTED, PaymentStatus.PAID] as const;
-
 const isActiveLineItem = (lineItem: LineItem) => !lineItem.voided;
-
-const isSettlementLineItem = (lineItem: LineItem) =>
-  settlementStatuses.includes(lineItem.paymentStatus as (typeof settlementStatuses)[number]);
 
 export const getBulkDiscountTotal = (lineItems: Array<LineItem> = []) =>
   roundLineItemAmount(
     lineItems.filter(isActiveLineItem).reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0),
-  );
-
-export const getBulkDiscountMaximum = (lineItems: Array<LineItem> = []) =>
-  roundLineItemAmount(
-    lineItems
-      .filter(isActiveLineItem)
-      .filter(isSettlementLineItem)
-      .reduce((total, lineItem) => total + getLineItemSubtotal(lineItem), 0),
   );
 
 export const getLineItemPaymentStatus = (lineItem: LineItem) => {
@@ -274,7 +256,7 @@ export const applyBulkDiscountDraft = (
   const currentBulkDiscount = getBulkDiscountTotal(bill.lineItems ?? []);
   let remainingDelta = roundLineItemAmount(targetBulkDiscount - currentBulkDiscount);
   const updatedLineItemsByUuid = new Map<string, LineItem>();
-  const activeLineItems = (bill.lineItems ?? []).filter(isActiveLineItem).filter(isSettlementLineItem);
+  const activeLineItems = (bill.lineItems ?? []).filter(isBulkDiscountableLineItem);
 
   if (remainingDelta > 0) {
     for (const lineItem of activeLineItems) {
@@ -299,7 +281,7 @@ export const applyBulkDiscountDraft = (
   } else if (remainingDelta < 0) {
     let amountToRemove = Math.abs(remainingDelta);
 
-    for (const status of settlementStatuses) {
+    for (const status of [PaymentStatus.PENDING, PaymentStatus.POSTED, PaymentStatus.PAID]) {
       const linesForStatus = activeLineItems
         .filter((lineItem) => lineItem.paymentStatus === status)
         .slice()

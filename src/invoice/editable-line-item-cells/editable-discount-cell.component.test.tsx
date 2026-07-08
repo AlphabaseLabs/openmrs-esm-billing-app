@@ -206,7 +206,7 @@ describe('EditableDiscountCell', () => {
     expect(screen.queryByText(/total discount/i)).not.toBeInTheDocument();
   });
 
-  it('clamps percent drafts and commits the bounded amount', async () => {
+  it('rejects over-100 percent drafts without committing a bounded amount', async () => {
     const user = userEvent.setup();
     const onCommit = jest.fn(async () => {});
 
@@ -228,12 +228,8 @@ describe('EditableDiscountCell', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /percent/i }), { target: { value: '300' } });
 
     expect(screen.getByRole('textbox', { name: /percent/i })).toHaveValue('300');
-    await waitFor(() => expect(onCommit).toHaveBeenCalled());
-    expect(onCommit).toHaveBeenLastCalledWith(
-      testDiscountedLineItem,
-      { discounts: [expect.objectContaining({ amount: 2000, baseAmount: 2000 })] },
-      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 2000 })] }),
-    );
+    expect(screen.getByText(/Enter a discount percent between 0 and 100/i)).toBeInTheDocument();
+    expect(onCommit).not.toHaveBeenCalled();
   });
 
   it('clears discount from the bottom action and keeps the form open', async () => {
@@ -502,25 +498,25 @@ describe('EditableDiscountCell', () => {
     await waitFor(() => expect(onCommit).toHaveBeenCalled());
     expect(onCommit).toHaveBeenLastCalledWith(
       lineItem,
-      { discounts: [expect.objectContaining({ amount: 27300, rate: expect.any(Number) })] },
-      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 27300 })] }),
+      { discounts: [expect.objectContaining({ amount: 27299.9, rate: expect.any(Number) })] },
+      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 27299.9 })] }),
     );
     const lastCommitCall = onCommit.mock.calls[onCommit.mock.calls.length - 1] as any[];
     const lastDiscountRate = lastCommitCall?.[1]?.discounts?.[0]?.rate;
-    expect(lastDiscountRate).toBeCloseTo(27300 / lineItem.price);
+    expect(lastDiscountRate).toBeCloseTo(27299.9 / lineItem.price);
 
     fireEvent.blur(percentInput);
     expect(percentInput).toHaveValue('10.5');
   });
 
-  it('does not multiply percent conversion by quantity', async () => {
+  it('uses line subtotal for percent conversion when quantity is greater than one', async () => {
     const user = userEvent.setup();
     const onCommit = jest.fn(async () => {});
     const lineItem = {
       ...testLineItem,
       quantity: 2,
       price: 100,
-      discounts: [{ amount: 20, baseAmount: 100, rate: 0.2 }],
+      discounts: [{ amount: 20, baseAmount: 200, rate: 0.1 }],
     };
 
     render(
@@ -544,12 +540,12 @@ describe('EditableDiscountCell', () => {
     await waitFor(() => expect(onCommit).toHaveBeenCalled());
     expect(onCommit).toHaveBeenLastCalledWith(
       lineItem,
-      { discounts: [expect.objectContaining({ amount: 30, rate: 0.3 })] },
-      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 30 })] }),
+      { discounts: [expect.objectContaining({ amount: 60, baseAmount: 200, rate: 0.3 })] },
+      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 60 })] }),
     );
   });
 
-  it('clamps invalid inline discount edits without leaving the editor invalid', async () => {
+  it('rejects over-subtotal inline discount edits without committing', async () => {
     const user = userEvent.setup();
     const onCommit = jest.fn(async () => {});
 
@@ -573,12 +569,8 @@ describe('EditableDiscountCell', () => {
     await user.clear(input);
     await user.type(input, '3000{Enter}');
 
-    await waitFor(() => expect(onCommit).toHaveBeenCalled());
-    expect(onCommit).toHaveBeenCalledWith(
-      testLineItem,
-      { discounts: [expect.objectContaining({ amount: 2000, baseAmount: 2000 })] },
-      expect.objectContaining({ discounts: [expect.objectContaining({ amount: 2000 })] }),
-    );
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(screen.getByText(/Enter a discount between 0 and 2,000/i)).toBeInTheDocument();
   });
 
   it('renders locked rows without edit affordances', () => {

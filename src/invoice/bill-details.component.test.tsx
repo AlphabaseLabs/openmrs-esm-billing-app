@@ -380,6 +380,43 @@ describe('BillDetails', () => {
     expect(screen.getByText(/Enter Bulk discount between 0 and PKR\s*100\.00/i)).toBeInTheDocument();
   });
 
+  it('rejects invalid fixed Bulk discount text without submitting line-item updates', async () => {
+    const user = userEvent.setup();
+    const bill = createBill([createLineItem({ uuid: 'line-one', price: 100 })]);
+
+    render(<BillDetails bill={bill} />);
+
+    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    const input = screen.getByRole('textbox', { name: /Bulk discount/i });
+    await user.clear(input);
+    await user.type(input, 'abc{Enter}');
+
+    expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
+    expect(screen.getByText(/Enter Bulk discount between 0 and PKR\s*100\.00/i)).toBeInTheDocument();
+  });
+
+  it('clears Bulk discount when a blank fixed amount is committed', async () => {
+    const user = userEvent.setup();
+    const bill = createBill([
+      createLineItem({
+        uuid: 'line-one',
+        price: 100,
+        discounts: [{ amount: 25, baseAmount: 100, sponsor: 'provider-uuid' }],
+      }),
+    ]);
+    mockUpdateBillLineItem.mockResolvedValueOnce({ ok: true } as any);
+
+    render(<BillDetails bill={bill} />);
+
+    await user.click(screen.getByRole('button', { name: /PKR\s*25\.00/i }));
+    const input = screen.getByRole('textbox', { name: /Bulk discount/i });
+    await user.clear(input);
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(mockUpdateBillLineItem).toHaveBeenCalledWith('line-one', { discounts: [] }));
+    await waitFor(() => expect(screen.getByTestId('line-discount-line-one')).toHaveTextContent('0'));
+  });
+
   it('commits percent edits from the percent affordance', async () => {
     const user = userEvent.setup();
     const bill = createBill([createLineItem({ uuid: 'line-one', price: 300 })]);
@@ -407,6 +444,21 @@ describe('BillDetails', () => {
         }),
       ),
     );
+  });
+
+  it('rejects invalid Bulk percent text without submitting line-item updates', async () => {
+    const user = userEvent.setup();
+    const bill = createBill([createLineItem({ uuid: 'line-one', price: 300 })]);
+
+    render(<BillDetails bill={bill} />);
+
+    await user.click(screen.getByRole('button', { name: /Open Bulk discount editor/i }));
+    const percentInput = screen.getByRole('textbox', { name: /Percent/i });
+    await user.clear(percentInput);
+    await user.type(percentInput, '120{Enter}');
+
+    expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
+    expect(screen.getByText(/Enter a discount percent between 0 and 100/i)).toBeInTheDocument();
   });
 
   it('submits Bulk discount sponsor and comment in line-item discount payloads', async () => {

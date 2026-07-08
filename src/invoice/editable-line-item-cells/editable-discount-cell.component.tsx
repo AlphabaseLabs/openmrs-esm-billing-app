@@ -6,7 +6,14 @@ import { type LineItem } from '../../types';
 import { type ProviderOption } from '../../payment-points/payment-points.resource';
 import { EditableNumericCell, editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
 import { type ActiveEditorKey, type EditableLineItemCommit, getEditorKey } from './types';
-import { createDiscountUpdate, getLineItemDiscountAmount, parseEditableNumber, recalculateLineItem } from './utils';
+import {
+  formatDiscountAmount,
+  formatDiscountPercent,
+  getLineDiscountMaximum,
+  validateFixedDiscountInput,
+  validatePercentDiscountInput,
+} from './discount-amount-validation';
+import { createDiscountUpdate, getLineItemDiscountAmount, recalculateLineItem } from './utils';
 
 type EditableDiscountCellProps = {
   lineItem: LineItem;
@@ -30,21 +37,6 @@ type CurrentProvider =
     }
   | null
   | undefined;
-
-const normalizeNumber = (value: number) => (Number.isFinite(value) ? value : 0);
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const formatDiscountAmount = (value: number) => formatBillAmount(Math.round(normalizeNumber(value)));
-const percentPrecision = 4;
-const minimumVisiblePercent = 1 / 10 ** percentPrecision;
-const formatDiscountPercent = (value: number) => {
-  const percent = clamp(normalizeNumber(value), 0, 100);
-
-  if (percent > 0 && percent < minimumVisiblePercent) {
-    return `<${minimumVisiblePercent.toFixed(percentPrecision)}`;
-  }
-
-  return percent.toFixed(percentPrecision).replace(/\.?0+$/, '');
-};
 
 const getCurrentProviderOption = (currentProvider: CurrentProvider): ProviderOption | null => {
   if (!currentProvider?.uuid) {
@@ -89,7 +81,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   const editorKey = getEditorKey(lineItem.uuid, 'discount');
   const isActive = activeEditorKey === editorKey;
   const currentDiscount = useMemo(() => getLineItemDiscountAmount(lineItem), [lineItem]);
-  const priceBase = useMemo(() => Math.max(0, Number(lineItem.price ?? 0) || 0), [lineItem.price]);
+  const discountMaximum = useMemo(() => getLineDiscountMaximum(lineItem), [lineItem]);
   const currentProviderOption = useMemo(() => getCurrentProviderOption(currentProvider), [currentProvider]);
   const sponsorOptions = useMemo(
     () => getProviderSponsorOptions(providerOptions, currentProviderOption),
@@ -105,20 +97,24 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   const currentComment = useMemo(() => lineItem.discounts?.[0]?.description ?? '', [lineItem.discounts]);
   const [mode, setMode] = useState<'inline' | 'form' | null>(null);
   const [amount, setAmount] = useState(formatDiscountAmount(currentDiscount));
-  const [percent, setPercent] = useState(formatDiscountPercent(priceBase ? (currentDiscount / priceBase) * 100 : 0));
+  const [percent, setPercent] = useState(
+    formatDiscountPercent(discountMaximum ? (currentDiscount / discountMaximum) * 100 : 0),
+  );
   const [sponsor, setSponsor] = useState(currentSponsor);
   const [comment, setComment] = useState(currentComment);
   const [error, setError] = useState('');
 
-  const getPercentFromAmount = (nextAmount: number) => (priceBase ? (nextAmount / priceBase) * 100 : 0);
-  const getAmountFromPercent = (nextPercent: number) => (priceBase * nextPercent) / 100;
-  const clampDiscountAmount = (nextAmount: number) => clamp(Math.round(normalizeNumber(nextAmount)), 0, priceBase);
-  const clampPercent = (nextPercent: number) => clamp(normalizeNumber(nextPercent), 0, 100);
+  const getPercentFromAmount = (nextAmount: number) => (discountMaximum ? (nextAmount / discountMaximum) * 100 : 0);
+  const discountValidationError = () =>
+    t('discountValidationError', 'Enter a discount between 0 and {{amount}}', {
+      amount: formatBillAmount(discountMaximum),
+    });
+  const percentValidationError = () =>
+    t('discountPercentValidationError', 'Enter a discount percent between 0 and 100');
   const getCurrentDraftAmount = () => {
-    const parsedAmount = parseEditableNumber(amount);
-    return parsedAmount === null ? null : clampDiscountAmount(parsedAmount);
+    const validation = validateFixedDiscountInput(amount, discountMaximum);
+    return validation.valid ? validation.amount : null;
   };
-  const getCommittedAmountDraft = () => (amount.trim() === '' ? 0 : parseEditableNumber(amount));
   const selectedSponsor = sponsor ?? currentSponsor;
 
   useEffect(() => {
@@ -130,12 +126,12 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       };
       setMode(null);
       setAmount(formatDiscountAmount(nextDraft.amount));
-      setPercent(formatDiscountPercent(priceBase ? (nextDraft.amount / priceBase) * 100 : 0));
+      setPercent(formatDiscountPercent(discountMaximum ? (nextDraft.amount / discountMaximum) * 100 : 0));
       setSponsor(nextDraft.sponsor);
       setComment(nextDraft.comment);
       setError('');
     }
-  }, [currentComment, currentDiscount, currentSponsor, isActive, priceBase]);
+  }, [currentComment, currentDiscount, currentSponsor, discountMaximum, isActive]);
 
   useEffect(() => {
     if (isActive && !sponsor && currentSponsor) {
@@ -144,38 +140,38 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   }, [currentSponsor, isActive, sponsor]);
 
   const syncDraftAmount = (nextAmount: number, options: { syncPercent?: boolean } = {}) => {
-    const clampedAmount = clampDiscountAmount(nextAmount);
-    setAmount(formatDiscountAmount(clampedAmount));
+    const validation = validateFixedDiscountInput(nextAmount, discountMaximum);
+    const validatedAmount = validation.valid ? validation.amount : 0;
+    setAmount(formatDiscountAmount(validatedAmount));
     if (options.syncPercent ?? true) {
-      setPercent(formatDiscountPercent(getPercentFromAmount(clampedAmount)));
+      setPercent(formatDiscountPercent(getPercentFromAmount(validatedAmount)));
     }
-    return clampedAmount;
+    return validatedAmount;
   };
 
   const resolvePercentInput = (nextValue: string) => {
-    const parsedPercent = parseEditableNumber(nextValue);
     setPercent(nextValue);
+    const validation = validatePercentDiscountInput(nextValue, discountMaximum);
 
-    if (parsedPercent === null) {
-      setError(t('discountPercentValidationError', 'Enter a discount percent between 0 and 100'));
+    if (!validation.valid) {
+      setError(percentValidationError());
       return null;
     }
 
-    const nextPercent = clampPercent(parsedPercent);
-    const nextAmount = syncDraftAmount(getAmountFromPercent(nextPercent), { syncPercent: false });
+    const nextAmount = syncDraftAmount(validation.amount, { syncPercent: false });
     setError('');
     return nextAmount;
   };
 
   const normalizePercentInput = () => {
-    const parsedPercent = parseEditableNumber(percent);
+    const validation = validatePercentDiscountInput(percent, discountMaximum);
 
-    if (parsedPercent === null) {
+    if (!validation.valid) {
       setPercent(formatDiscountPercent(getPercentFromAmount(currentDiscount)));
       return;
     }
 
-    setPercent(formatDiscountPercent(clampPercent(parsedPercent)));
+    setPercent(formatDiscountPercent(validation.percent));
   };
 
   const openInlineEditor = () => {
@@ -221,14 +217,20 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       sponsorValue?: ProviderOption | null;
     } = {},
   ) => {
-    const discountAmount = clampDiscountAmount(nextAmount);
+    const validation = validateFixedDiscountInput(nextAmount, discountMaximum);
+    if (!validation.valid) {
+      setError(discountValidationError());
+      return false;
+    }
+
+    const discountAmount = validation.amount;
     const nextSponsor = options.sponsorValue ?? selectedSponsor;
     const nextComment = options.commentValue ?? comment;
     const discounts =
       createDiscountUpdate(
         lineItem,
         discountAmount,
-        getPercentFromAmount(discountAmount) / 100,
+        discountMaximum ? discountAmount / discountMaximum : 0,
         nextSponsor?.uuid,
         nextComment,
       ).discounts ?? [];
@@ -281,12 +283,12 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       onInputChange={setAmount}
       onInputKeyDown={(event) => {
         if (event.key === 'Enter') {
-          const nextAmount = getCommittedAmountDraft();
-          if (nextAmount !== null) {
-            void commitDiscount(nextAmount);
-          } else {
-            setError(t('discountValidationError', 'Enter a discount between 0 and the line item price'));
+          const validation = validateFixedDiscountInput(amount, discountMaximum);
+          if (!validation.valid) {
+            setError(discountValidationError());
+            return;
           }
+          void commitDiscount(validation.amount);
         }
         if (event.key === 'Escape') {
           close();
@@ -294,12 +296,12 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
       }}
       onBlur={(event) => {
         if (mode === 'inline' && !event.currentTarget.contains(event.relatedTarget as Node)) {
-          const nextAmount = getCommittedAmountDraft();
-          if (nextAmount !== null) {
-            void commitDiscount(nextAmount);
-          } else {
-            setError(t('discountValidationError', 'Enter a discount between 0 and the line subtotal'));
+          const validation = validateFixedDiscountInput(amount, discountMaximum);
+          if (!validation.valid) {
+            setError(discountValidationError());
+            return;
           }
+          void commitDiscount(validation.amount);
         }
       }}
       popover={{
