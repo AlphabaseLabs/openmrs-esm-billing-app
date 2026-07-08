@@ -9,6 +9,7 @@ const cx = (...classes: Array<string | false | null | undefined>) => classes.fil
 const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
   activeMode,
   className,
+  disabledInteractionLabel,
   error,
   inlineMode = 'inline',
   inputId,
@@ -27,7 +28,9 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const cellRef = useRef<HTMLDivElement>(null);
+  const [showDisabledTooltip, setShowDisabledTooltip] = React.useState(false);
   const isInlineActive = isActive && activeMode === inlineMode;
+  const disabledTooltipId = `${inputId}-disabled-tooltip`;
 
   React.useEffect(() => {
     if (isInlineActive) {
@@ -37,16 +40,46 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
     }
   }, [isInlineActive]);
 
+  React.useEffect(() => {
+    if (!showDisabledTooltip) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setShowDisabledTooltip(false), 3000);
+
+    return () => window.clearTimeout(timeout);
+  }, [showDisabledTooltip]);
+
   if (!isEditable) {
+    const content = <span className={styles.staticValueText}>{value}</span>;
+
     return (
       <span
         className={cx(styles.editableCell, styles.numeric, styles.staticValue, className)}
         data-testid="editable-numeric-cell">
-        <span
-          className={cx(styles.editableCellContent, styles.numericContent)}
-          data-testid="editable-numeric-content">
-          {value}
-        </span>
+        {disabledInteractionLabel ? (
+          <button
+            type="button"
+            aria-describedby={showDisabledTooltip ? disabledTooltipId : undefined}
+            aria-label={disabledInteractionLabel ?? inputLabelText}
+            className={cx(styles.editableCellContent, styles.numericContent, styles.cellSurfaceButton)}
+            data-testid="editable-numeric-content"
+            onBlur={() => setShowDisabledTooltip(false)}
+            onClick={() => setShowDisabledTooltip(true)}>
+            {content}
+            {showDisabledTooltip ? (
+              <span className={styles.disabledHintTooltip} id={disabledTooltipId} role="tooltip">
+                {disabledInteractionLabel}
+              </span>
+            ) : null}
+          </button>
+        ) : (
+          <span
+            className={cx(styles.editableCellContent, styles.numericContent)}
+            data-testid="editable-numeric-content">
+            {content}
+          </span>
+        )}
       </span>
     );
   }
@@ -67,7 +100,11 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
             trigger={
               <button
                 type="button"
-                className={cx(styles.optionsButton, popover.isOpen && styles.optionsButtonOpen, popover.buttonClassName)}
+                className={cx(
+                  styles.optionsButton,
+                  popover.isOpen && styles.optionsButtonOpen,
+                  popover.buttonClassName,
+                )}
                 aria-label={popover.triggerLabel}
                 onClick={popover.onOpen}>
                 {popover.trigger}
@@ -76,19 +113,14 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
             isOpen={popover.isOpen}
             onClose={popover.onClose}
             align={popover.align ?? 'left'}>
-            <div
-              className={cx(styles.popover, popover.className)}
-              role="dialog"
-              aria-label={popover.ariaLabel}>
+            <div className={cx(styles.popover, popover.className)} role="dialog" aria-label={popover.ariaLabel}>
               {popover.content}
             </div>
           </EditableCellPopover>
         ) : null}
       </span>
       {isInlineActive ? (
-        <span
-          className={cx(styles.editableCellContent, styles.numericContent)}
-          data-testid="editable-numeric-content">
+        <span className={cx(styles.editableCellContent, styles.numericContent)} data-testid="editable-numeric-content">
           <span className={styles.inlineNumericSizingValue} aria-hidden="true">
             {sizingValue ?? value}
           </span>

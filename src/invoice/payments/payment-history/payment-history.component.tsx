@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell, Button } from '@carbon/react';
-import { PaymentStatus, type MappedBill, type Payment } from '../../../types';
+import { type MappedBill, type Payment } from '../../../types';
 import { formatDate, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
 import { convertToCurrency } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ type PaymentHistoryProps = {
 
 const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
   const { t } = useTranslation();
+  const billIsOpen = !bill.closed;
 
   // Check if any payment has reference codes
   const hasReferenceCodes = bill?.payments?.some(
@@ -53,8 +54,8 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     });
   }
 
-  // Add actions header only if bill is not fully paid
-  if (bill.status !== PaymentStatus.PAID) {
+  // Add actions header only if bill is still open
+  if (billIsOpen) {
     headers.push({
       key: 'actions',
       header: getCoreTranslation('actions', 'Actions'),
@@ -72,7 +73,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
       ...(hasReferenceCodes && {
         referenceCodes: payment.attributes.map((attribute) => attribute.value).join(', '),
       }),
-      ...(bill.status !== PaymentStatus.PAID && {
+      ...(billIsOpen && {
         actions: (
           <div className={styles.actionButtons}>
             <UserHasAccess privilege="o3: Delete Bill">

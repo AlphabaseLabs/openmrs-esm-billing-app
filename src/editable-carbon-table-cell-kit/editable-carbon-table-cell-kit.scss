@@ -167,6 +167,35 @@
   min-width: 0;
 }
 
+.staticValueText {
+  display: inline-block;
+}
+
+.disabledHintTooltip {
+  @include type.type-style('label-01');
+  background: colors.$gray-90;
+  color: colors.$white;
+  inset-block-end: 100%;
+  inset-inline-end: 0;
+  margin-block-end: layout.$spacing-02;
+  max-inline-size: 15rem;
+  padding: layout.$spacing-02 layout.$spacing-03;
+  position: absolute;
+  text-align: left;
+  white-space: normal;
+  z-index: 2;
+
+  &::after {
+    border-color: colors.$gray-90 transparent transparent;
+    border-style: solid;
+    border-width: 0.25rem 0.25rem 0;
+    content: '';
+    inset-block-start: 100%;
+    inset-inline-end: layout.$spacing-03;
+    position: absolute;
+  }
+}
+
 .optionsButton {
   align-items: center;
   background: transparent;
@@ -562,6 +591,10 @@
 .discountEditableCell.activeEditableCell {
   background: colors.$blue-20;
   box-shadow: inset 0 -1px 0 colors.$blue-40;
+}
+
+.discountEditableCell.staticValue .staticValueText {
+  color: #bababa;
 }
 
 .discountEditableCell .optionsButton {

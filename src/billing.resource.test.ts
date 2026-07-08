@@ -30,7 +30,7 @@ const baseInvoice = {
 };
 
 describe('mapBillProperties', () => {
-  it('keeps additional discount separate from line totals, waivers, and settlement balance', () => {
+  it('derives Discounts from line totals and ignores legacy additional discount', () => {
     const mappedBill = mapBillProperties({
       ...baseInvoice,
       additionalDiscount: 50,
@@ -72,8 +72,8 @@ describe('mapBillProperties', () => {
 
     expect(mappedBill.totalAmount).toBe(290);
     expect(mappedBill.billLineItemDiscounts).toBe(20);
-    expect(mappedBill.additionalDiscount).toBe(50);
-    expect(mappedBill.totalDiscounts).toBe(70);
+    expect(mappedBill.additionalDiscount).toBe(0);
+    expect(mappedBill.totalDiscounts).toBe(20);
     expect(mappedBill.totalWaived).toBe(25);
     expect(mappedBill.totalActualPayments).toBe(100);
     expect(mappedBill.tenderedAmount).toBe(100);

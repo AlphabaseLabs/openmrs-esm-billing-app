@@ -8,7 +8,7 @@ import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../hel
 import { type LineItem, type MappedBill } from '../types';
 import AdditionalDiscountControl from './additional-discount-control.component';
 import { InvoiceActions } from './invoice-actions.component';
-import { recomputeBillWithAdditionalDiscount, recomputeBillWithLineItem } from './editable-line-item-cells';
+import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
@@ -31,6 +31,7 @@ interface BillDetailsProps {
   readonly showDiscardButton?: boolean;
   readonly discardDestination?: string;
   readonly onDiscard?: () => void | Promise<void>;
+  readonly onRefreshBill?: () => unknown;
 }
 
 const BillDetails: React.FC<BillDetailsProps> = ({
@@ -39,6 +40,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   showDiscardButton = true,
   discardDestination,
   onDiscard,
+  onRefreshBill,
 }) => {
   const { t } = useTranslation();
   const { sendInvoiceUrl } = useConfig<BillingConfig>();
@@ -95,8 +97,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
   };
 
-  const handleAdditionalDiscountUpdated = (additionalDiscount: number) => {
-    setEditableBill((currentBill) => recomputeBillWithAdditionalDiscount(currentBill ?? bill, additionalDiscount));
+  const handleAdditionalDiscountUpdated = async () => {
+    await onRefreshBill?.();
   };
 
   const openPrintPreview = (documentUrl: string, title: string) => {

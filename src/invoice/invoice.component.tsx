@@ -23,6 +23,7 @@ const Invoice: React.FC<InvoiceProps> = ({ showPatientHeader = true, showDiscard
     bill,
     isLoading: isLoadingBill,
     error: billingError,
+    mutate: refreshBill,
   } = useBill(billUuid, {
     syncStatusWhenZeroBalance: true,
   });
@@ -61,6 +62,7 @@ const Invoice: React.FC<InvoiceProps> = ({ showPatientHeader = true, showDiscard
         isLoadingBill={isLoadingBill}
         showDiscardButton={showDiscardButton}
         discardDestination={discardDestination}
+        onRefreshBill={refreshBill}
       />
     </div>
   );

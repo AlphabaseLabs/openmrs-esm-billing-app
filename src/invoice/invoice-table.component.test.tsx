@@ -229,6 +229,19 @@ describe('InvoiceTable', () => {
     expect(mockUseSession).toHaveBeenCalled();
   });
 
+  it('keeps direct line-item discount editing enabled when Discounts exist', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={{ ...discountedPendingBill, totalDiscounts: 50 }} />);
+
+    const discountEditorButtons = screen.getAllByLabelText(/open discount editor/i);
+    expect(discountEditorButtons.length).toBeGreaterThan(0);
+
+    await user.click(discountEditorButtons[0]);
+
+    expect(screen.getByRole('textbox', { name: /percent/i })).toBeInTheDocument();
+  });
+
   it('commits a bill-item edit using the production inline path', async () => {
     const user = userEvent.setup();
     const onLineItemUpdated = jest.fn();

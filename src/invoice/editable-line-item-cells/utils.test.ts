@@ -119,7 +119,7 @@ describe('editable line item utils', () => {
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 
-  it('keeps additional discount in bill settlement math after a line item change', () => {
+  it('ignores legacy additional discount after a line item change', () => {
     const bill = {
       uuid: 'bill',
       lineItems: [testDiscountedLineItem],
@@ -141,13 +141,13 @@ describe('editable line item utils', () => {
 
     expect(updatedBill.totalAmount).toBe(1800);
     expect(updatedBill.billLineItemDiscounts).toBe(250);
-    expect(updatedBill.additionalDiscount).toBe(100);
-    expect(updatedBill.totalDiscounts).toBe(350);
-    expect(updatedBill.balance).toBe(1425);
+    expect(updatedBill.additionalDiscount).toBe(0);
+    expect(updatedBill.totalDiscounts).toBe(250);
+    expect(updatedBill.balance).toBe(1525);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 
-  it('recomputes bill totals after an additional discount change without mutating line items', () => {
+  it('keeps Discounts line-sourced when the legacy additional discount recompute helper is called', () => {
     const lineItem = {
       ...testDiscountedLineItem,
       discounts: [{ amount: 250, baseAmount: 2000 }],
@@ -171,9 +171,9 @@ describe('editable line item utils', () => {
     const updatedBill = recomputeBillWithAdditionalDiscount(bill, 100);
 
     expect(updatedBill.lineItems[0]).toBe(lineItem);
-    expect(updatedBill.additionalDiscount).toBe(100);
-    expect(updatedBill.totalDiscounts).toBe(350);
-    expect(updatedBill.balance).toBe(1375);
+    expect(updatedBill.additionalDiscount).toBe(0);
+    expect(updatedBill.totalDiscounts).toBe(250);
+    expect(updatedBill.balance).toBe(1475);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 });

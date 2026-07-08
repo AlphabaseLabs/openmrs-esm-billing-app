@@ -17,6 +17,7 @@ type EditableDiscountCellProps = {
   providerOptions?: Array<ProviderOption>;
   isLoadingProviders?: boolean;
   currentProvider?: CurrentProvider;
+  disabledHint?: string;
 };
 
 type CurrentProvider =
@@ -82,6 +83,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
   providerOptions = [],
   isLoadingProviders = false,
   currentProvider,
+  disabledHint,
 }) => {
   const { t } = useTranslation();
   const editorKey = getEditorKey(lineItem.uuid, 'discount');
@@ -267,6 +269,7 @@ const EditableDiscountCell: React.FC<EditableDiscountCellProps> = ({
     <EditableNumericCell
       activeMode={mode}
       className={`${styles.discountEditableCell} ${isActive && mode === 'form' ? styles.activeEditableCell : ''}`}
+      disabledInteractionLabel={disabledHint}
       error={error}
       inputId={`discount-${lineItem.uuid}`}
       inputLabelText={t('discount', 'Discount')}

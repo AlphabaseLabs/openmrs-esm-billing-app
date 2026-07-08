@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 
 export type EditableCellPopoverAlign = 'left' | 'right' | 'bottom-left' | 'bottom-right';
 
@@ -49,6 +49,7 @@ export type EditableNumericCellProps = {
   inputValue: string;
   isActive: boolean;
   isEditable: boolean;
+  disabledInteractionLabel?: string;
   onBlur?: React.FocusEventHandler<HTMLDivElement>;
   onInlineOpen: () => void;
   onInputChange: (value: string, event: React.ChangeEvent<HTMLInputElement>) => void;

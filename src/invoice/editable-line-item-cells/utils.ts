@@ -24,9 +24,9 @@ export const getLineItemLabel = (lineItem: LineItem) => {
 export const getLineItemSubtotal = (lineItem: LineItem) => (lineItem.price ?? 0) * (lineItem.quantity ?? 0);
 
 export const getLineItemDiscountAmount = (lineItem: LineItem) =>
-  (lineItem.discounts ?? []).reduce((total, discount) => total + (discount?.amount ?? 0), 0) ??
-  lineItem.totalDiscount ??
-  0;
+  lineItem.discounts
+    ? lineItem.discounts.reduce((total, discount) => total + (discount?.amount ?? 0), 0)
+    : (lineItem.totalDiscount ?? 0);
 
 export const getLineItemTaxAmount = (lineItem: LineItem) =>
   (lineItem.taxes ?? []).reduce((total, tax) => total + (tax?.amount ?? 0), 0) ?? lineItem.totalTax ?? 0;
@@ -141,11 +141,10 @@ export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: Lin
   const totalTax = lineItems.reduce((total, lineItem) => total + getLineItemTaxAmount(lineItem), 0);
   const billLineItemDiscounts = lineItems.reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0);
   const totalAmount = totalAmountWithoutTaxAndDiscount + totalTax - billLineItemDiscounts;
-  const additionalDiscount = bill.additionalDiscount ?? 0;
   const totalActualPayments = bill.totalActualPayments ?? bill.totalPayments ?? bill.tenderedAmount ?? 0;
   const totalWaived = bill.totalWaived ?? 0;
   const totalDeposits = bill.totalDeposits ?? 0;
-  const balance = totalAmount - additionalDiscount - totalActualPayments - totalWaived - totalDeposits;
+  const balance = totalAmount - totalActualPayments - totalWaived - totalDeposits;
   const totalSettled = totalActualPayments + totalWaived + totalDeposits;
   const status = balance <= 0 ? PaymentStatus.PAID : totalSettled > 0 ? PaymentStatus.POSTED : PaymentStatus.PENDING;
 
@@ -156,14 +155,14 @@ export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: Lin
     totalAmount,
     totalTax,
     billLineItemDiscounts,
-    additionalDiscount,
-    totalDiscounts: billLineItemDiscounts + additionalDiscount,
+    additionalDiscount: 0,
+    totalDiscounts: billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount,
     balance,
   };
 };
 
-export const recomputeBillWithAdditionalDiscount = (bill: MappedBill, additionalDiscount: number): MappedBill => {
+export const recomputeBillWithAdditionalDiscount = (bill: MappedBill, _additionalDiscount: number): MappedBill => {
   const billLineItemDiscounts =
     bill.billLineItemDiscounts ??
     (bill.lineItems ?? []).reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0);
@@ -172,15 +171,15 @@ export const recomputeBillWithAdditionalDiscount = (bill: MappedBill, additional
   const totalActualPayments = bill.totalActualPayments ?? bill.totalPayments ?? bill.tenderedAmount ?? 0;
   const totalWaived = bill.totalWaived ?? 0;
   const totalDeposits = bill.totalDeposits ?? 0;
-  const balance = totalAmount - additionalDiscount - totalActualPayments - totalWaived - totalDeposits;
+  const balance = totalAmount - totalActualPayments - totalWaived - totalDeposits;
   const totalSettled = totalActualPayments + totalWaived + totalDeposits;
   const status = balance <= 0 ? PaymentStatus.PAID : totalSettled > 0 ? PaymentStatus.POSTED : PaymentStatus.PENDING;
 
   return {
     ...bill,
-    additionalDiscount,
+    additionalDiscount: 0,
     balance,
     status,
-    totalDiscounts: billLineItemDiscounts + additionalDiscount,
+    totalDiscounts: billLineItemDiscounts,
   };
 };

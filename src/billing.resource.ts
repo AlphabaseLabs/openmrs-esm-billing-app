@@ -26,7 +26,6 @@ import {
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   const lineItems = bill?.lineItems?.filter((li) => !li?.voided) ?? [];
-  const additionalDiscount = bill?.additionalDiscount ?? 0;
   const lineItemDiscountTotal = lineItems.reduce(
     (total, item) => total + (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0),
     0,
@@ -81,7 +80,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
     totalActualPayments: bill?.totalActualPayments ?? 0,
-    additionalDiscount,
+    additionalDiscount: 0,
     totalTax: bill?.totalTax ?? 0,
     billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount: lineItems.reduce(
@@ -89,7 +88,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
       0,
     ),
   };
-  mappedBill.totalDiscounts = billLineItemDiscounts + additionalDiscount;
+  mappedBill.totalDiscounts = billLineItemDiscounts;
   return mappedBill;
 };
 
@@ -381,12 +380,30 @@ export const addPaymentToBill = (billUuid: string, payload: Record<string, any>)
   return openmrsFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
 };
 
-export const updateBillAdditionalDiscount = (billUuid: string, additionalDiscount: number) => {
+export type AdditionalDiscountUpdate = {
+  discounts?: number;
+  additionalDiscount?: number;
+  sponsor?: string;
+  comment?: string;
+};
+
+export const updateBillAdditionalDiscount = (
+  billUuid: string,
+  additionalDiscount: number | AdditionalDiscountUpdate,
+) => {
   const url = `${restBaseUrl}/kenyaemr-cashier/bill/${billUuid}/additional-discount`;
+  const body =
+    typeof additionalDiscount === 'number'
+      ? { discounts: additionalDiscount }
+      : {
+          ...additionalDiscount,
+          discounts: additionalDiscount.discounts ?? additionalDiscount.additionalDiscount ?? 0,
+          additionalDiscount: undefined,
+        };
   return openmrsFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: { additionalDiscount },
+    body,
   });
 };
 

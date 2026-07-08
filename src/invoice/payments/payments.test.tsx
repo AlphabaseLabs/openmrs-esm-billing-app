@@ -282,7 +282,7 @@ describe('Payment', () => {
     expect(screen.getByRole('combobox', { name: /Payment method/i })).toHaveTextContent(/Mobile Money/i);
   });
 
-  test('should display payment summary with bill-level additional discount', () => {
+  test('should display payment summary with line-sourced Discounts and tax rows', () => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
       isLoading: false,
@@ -300,7 +300,7 @@ describe('Payment', () => {
             totalTax: 10,
             billLineItemDiscounts: 20,
             additionalDiscount: 50,
-            totalDiscounts: 70,
+            totalDiscounts: 20,
             totalActualPayments: 100,
             totalWaived: 25,
             balance: 150,
@@ -311,9 +311,12 @@ describe('Payment', () => {
     );
 
     expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
-    expectCurrencyValue(330);
-    expect(screen.getByText(/Discount:/i)).toBeInTheDocument();
-    expectCurrencyValue(70);
+    expectCurrencyValue(320);
+    expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
+    expectCurrencyValue(20);
+    expect(screen.queryByText(/Additional discount:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Tax:/i)).toBeInTheDocument();
+    expectCurrencyValue(10);
     expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
     expectCurrencyValue(100);
     expect(screen.getByText(/Amount due:/i)).toBeInTheDocument();

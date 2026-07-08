@@ -1,20 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { showSnackbar } from '@openmrs/esm-framework';
+import { Button, ComboBox, ComposedModal, ModalBody, ModalFooter, ModalHeader, TextArea } from '@carbon/react';
+import { showSnackbar, useSession } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { updateBillAdditionalDiscount } from '../billing.resource';
 import { EditableNumericCell, editableCellStyles } from '../editable-carbon-table-cell-kit';
 import { convertToCurrency, formatBillAmount } from '../helpers';
-import { type MappedBill } from '../types';
+import { type ProviderOption, useProviderOptions } from '../payment-points/payment-points.resource';
+import { type LineItem, type MappedBill } from '../types';
 import { extractErrorMessagesFromResponse } from '../utils';
 import { parseEditableNumber } from './editable-line-item-cells';
 import styles from './invoice.scss';
 
 type AdditionalDiscountControlProps = {
   bill: MappedBill;
-  onAdditionalDiscountUpdated?: (additionalDiscount: number) => void;
+  disabled?: boolean;
+  onAdditionalDiscountUpdated?: (discounts: number) => void | Promise<void>;
 };
 
 type EditorMode = 'inline' | 'form' | null;
+
+type CommitOptions = {
+  closeOnCommit?: boolean;
+  skipSponsorConfirmation?: boolean;
+};
+
+type PendingCommit = {
+  amount: number;
+  options: CommitOptions;
+};
+
+type SponsorConflict = {
+  lineItem: LineItem;
+  sponsorLabel: string;
+};
 
 const normalizeNumber = (value: number) => (Number.isFinite(value) ? value : 0);
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -35,39 +53,112 @@ const formatDiscountPercent = (value: number) => {
   return percent.toFixed(percentPrecision).replace(/\.?0+$/, '');
 };
 
-const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ bill, onAdditionalDiscountUpdated }) => {
+type CurrentProvider =
+  | {
+      uuid?: string;
+      display?: string;
+      person?: {
+        display?: string;
+      };
+    }
+  | null
+  | undefined;
+
+const getCurrentProviderOption = (currentProvider: CurrentProvider): ProviderOption | null => {
+  if (!currentProvider?.uuid) {
+    return null;
+  }
+
+  return {
+    id: currentProvider.uuid,
+    uuid: currentProvider.uuid,
+    label: currentProvider.display || currentProvider.person?.display || currentProvider.uuid,
+  };
+};
+
+const getProviderSponsorOptions = (
+  providerOptions: Array<ProviderOption>,
+  currentProviderOption: ProviderOption | null,
+) => {
+  if (!currentProviderOption || providerOptions.some((provider) => provider.uuid === currentProviderOption.uuid)) {
+    return providerOptions;
+  }
+
+  return [currentProviderOption, ...providerOptions];
+};
+
+const isEligibleForBulkDiscount = (lineItem: LineItem) =>
+  lineItem && !lineItem.voided && (lineItem.paymentStatus === 'PENDING' || lineItem.paymentStatus === 'POSTED');
+
+const getLineItemLabel = (lineItem: LineItem) =>
+  lineItem.display || lineItem.item || lineItem.billableService || lineItem.uuid;
+
+const getSponsorLabel = (sponsor: ProviderOption | null) => sponsor?.label || sponsor?.uuid || 'No sponsor';
+
+const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
+  bill,
+  disabled = false,
+  onAdditionalDiscountUpdated,
+}) => {
   const { t } = useTranslation();
-  const currentAdditionalDiscount = bill.additionalDiscount ?? 0;
+  const { currentProvider } = useSession();
+  const { providerOptions, isLoading: isLoadingProviders } = useProviderOptions();
+  const currentDiscounts = bill.totalDiscounts ?? bill.billLineItemDiscounts ?? 0;
+  const currentProviderOption = useMemo(() => getCurrentProviderOption(currentProvider), [currentProvider]);
+  const sponsorOptions = useMemo(
+    () => getProviderSponsorOptions(providerOptions, currentProviderOption),
+    [currentProviderOption, providerOptions],
+  );
   const discountableAmount = useMemo(
-    () => Math.max(0, Number(bill.balance ?? 0) + currentAdditionalDiscount),
-    [bill.balance, currentAdditionalDiscount],
+    () => Math.max(0, Number(bill.balance ?? 0) + currentDiscounts),
+    [bill.balance, currentDiscounts],
   );
   const [mode, setMode] = useState<EditorMode>(null);
-  const [amount, setAmount] = useState(formatDiscountAmountDraft(currentAdditionalDiscount));
+  const [amount, setAmount] = useState(formatDiscountAmountDraft(currentDiscounts));
   const [percent, setPercent] = useState(
-    formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0),
+    formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0),
   );
+  const [sponsor, setSponsor] = useState<ProviderOption | null>(currentProviderOption);
+  const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const isEditable = !bill.closed;
+  const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null);
+  const isEditable = !bill.closed && !disabled && !isSaving;
   const isActive = mode !== null;
-  const amountDisplay =
-    currentAdditionalDiscount > 0 ? `- ${convertToCurrency(currentAdditionalDiscount)}` : convertToCurrency(0);
+  const amountDisplay = convertToCurrency(currentDiscounts);
+  const bulkDiscountLabel = t('bulkDiscount', 'Bulk discount');
+  const sponsorConflict = useMemo<SponsorConflict | null>(() => {
+    const selectedSponsorUuid = sponsor?.uuid ?? null;
+    const conflictingLine = [...(bill.lineItems ?? [])]
+      .filter(isEligibleForBulkDiscount)
+      .sort((first, second) => (first.lineItemOrder ?? 0) - (second.lineItemOrder ?? 0))
+      .find((lineItem) =>
+        (lineItem.discounts ?? []).some(
+          (discount) => (discount.amount ?? 0) > 0 && !!discount.sponsor && discount.sponsor !== selectedSponsorUuid,
+        ),
+      );
+
+    return conflictingLine ? { lineItem: conflictingLine, sponsorLabel: getSponsorLabel(sponsor) } : null;
+  }, [bill.lineItems, sponsor]);
 
   useEffect(() => {
     if (!isActive) {
-      setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
-      setPercent(
-        formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0),
-      );
+      setAmount(formatDiscountAmountDraft(currentDiscounts));
+      setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
       setError('');
     }
-  }, [currentAdditionalDiscount, discountableAmount, isActive]);
+  }, [currentDiscounts, discountableAmount, isActive]);
+
+  useEffect(() => {
+    if (!sponsor && currentProviderOption) {
+      setSponsor(currentProviderOption);
+    }
+  }, [currentProviderOption, sponsor]);
 
   const close = () => {
     setMode(null);
-    setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
-    setPercent(formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0));
+    setAmount(formatDiscountAmountDraft(currentDiscounts));
+    setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
     setError('');
   };
 
@@ -76,7 +167,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
 
     if (roundedAmount < 0 || roundedAmount > discountableAmount) {
       setError(
-        t('additionalDiscountValidationError', 'Enter a discount between 0 and {{amount}}', {
+        t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
           amount: convertToCurrency(discountableAmount),
         }),
       );
@@ -98,30 +189,19 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     return roundedAmount;
   };
 
-  const commitAdditionalDiscount = async (nextAmount: number, options: { closeOnCommit?: boolean } = {}) => {
-    const validatedAmount = validateAmount(nextAmount);
-
-    if (validatedAmount === null) {
-      return false;
-    }
-
-    syncDraftAmount(validatedAmount);
-
-    if (validatedAmount === currentAdditionalDiscount) {
-      if (options.closeOnCommit ?? true) {
-        close();
-      }
-      return true;
-    }
-
+  const saveBulkDiscount = async (validatedAmount: number, options: CommitOptions = {}) => {
     setIsSaving(true);
 
     try {
-      await updateBillAdditionalDiscount(bill.uuid, validatedAmount);
-      onAdditionalDiscountUpdated?.(validatedAmount);
+      await updateBillAdditionalDiscount(bill.uuid, {
+        discounts: validatedAmount,
+        ...(sponsor?.uuid ? { sponsor: sponsor.uuid } : {}),
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+      });
+      await onAdditionalDiscountUpdated?.(validatedAmount);
       showSnackbar({
-        title: t('additionalDiscountSaved', 'Additional discount saved'),
-        subtitle: t('additionalDiscountSavedSubtitle', 'Invoice additional discount was updated successfully'),
+        title: t('bulkDiscountSaved', 'Bulk discount saved'),
+        subtitle: t('bulkDiscountSavedSubtitle', 'Invoice bulk discount was applied successfully'),
         kind: 'success',
         timeoutInMs: 3000,
       });
@@ -132,15 +212,13 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
 
       return true;
     } catch (error: any) {
-      setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
-      setPercent(
-        formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0),
-      );
+      setAmount(formatDiscountAmountDraft(currentDiscounts));
+      setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
       showSnackbar({
-        title: t('additionalDiscountSaveFailed', 'Additional discount update failed'),
+        title: t('bulkDiscountSaveFailed', 'Bulk discount update failed'),
         subtitle: error?.responseBody
           ? extractErrorMessagesFromResponse(error.responseBody)
-          : (error?.message ?? t('additionalDiscountSaveFailedFallback', 'Unable to update additional discount')),
+          : (error?.message ?? t('bulkDiscountSaveFailedFallback', 'Unable to update bulk discount')),
         kind: 'error',
         timeoutInMs: 5000,
         isLowContrast: true,
@@ -151,12 +229,36 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     }
   };
 
+  const commitAdditionalDiscount = async (nextAmount: number, options: CommitOptions = {}) => {
+    const validatedAmount = validateAmount(nextAmount);
+
+    if (validatedAmount === null) {
+      return false;
+    }
+
+    syncDraftAmount(validatedAmount);
+
+    if (validatedAmount === currentDiscounts) {
+      if (options.closeOnCommit ?? true) {
+        close();
+      }
+      return true;
+    }
+
+    if (!options.skipSponsorConfirmation && sponsorConflict) {
+      setPendingCommit({ amount: validatedAmount, options });
+      return false;
+    }
+
+    return saveBulkDiscount(validatedAmount, options);
+  };
+
   const commitAmountDraft = () => {
     const parsedAmount = amount.trim() === '' ? 0 : parseEditableNumber(amount);
 
     if (parsedAmount === null) {
       setError(
-        t('additionalDiscountValidationError', 'Enter a discount between 0 and {{amount}}', {
+        t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
           amount: convertToCurrency(discountableAmount),
         }),
       );
@@ -171,7 +273,8 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
       return;
     }
 
-    setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
+    setAmount(formatDiscountAmountDraft(currentDiscounts));
+    setSponsor(currentProviderOption);
     setMode('inline');
   };
 
@@ -182,8 +285,9 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
       return;
     }
 
-    setAmount(formatDiscountAmountDraft(currentAdditionalDiscount));
-    setPercent(formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0));
+    setAmount(formatDiscountAmountDraft(currentDiscounts));
+    setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
+    setSponsor(sponsor ?? currentProviderOption);
     setError('');
     setMode('form');
   };
@@ -207,9 +311,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     const parsedPercent = parseEditableNumber(percent);
 
     if (parsedPercent === null) {
-      setPercent(
-        formatDiscountPercent(discountableAmount ? (currentAdditionalDiscount / discountableAmount) * 100 : 0),
-      );
+      setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
       return;
     }
 
@@ -230,10 +332,26 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
     void commitAdditionalDiscount(0, { closeOnCommit: false });
   };
 
+  const cancelSponsorConfirmation = () => {
+    setPendingCommit(null);
+    setAmount(formatDiscountAmountDraft(currentDiscounts));
+    setPercent(formatDiscountPercent(discountableAmount ? (currentDiscounts / discountableAmount) * 100 : 0));
+  };
+
+  const confirmSponsorReplacement = () => {
+    if (!pendingCommit) {
+      return;
+    }
+
+    const commit = pendingCommit;
+    setPendingCommit(null);
+    void saveBulkDiscount(commit.amount, { ...commit.options, skipSponsorConfirmation: true });
+  };
+
   return (
     <div className={styles.additionalDiscountRow}>
       <div className={styles.additionalDiscountControl} aria-busy={isSaving}>
-        <span className={styles.additionalDiscountLabel}>{t('additionalDiscount', 'Additional discount')}:</span>
+        <span className={styles.additionalDiscountLabel}>{bulkDiscountLabel}:</span>
         <div className={styles.additionalDiscountEditorShell}>
           <EditableNumericCell
             activeMode={mode}
@@ -242,7 +360,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
             } ${styles.additionalDiscountEditor}`}
             error={error}
             inputId={`${bill.uuid}-additional-discount`}
-            inputLabelText={t('additionalDiscount', 'Additional discount')}
+            inputLabelText={bulkDiscountLabel}
             inputMode="decimal"
             inputValue={amount}
             isActive={isActive}
@@ -265,7 +383,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
             }}
             popover={{
               align: 'bottom-right',
-              ariaLabel: t('additionalDiscountPercentForm', 'Additional discount percent form'),
+              ariaLabel: t('bulkDiscountPercentForm', 'Bulk discount percent form'),
               buttonClassName: isActive && mode === 'form' ? editableCellStyles.discountOptionsButtonHidden : undefined,
               className: editableCellStyles.discountPopover,
               content: (
@@ -309,6 +427,33 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
                       </p>
                     ) : null}
                   </div>
+                  <div className={editableCellStyles.discountFieldGroup}>
+                    <ComboBox
+                      className={editableCellStyles.discountSponsorCombobox}
+                      id={`${bill.uuid}-additional-discount-sponsor`}
+                      disabled={isSaving || (!sponsorOptions.length && !isLoadingProviders)}
+                      itemToString={(item) => item?.label ?? ''}
+                      items={sponsorOptions}
+                      onChange={({ selectedItem }) => setSponsor(selectedItem ?? null)}
+                      selectedItem={sponsor}
+                      placeholder={
+                        isLoadingProviders
+                          ? t('loadingDiscountSponsors', 'Loading discount sponsors')
+                          : t('selectDiscountSponsor', 'Select discount sponsor')
+                      }
+                      titleText={t('discountSponsor', 'Discount sponsor')}
+                    />
+                  </div>
+                  <div className={editableCellStyles.discountFieldGroup}>
+                    <TextArea
+                      id={`${bill.uuid}-additional-discount-comment`}
+                      className={editableCellStyles.discountTextarea}
+                      labelText={t('comment', 'Comment')}
+                      onChange={(event) => setComment(event.target.value)}
+                      placeholder={t('discountCommentPlaceholder', 'Add a comment')}
+                      value={comment}
+                    />
+                  </div>
                   <div className={editableCellStyles.discountFormFooter}>
                     <button type="button" className={editableCellStyles.clearDiscountButton} onClick={clearDiscount}>
                       {t('clear', 'Clear')}
@@ -320,13 +465,32 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({ b
               onClose: close,
               onOpen: openPercentForm,
               trigger: <span className={editableCellStyles.discountPercentAffordance}>%</span>,
-              triggerLabel: t('openAdditionalDiscountEditor', 'Open additional discount editor'),
+              triggerLabel: t('openBulkDiscountEditor', 'Open Bulk discount editor'),
             }}
             sizingValue={amountDisplay}
             value={amountDisplay}
           />
         </div>
       </div>
+      <ComposedModal open={!!pendingCommit && !!sponsorConflict} onClose={cancelSponsorConfirmation}>
+        <ModalHeader title={t('confirmBulkDiscountSponsor', 'Confirm sponsor change')} />
+        <ModalBody>
+          <p>
+            {t('bulkDiscountSponsorConfirmation', '{{item}} discount sponsor will set to {{sponsor}}.', {
+              item: sponsorConflict ? getLineItemLabel(sponsorConflict.lineItem) : '',
+              sponsor: sponsorConflict?.sponsorLabel ?? '',
+            })}
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button kind="secondary" onClick={cancelSponsorConfirmation}>
+            {t('cancel', 'Cancel')}
+          </Button>
+          <Button kind="primary" onClick={confirmSponsorReplacement}>
+            {t('confirm', 'Confirm')}
+          </Button>
+        </ModalFooter>
+      </ComposedModal>
     </div>
   );
 };
