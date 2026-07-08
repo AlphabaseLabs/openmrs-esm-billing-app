@@ -323,6 +323,43 @@ describe('Payment', () => {
     expectCurrencyValue(150);
   });
 
+  test('should hide the payment summary tax row when tax column visibility is off', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={
+          {
+            ...paymentBill,
+            totalAmount: 300,
+            totalAmountWithoutTaxAndDiscount: 320,
+            totalTax: 10,
+            totalDiscounts: 20,
+            totalActualPayments: 100,
+            balance: 150,
+          } as any
+        }
+        selectedLineItems={[]}
+        showTaxSummary={false}
+      />,
+    );
+
+    expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
+    expectCurrencyValue(320);
+    expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
+    expectCurrencyValue(20);
+    expect(screen.queryByText(/Tax:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
+    expectCurrencyValue(100);
+    expect(screen.getByText(/Amount due:/i)).toBeInTheDocument();
+    expectCurrencyValue(150);
+  });
+
   test('should validate payment amount against discounted amount due', async () => {
     const user = userEvent.setup();
     mockUsePaymentModes.mockReturnValue({

@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
 import { Button, IconButton, Popover, PopoverContent } from '@carbon/react';
-import { Close, FolderOpen, OverflowMenuVertical, Printer, TrashCan, Wallet } from '@carbon/react/icons';
+import { Close, FolderOpen, OverflowMenuVertical, Printer, TrashCan } from '@carbon/react/icons';
 import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import startCase from 'lodash-es/startCase';
-import { launchBillingWorkspace } from '../workspaces';
-import { type LineItem, type MappedBill } from '../types';
+import { type MappedBill } from '../types';
 import styles from './invoice.scss';
 
 interface InvoiceActionsProps {
   readonly bill: MappedBill;
-  readonly selectedLineItems?: Array<LineItem>;
 }
 
-export function InvoiceActions({ bill, selectedLineItems = [] }: InvoiceActionsProps) {
+export function InvoiceActions({ bill }: InvoiceActionsProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -89,17 +87,6 @@ export function InvoiceActions({ bill, selectedLineItems = [] }: InvoiceActionsP
               )
             }>
             {t('printStatement', 'Print Statement')}
-          </Button>
-          <Button
-            kind="ghost"
-            size="sm"
-            renderIcon={Wallet}
-            className={styles.actionMenuItem}
-            onClick={() => {
-              launchBillingWorkspace('payment-workspace', { bill, selectedLineItems });
-              setIsOpen(false);
-            }}>
-            {t('additionalPayments', 'Additional payments')}
           </Button>
           <UserHasAccess privilege={bill?.closed ? 'Reopen Cashier Bills' : 'Close Cashier Bills'}>
             <Button

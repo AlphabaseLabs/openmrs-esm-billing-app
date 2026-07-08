@@ -25,6 +25,7 @@ type PaymentProps = {
   bill: MappedBill;
   selectedLineItems: Array<LineItem>;
   showDiscardButton?: boolean;
+  showTaxSummary?: boolean;
   discardDestination?: string;
   onDiscard?: () => void | Promise<void>;
 };
@@ -33,6 +34,7 @@ const Payments: React.FC<PaymentProps> = ({
   bill,
   selectedLineItems,
   showDiscardButton = true,
+  showTaxSummary = true,
   discardDestination,
   onDiscard,
 }) => {
@@ -150,7 +152,9 @@ const Payments: React.FC<PaymentProps> = ({
         <div className={styles.paymentTotals}>
           <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={convertToCurrency(summaryTotalAmount)} />
           <InvoiceBreakDown label={t('discounts', 'Discounts')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
-          <InvoiceBreakDown label={t('tax', 'Tax')} value={convertToCurrency(bill.totalTax ?? 0)} />
+          {showTaxSummary ? (
+            <InvoiceBreakDown label={t('tax', 'Tax')} value={convertToCurrency(bill.totalTax ?? 0)} />
+          ) : null}
           <InvoiceBreakDown
             label={t('totalTendered', 'Total tendered')}
             value={convertToCurrency(bill.totalActualPayments ?? 0)}

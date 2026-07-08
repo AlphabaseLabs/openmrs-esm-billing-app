@@ -10,6 +10,7 @@ import AdditionalDiscountControl from './additional-discount-control.component';
 import { InvoiceActions } from './invoice-actions.component';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
+import { readLineItemColumnVisibilityPreference, type LineItemColumnKey } from './line-item-column-visibility';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
 
@@ -47,7 +48,11 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { sessionLocation } = useSession();
   const [editableBill, setEditableBill] = useState<MappedBill>(bill);
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const [visibleLineItemColumnKeys, setVisibleLineItemColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
+    readLineItemColumnVisibilityPreference(),
+  );
   const billToRender = editableBill ?? bill;
+  const showTaxSummary = visibleLineItemColumnKeys.includes('tax');
 
   useEffect(() => {
     setEditableBill(bill);
@@ -214,7 +219,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
             }>
             {t('printBill', 'Print bill')}
           </Button>
-          <InvoiceActions bill={billToRender} selectedLineItems={selectedLineItems} />
+          <InvoiceActions bill={billToRender} />
         </div>
       </div>
       <div className={styles.invoiceContent}>
@@ -224,12 +229,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           selectedLineItems={selectedLineItems}
           onSelectItem={handleSelectItem}
           onLineItemUpdated={handleLineItemUpdated}
+          onVisibleColumnsChange={setVisibleLineItemColumnKeys}
         />
         <AdditionalDiscountControl bill={billToRender} onAdditionalDiscountUpdated={handleAdditionalDiscountUpdated} />
         <Payments
           bill={billToRender}
           selectedLineItems={selectedLineItems}
           showDiscardButton={showDiscardButton}
+          showTaxSummary={showTaxSummary}
           discardDestination={discardDestination}
           onDiscard={onDiscard}
         />

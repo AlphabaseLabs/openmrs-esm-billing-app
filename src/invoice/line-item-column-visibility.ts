@@ -117,7 +117,7 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     translationKey: 'tax',
     defaultLabel: 'Tax',
     required: false,
-    defaultVisible: true,
+    defaultVisible: false,
     alignment: 'numeric',
     minWidth: 80,
     growWeight: 0.5,

@@ -21,11 +21,35 @@ describe('line-item-column-visibility', () => {
   });
 
   it('defaults all configured default columns when persisted data is absent or malformed', () => {
+    expect(getDefaultVisibleLineItemColumnKeys()).toEqual([
+      'no',
+      'billItem',
+      'status',
+      'quantity',
+      'price',
+      'discount',
+      'total',
+      'actionButton',
+    ]);
     expect(readLineItemColumnVisibilityPreference()).toEqual(getDefaultVisibleLineItemColumnKeys());
 
     window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, '{bad json');
 
     expect(readLineItemColumnVisibilityPreference()).toEqual(getDefaultVisibleLineItemColumnKeys());
+  });
+
+  it('restores a persisted tax column preference even though tax is hidden by default', () => {
+    window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(['status', 'discount', 'tax']));
+
+    expect(readLineItemColumnVisibilityPreference()).toEqual([
+      'billItem',
+      'status',
+      'price',
+      'discount',
+      'tax',
+      'total',
+      'actionButton',
+    ]);
   });
 
   it('ignores unknown ids and required-column ids in persisted optional preferences', () => {

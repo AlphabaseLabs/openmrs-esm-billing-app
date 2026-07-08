@@ -5,6 +5,7 @@ import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-
 import { mockBillData } from '../../__mocks__/bill.mock';
 import { updateBillAdditionalDiscount } from '../billing.resource';
 import BillDetails from './bill-details.component';
+import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, type LineItemColumnKey } from './line-item-column-visibility';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -40,16 +41,41 @@ jest.mock('../payment-points/payment-points.resource', () => ({
   }),
 }));
 
-jest.mock('./invoice-table.component', () => () => <div data-testid="invoice-table" />);
-
-jest.mock('./payments/payments.component', () => ({
+jest.mock('./invoice-table.component', () => ({
   __esModule: true,
-  default: ({ bill }: { bill: any }) => (
+  default: ({
+    onVisibleColumnsChange,
+  }: {
+    onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
+  }) => (
+    <div data-testid="invoice-table">
+      <button
+        type="button"
+        onClick={() => onVisibleColumnsChange?.(['billItem', 'price', 'tax', 'total', 'actionButton'])}>
+        Show tax column
+      </button>
+    </div>
+  ),
+}));
+
+type MockPaymentsProps = {
+  bill: any;
+  showTaxSummary?: boolean;
+};
+
+function mockPaymentsComponent({ bill, showTaxSummary }: MockPaymentsProps) {
+  return (
     <div data-testid="payments">
       <span>Discount total: {bill.totalDiscounts ?? 0}</span>
       <span>Amount due: {bill.balance ?? 0}</span>
+      <span>Tax summary visible: {String(showTaxSummary)}</span>
     </div>
-  ),
+  );
+}
+
+jest.mock('./payments/payments.component', () => ({
+  __esModule: true,
+  default: mockPaymentsComponent,
 }));
 
 const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch>;
@@ -76,6 +102,7 @@ const billWithAdditionalDiscountBase = {
 describe('BillDetails', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.removeItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY);
     mockUseConfig.mockReturnValue({ sendInvoiceUrl: '/send-invoice' } as ReturnType<typeof useConfig>);
     mockUseSession.mockReturnValue({
       sessionLocation: { uuid: 'location-uuid', display: 'Luqman Clinic' },
@@ -120,6 +147,18 @@ describe('BillDetails', () => {
     expect(invoiceTable.compareDocumentPosition(discountsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(discountsLabel.compareDocumentPosition(payments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
+  });
+
+  it('passes tax summary visibility from line-item column visibility to payments', async () => {
+    const user = userEvent.setup();
+
+    render(<BillDetails bill={billWithAdditionalDiscountBase} />);
+
+    expect(screen.getByTestId('payments')).toHaveTextContent('Tax summary visible: false');
+
+    await user.click(screen.getByRole('button', { name: /show tax column/i }));
+
+    expect(screen.getByTestId('payments')).toHaveTextContent('Tax summary visible: true');
   });
 
   it('commits a fixed Bulk discount amount and leaves totals to backend refresh', async () => {

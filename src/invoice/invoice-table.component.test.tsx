@@ -284,7 +284,7 @@ describe('InvoiceTable', () => {
     expect(onLineItemUpdated).toHaveBeenCalled();
   });
 
-  it('hides and restores optional columns while keeping headers and cells synchronized', async () => {
+  it('restores and hides the default-hidden tax column while keeping headers and cells synchronized', async () => {
     const user = userEvent.setup();
 
     render(<InvoiceTable bill={openPendingBill} />);
@@ -293,7 +293,7 @@ describe('InvoiceTable', () => {
     const getHeaderCount = () => table.querySelectorAll('thead th').length;
     const getFirstBodyRowCellCount = () => table.querySelector('tbody tr')?.children.length ?? 0;
 
-    expect(screen.getByRole('columnheader', { name: /tax/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
     expect(getHeaderCount()).toBe(getFirstBodyRowCellCount());
     expect(table.querySelectorAll('col')).toHaveLength(getHeaderCount());
 
@@ -305,15 +305,17 @@ describe('InvoiceTable', () => {
     expect(within(columnOptions).queryByRole('checkbox', { name: /^total$/i })).not.toBeInTheDocument();
     expect(within(columnOptions).queryByRole('checkbox', { name: /action/i })).not.toBeInTheDocument();
 
-    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
+    const taxOption = within(columnOptions).getByRole('checkbox', { name: /tax/i });
+    expect(taxOption).not.toBeChecked();
 
-    expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    await user.click(taxOption);
+    expect(screen.getByRole('columnheader', { name: /tax/i })).toBeInTheDocument();
     expect(getHeaderCount()).toBe(getFirstBodyRowCellCount());
     expect(table.querySelectorAll('col')).toHaveLength(getHeaderCount());
 
-    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
+    await user.click(taxOption);
 
-    expect(screen.getByRole('columnheader', { name: /tax/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
     expect(getHeaderCount()).toBe(getFirstBodyRowCellCount());
     expect(table.querySelectorAll('col')).toHaveLength(getHeaderCount());
   });
@@ -359,10 +361,11 @@ describe('InvoiceTable', () => {
 
     await user.click(screen.getByRole('button', { name: /columns/i }));
     const columnOptions = screen.getByRole('group', { name: /line item columns/i });
-    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
+    await user.click(within(columnOptions).getByRole('checkbox', { name: /discount/i }));
 
     const columnWidths = getColumnWidths(table);
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
     expect(columnWidths[columnWidths.length - 1]).toBe('144px');
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
@@ -377,7 +380,6 @@ describe('InvoiceTable', () => {
     await user.click(screen.getByRole('button', { name: /columns/i }));
     const columnOptions = screen.getByRole('group', { name: /line item columns/i });
     await user.click(within(columnOptions).getByRole('checkbox', { name: /discount/i }));
-    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
 
     expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
@@ -439,6 +441,14 @@ describe('InvoiceTable', () => {
 
     expect(screen.getByRole('columnheader', { name: /status/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /discount/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
+  });
+
+  it('restores a persisted tax column preference', () => {
+    window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(['status', 'discount', 'tax']));
+
+    render(<InvoiceTable bill={openPendingBill} />);
+
     expect(screen.getByRole('columnheader', { name: /tax/i })).toBeInTheDocument();
   });
 
@@ -451,7 +461,6 @@ describe('InvoiceTable', () => {
     const columnOptions = screen.getByRole('group', { name: /line item columns/i });
 
     await user.click(within(columnOptions).getByRole('checkbox', { name: /discount/i }));
-    await user.click(within(columnOptions).getByRole('checkbox', { name: /tax/i }));
 
     expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();

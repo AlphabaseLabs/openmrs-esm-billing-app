@@ -70,9 +70,9 @@
 
 .additionalDiscountRow {
   align-items: center;
-  column-gap: layout.$spacing-07;
+  column-gap: layout.$spacing-03;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1px 20rem;
+  grid-template-columns: minmax(0, 1fr) 1px 22rem;
   padding: layout.$spacing-03 0;
 }
 
@@ -82,6 +82,7 @@
   grid-column: 3;
   grid-template-columns: 1fr 1fr;
   min-width: 0;
+  padding-right: layout.$spacing-06;
 }
 
 .additionalDiscountLabel {

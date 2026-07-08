@@ -60,6 +60,7 @@ type InvoiceTableProps = {
   selectedLineItems?: Array<LineItem>;
   onSelectItem?: (selectedLineItems: LineItem[]) => void;
   onLineItemUpdated?: (lineItem: LineItem) => void;
+  onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
 };
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({
@@ -69,6 +70,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   selectedLineItems = [],
   onSelectItem,
   onLineItemUpdated,
+  onVisibleColumnsChange,
 }) => {
   const { t } = useTranslation();
   const { lineItems } = bill;
@@ -124,6 +126,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     () => calculateLineItemTableColumnLayout(renderedLayoutColumns, tableContainerWidth),
     [renderedLayoutColumns, tableContainerWidth],
   );
+
+  useEffect(() => {
+    onVisibleColumnsChange?.(visibleColumnKeys);
+  }, [onVisibleColumnsChange, visibleColumnKeys]);
 
   const tableHeaders = useMemo(() => {
     return visibleColumnDefinitions.map((column) => ({
