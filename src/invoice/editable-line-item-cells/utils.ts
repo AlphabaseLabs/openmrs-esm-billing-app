@@ -42,6 +42,26 @@ export const getLineItemAmountDue = (lineItem: LineItem) => {
   return roundLineItemAmount(Math.max(total - totalAllocated, 0));
 };
 
+const settlementStatuses = [PaymentStatus.PENDING, PaymentStatus.POSTED, PaymentStatus.PAID] as const;
+
+const isActiveLineItem = (lineItem: LineItem) => !lineItem.voided;
+
+const isSettlementLineItem = (lineItem: LineItem) =>
+  settlementStatuses.includes(lineItem.paymentStatus as (typeof settlementStatuses)[number]);
+
+export const getBulkDiscountTotal = (lineItems: Array<LineItem> = []) =>
+  roundLineItemAmount(
+    lineItems.filter(isActiveLineItem).reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0),
+  );
+
+export const getBulkDiscountMaximum = (lineItems: Array<LineItem> = []) =>
+  roundLineItemAmount(
+    lineItems
+      .filter(isActiveLineItem)
+      .filter(isSettlementLineItem)
+      .reduce((total, lineItem) => total + getLineItemSubtotal(lineItem), 0),
+  );
+
 export const getLineItemPaymentStatus = (lineItem: LineItem) => {
   if (
     lineItem.paymentStatus === PaymentStatus.EXEMPTED ||
@@ -115,6 +135,35 @@ export const createDiscountUpdate = (
   };
 };
 
+const firstDiscountMetadata = (lineItem: LineItem) => {
+  const discount = lineItem.discounts?.find((entry) => (entry?.amount ?? 0) > 0);
+
+  return {
+    sponsor: discount?.sponsor,
+    description: discount?.description,
+  };
+};
+
+const createDiscountsForAmount = (
+  lineItem: LineItem,
+  amount: number,
+  sponsor?: string,
+  description?: string,
+): BillLineItemUpdate['discounts'] =>
+  createDiscountUpdate(
+    lineItem,
+    roundLineItemAmount(amount),
+    getLineItemSubtotal(lineItem) ? amount / getLineItemSubtotal(lineItem) : 0,
+    sponsor,
+    description,
+  ).discounts ?? [];
+
+const withLineItemDiscount = (lineItem: LineItem, amount: number, sponsor?: string, description?: string): LineItem =>
+  recalculateLineItem({
+    ...lineItem,
+    discounts: createDiscountsForAmount(lineItem, amount, sponsor, description),
+  });
+
 export const recalculateLineItem = (lineItem: LineItem): LineItem => {
   const recalculatedLineItem = {
     ...lineItem,
@@ -130,9 +179,10 @@ export const recalculateLineItem = (lineItem: LineItem): LineItem => {
   };
 };
 
-export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: LineItem): MappedBill => {
+export const recomputeBillWithLineItems = (bill: MappedBill, updatedLineItems: Array<LineItem>): MappedBill => {
+  const updatedLineItemsByUuid = new Map(updatedLineItems.map((lineItem) => [lineItem.uuid, lineItem]));
   const lineItems = (bill.lineItems ?? []).map((lineItem) =>
-    lineItem.uuid === updatedLineItem.uuid ? recalculateLineItem(updatedLineItem) : recalculateLineItem(lineItem),
+    recalculateLineItem(updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem),
   );
   const totalAmountWithoutTaxAndDiscount = lineItems.reduce(
     (total, lineItem) => total + getLineItemSubtotal(lineItem),
@@ -159,6 +209,137 @@ export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: Lin
     totalDiscounts: billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount,
     balance,
+  };
+};
+
+export const recomputeBillWithLineItem = (bill: MappedBill, updatedLineItem: LineItem): MappedBill =>
+  recomputeBillWithLineItems(bill, [updatedLineItem]);
+
+export type BulkDiscountLineItemUpdate = {
+  lineItem: LineItem;
+  updatedLineItem: LineItem;
+  discounts: BillLineItemUpdate['discounts'];
+};
+
+export type BulkDiscountDraft = {
+  bill: MappedBill;
+  lineItemUpdates: Array<BulkDiscountLineItemUpdate>;
+  remainingDelta: number;
+};
+
+const discountArrayKey = (discounts: BillLineItemUpdate['discounts'] = []) =>
+  JSON.stringify(
+    discounts.map((discount) => ({
+      amount: roundLineItemAmount(Number(discount.amount ?? 0)),
+      baseAmount: roundLineItemAmount(Number(discount.baseAmount ?? 0)),
+      rate: discount.rate === undefined ? undefined : Number(discount.rate),
+      description: discount.description ?? '',
+      sponsor: discount.sponsor ?? '',
+    })),
+  );
+
+export const getBulkDiscountLineItemUpdates = (
+  currentBill: MappedBill,
+  draftBill: MappedBill,
+): Array<BulkDiscountLineItemUpdate> => {
+  const currentLineItemsByUuid = new Map((currentBill.lineItems ?? []).map((lineItem) => [lineItem.uuid, lineItem]));
+
+  return (draftBill.lineItems ?? []).flatMap((updatedLineItem) => {
+    const currentLineItem = currentLineItemsByUuid.get(updatedLineItem.uuid);
+    if (!currentLineItem) {
+      return [];
+    }
+
+    const currentDiscounts = currentLineItem.discounts ?? [];
+    const updatedDiscounts = updatedLineItem.discounts ?? [];
+
+    if (discountArrayKey(currentDiscounts) === discountArrayKey(updatedDiscounts)) {
+      return [];
+    }
+
+    return [
+      {
+        lineItem: currentLineItem,
+        updatedLineItem,
+        discounts: updatedDiscounts,
+      },
+    ];
+  });
+};
+
+export const applyBulkDiscountDraft = (
+  bill: MappedBill,
+  targetBulkDiscount: number,
+  options: { sponsor?: string; description?: string } = {},
+): BulkDiscountDraft => {
+  const currentBulkDiscount = getBulkDiscountTotal(bill.lineItems ?? []);
+  let remainingDelta = roundLineItemAmount(targetBulkDiscount - currentBulkDiscount);
+  const updatedLineItemsByUuid = new Map<string, LineItem>();
+  const activeLineItems = (bill.lineItems ?? []).filter(isActiveLineItem).filter(isSettlementLineItem);
+
+  if (remainingDelta > 0) {
+    for (const lineItem of activeLineItems) {
+      if (remainingDelta <= 0) {
+        break;
+      }
+
+      const currentDiscount = getLineItemDiscountAmount(updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem);
+      const capacity = roundLineItemAmount(Math.max(getLineItemSubtotal(lineItem) - currentDiscount, 0));
+      if (capacity <= 0) {
+        continue;
+      }
+
+      const amountToAdd = Math.min(capacity, remainingDelta);
+      const nextDiscount = roundLineItemAmount(currentDiscount + amountToAdd);
+      updatedLineItemsByUuid.set(
+        lineItem.uuid,
+        withLineItemDiscount(lineItem, nextDiscount, options.sponsor, options.description),
+      );
+      remainingDelta = roundLineItemAmount(remainingDelta - amountToAdd);
+    }
+  } else if (remainingDelta < 0) {
+    let amountToRemove = Math.abs(remainingDelta);
+
+    for (const status of settlementStatuses) {
+      const linesForStatus = activeLineItems
+        .filter((lineItem) => lineItem.paymentStatus === status)
+        .slice()
+        .reverse();
+
+      for (const lineItem of linesForStatus) {
+        if (amountToRemove <= 0) {
+          break;
+        }
+
+        const currentLineItem = updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem;
+        const currentDiscount = getLineItemDiscountAmount(currentLineItem);
+        if (currentDiscount <= 0) {
+          continue;
+        }
+
+        const amountToSubtract = Math.min(currentDiscount, amountToRemove);
+        const nextDiscount = roundLineItemAmount(currentDiscount - amountToSubtract);
+        const metadata = firstDiscountMetadata(currentLineItem);
+        updatedLineItemsByUuid.set(
+          lineItem.uuid,
+          withLineItemDiscount(currentLineItem, nextDiscount, metadata.sponsor, metadata.description),
+        );
+        amountToRemove = roundLineItemAmount(amountToRemove - amountToSubtract);
+      }
+    }
+
+    remainingDelta = amountToRemove > 0 ? -roundLineItemAmount(amountToRemove) : 0;
+  }
+
+  const updatedLineItems = (bill.lineItems ?? []).map(
+    (lineItem) => updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem,
+  );
+  const draftBill = recomputeBillWithLineItems({ ...bill, lineItems: updatedLineItems }, updatedLineItems);
+
+  return {
+    bill: draftBill,
+    lineItemUpdates: getBulkDiscountLineItemUpdates(bill, draftBill),
+    remainingDelta,
   };
 };
 

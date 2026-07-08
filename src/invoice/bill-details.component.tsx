@@ -102,7 +102,11 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
   };
 
-  const handleAdditionalDiscountUpdated = async () => {
+  const handleAdditionalDiscountUpdated = async (_discounts: number, updatedBill?: MappedBill) => {
+    if (updatedBill) {
+      setEditableBill(updatedBill);
+    }
+
     await onRefreshBill?.();
   };
 
