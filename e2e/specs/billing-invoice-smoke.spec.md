@@ -31,10 +31,10 @@ Each smoke test should:
 lineSubtotal       = price * quantity
 lineTotal          = lineSubtotal - lineDiscount + tax
 lineItemsTotal     = sum(lineTotal)
-billTotal          = lineItemsTotal - additionalDiscount
-displayDiscount    = sum(lineDiscount) + additionalDiscount
+billTotal          = lineItemsTotal
+displayDiscount    = sum(lineDiscount)
 amountDue          = billTotal - totalActualPayments
-additionalDiscount = bill-level, tax-neutral, not copied into line items
+Bulk discount      = UI editor over line-item discounts
 ```
 
 ## Smoke Scenarios
@@ -98,7 +98,7 @@ Expected after remaining payment:
 - `totalActualPayments == partialPayment + remainingPayment`.
 - Payment history shows both payments.
 
-### SMK-003: Additional Discount Settlement
+### SMK-003: Bulk Discount Settlement
 
 Source scenario: `BI-005`.
 
@@ -106,7 +106,7 @@ Setup:
 
 - Create a bill with at least two active line items.
 - Apply at least one line-level discount.
-- Apply a bill-level additional discount.
+- Increase Bulk discount through the UI so the change is persisted as line-item discounts.
 
 UI actions:
 
@@ -116,12 +116,12 @@ UI actions:
 
 Expected:
 
-- Line item totals are unchanged by the additional discount.
-- Line item taxes are unchanged by the additional discount.
-- Discount summary shows `lineDiscounts + additionalDiscount`.
-- Bill total equals `sum(lineTotals) - additionalDiscount`.
+- Line item discounts reflect the committed Bulk discount allocation after refresh.
+- Line item taxes are recalculated from line subtotals after line discounts.
+- Discount summary shows `sum(lineDiscounts)`.
+- Bill total equals `sum(lineTotals)`.
 - Amount due uses `billTotal - totalActualPayments`.
-- Paying the discounted amount sets `balance == 0`.
+- Paying the resulting amount due sets `balance == 0`.
 - Bill status becomes `PAID`.
 
 ### SMK-004: Paid Line Price Edit Creates Gap

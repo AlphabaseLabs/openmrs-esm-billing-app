@@ -30,10 +30,9 @@ const baseInvoice = {
 };
 
 describe('mapBillProperties', () => {
-  it('derives Discounts from line totals and ignores legacy additional discount', () => {
+  it('derives Discounts from line totals', () => {
     const mappedBill = mapBillProperties({
       ...baseInvoice,
-      additionalDiscount: 50,
       balance: 115,
       totalActualPayments: 100,
       totalDiscount: 20,
@@ -72,7 +71,6 @@ describe('mapBillProperties', () => {
 
     expect(mappedBill.totalAmount).toBe(290);
     expect(mappedBill.billLineItemDiscounts).toBe(20);
-    expect(mappedBill.additionalDiscount).toBe(0);
     expect(mappedBill.totalDiscounts).toBe(20);
     expect(mappedBill.totalWaived).toBe(25);
     expect(mappedBill.totalActualPayments).toBe(100);
@@ -81,7 +79,7 @@ describe('mapBillProperties', () => {
     expect(mappedBill.totalAmountWithoutTaxAndDiscount).toBe(300);
   });
 
-  it('defaults older bill responses to zero additional discount without requiring payments', () => {
+  it('defaults older bill responses to zero Discounts without requiring payments', () => {
     const mappedBill = mapBillProperties({
       ...baseInvoice,
       balance: 0,
@@ -90,7 +88,6 @@ describe('mapBillProperties', () => {
       payments: [],
     } as any);
 
-    expect(mappedBill.additionalDiscount).toBe(0);
     expect(mappedBill.totalDiscounts).toBe(0);
     expect(mappedBill.totalAmount).toBe(0);
     expect(mappedBill.tenderedAmount).toBe(0);

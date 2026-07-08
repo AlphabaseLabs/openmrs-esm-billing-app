@@ -18,10 +18,10 @@ import {
 } from './editable-line-item-cells';
 import styles from './invoice.scss';
 
-type AdditionalDiscountControlProps = {
+type BulkDiscountControlProps = {
   bill: MappedBill;
   disabled?: boolean;
-  onAdditionalDiscountUpdated?: (discounts: number, updatedBill?: MappedBill) => void | Promise<void>;
+  onBulkDiscountUpdated?: (discounts: number, updatedBill?: MappedBill) => void | Promise<void>;
 };
 
 type EditorMode = 'inline' | 'form' | null;
@@ -101,11 +101,7 @@ const getLineItemLabel = (lineItem: LineItem) =>
 
 const getSponsorLabel = (sponsor: ProviderOption | null) => sponsor?.label || sponsor?.uuid || 'No sponsor';
 
-const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
-  bill,
-  disabled = false,
-  onAdditionalDiscountUpdated,
-}) => {
+const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disabled = false, onBulkDiscountUpdated }) => {
   const { t } = useTranslation();
   const { currentProvider } = useSession();
   const { providerOptions, isLoading: isLoadingProviders } = useProviderOptions();
@@ -224,7 +220,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
           }
         }),
       );
-      await onAdditionalDiscountUpdated?.(validatedAmount, draft.bill);
+      await onBulkDiscountUpdated?.(validatedAmount, draft.bill);
       showSnackbar({
         title: t('bulkDiscountSaved', 'Bulk discount saved'),
         subtitle: t('bulkDiscountSavedSubtitle', 'Invoice bulk discount was applied successfully'),
@@ -252,14 +248,14 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
         timeoutInMs: 5000,
         isLowContrast: true,
       });
-      await onAdditionalDiscountUpdated?.(sourceDiscounts);
+      await onBulkDiscountUpdated?.(sourceDiscounts);
       return false;
     } finally {
       setIsSaving(false);
     }
   };
 
-  const commitAdditionalDiscount = async (nextAmount: number, options: CommitOptions = {}) => {
+  const commitBulkDiscount = async (nextAmount: number, options: CommitOptions = {}) => {
     const validatedAmount = validateAmount(nextAmount);
 
     if (validatedAmount === null) {
@@ -297,7 +293,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
       return;
     }
 
-    void commitAdditionalDiscount(parsedAmount);
+    void commitBulkDiscount(parsedAmount);
   };
 
   const updateAmountDraft = (nextValue: string) => {
@@ -367,7 +363,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
     const clampedPercent = clamp(normalizeNumber(parsedPercent), 0, 100);
     setPercent(formatDiscountPercent(clampedPercent));
     const nextAmount = syncDraftAmount((discountableAmount * clampedPercent) / 100, { syncPercent: false });
-    void commitAdditionalDiscount(nextAmount, { closeOnCommit: false });
+    void commitBulkDiscount(nextAmount, { closeOnCommit: false });
   };
 
   const normalizePercentInput = () => {
@@ -378,7 +374,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
     setAmount(formatDiscountAmountDraft(0));
     setPercent(formatDiscountPercent(0));
     setError('');
-    void commitAdditionalDiscount(0, { closeOnCommit: false });
+    void commitBulkDiscount(0, { closeOnCommit: false });
   };
 
   const cancelSponsorConfirmation = () => {
@@ -399,17 +395,17 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
   };
 
   return (
-    <div className={styles.additionalDiscountRow}>
-      <div className={styles.additionalDiscountControl} aria-busy={isSaving}>
-        <span className={styles.additionalDiscountLabel}>{bulkDiscountLabel}:</span>
-        <div className={styles.additionalDiscountEditorShell}>
+    <div className={styles.bulkDiscountRow}>
+      <div className={styles.bulkDiscountControl} aria-busy={isSaving}>
+        <span className={styles.bulkDiscountLabel}>{bulkDiscountLabel}:</span>
+        <div className={styles.bulkDiscountEditorShell}>
           <EditableNumericCell
             activeMode={mode}
             className={`${editableCellStyles.discountEditableCell} ${
               isActive && mode === 'form' ? editableCellStyles.activeEditableCell : ''
-            } ${styles.additionalDiscountEditor}`}
+            } ${styles.bulkDiscountEditor}`}
             error={error}
-            inputId={`${bill.uuid}-additional-discount`}
+            inputId={`${bill.uuid}-bulk-discount`}
             inputLabelText={bulkDiscountLabel}
             inputMode="decimal"
             inputValue={amount}
@@ -441,13 +437,13 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
                   <div className={editableCellStyles.discountValueGroup}>
                     <label
                       className={editableCellStyles.discountGroupLabel}
-                      htmlFor={`${bill.uuid}-additional-discount-percent`}>
+                      htmlFor={`${bill.uuid}-bulk-discount-percent`}>
                       {t('enterDiscountPercent', 'Enter discount percent:')}
                     </label>
                     <div className={editableCellStyles.discountInlineField}>
                       <input
-                        id={`${bill.uuid}-additional-discount-percent`}
-                        aria-describedby={error ? `${bill.uuid}-additional-discount-error` : undefined}
+                        id={`${bill.uuid}-bulk-discount-percent`}
+                        aria-describedby={error ? `${bill.uuid}-bulk-discount-error` : undefined}
                         aria-invalid={!!error}
                         aria-label={t('percent', 'Percent')}
                         className={editableCellStyles.discountInlineFieldInput}
@@ -469,10 +465,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
                       </span>
                     </div>
                     {error ? (
-                      <p
-                        id={`${bill.uuid}-additional-discount-error`}
-                        className={editableCellStyles.errorText}
-                        role="alert">
+                      <p id={`${bill.uuid}-bulk-discount-error`} className={editableCellStyles.errorText} role="alert">
                         {error}
                       </p>
                     ) : null}
@@ -480,7 +473,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
                   <div className={editableCellStyles.discountFieldGroup}>
                     <ComboBox
                       className={editableCellStyles.discountSponsorCombobox}
-                      id={`${bill.uuid}-additional-discount-sponsor`}
+                      id={`${bill.uuid}-bulk-discount-sponsor`}
                       disabled={isSaving || (!sponsorOptions.length && !isLoadingProviders)}
                       itemToString={(item) => item?.label ?? ''}
                       items={sponsorOptions}
@@ -496,7 +489,7 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
                   </div>
                   <div className={editableCellStyles.discountFieldGroup}>
                     <TextArea
-                      id={`${bill.uuid}-additional-discount-comment`}
+                      id={`${bill.uuid}-bulk-discount-comment`}
                       className={editableCellStyles.discountTextarea}
                       labelText={t('comment', 'Comment')}
                       onChange={(event) => setComment(event.target.value)}
@@ -545,4 +538,4 @@ const AdditionalDiscountControl: React.FC<AdditionalDiscountControlProps> = ({
   );
 };
 
-export default AdditionalDiscountControl;
+export default BulkDiscountControl;

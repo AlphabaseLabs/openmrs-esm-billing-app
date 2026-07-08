@@ -30,7 +30,6 @@ export interface MappedBill {
   closed?: boolean;
   totalWaived?: number;
   totalActualPayments?: number;
-  additionalDiscount?: number;
   totalTax?: number;
   billLineItemDiscounts?: number;
   totalDiscounts?: number;
@@ -331,7 +330,6 @@ export interface PatientInvoice {
   closed?: boolean;
   totalActualPayments?: number;
   totalWaivers?: number;
-  additionalDiscount?: number;
   totalTax?: number;
   totalDiscount?: number;
 }

@@ -68,7 +68,7 @@
   margin: 0 layout.$spacing-05 layout.$spacing-05;
 }
 
-.additionalDiscountRow {
+.bulkDiscountRow {
   align-items: center;
   column-gap: layout.$spacing-03;
   display: grid;
@@ -76,7 +76,7 @@
   padding: layout.$spacing-03 0;
 }
 
-.additionalDiscountControl {
+.bulkDiscountControl {
   align-items: center;
   display: grid;
   grid-column: 3;
@@ -85,18 +85,18 @@
   padding-right: layout.$spacing-06;
 }
 
-.additionalDiscountLabel {
+.bulkDiscountLabel {
   @include type.type-style('legal-02');
   color: colors.$gray-100;
   white-space: nowrap;
 }
 
-.additionalDiscountEditorShell {
+.bulkDiscountEditorShell {
   margin-left: layout.$spacing-03;
   min-width: 0;
 }
 
-.additionalDiscountEditor {
+.bulkDiscountEditor {
   background: transparent;
   box-shadow: inset 0 -1px 0 0 colors.$gray-50;
   color: colors.$gray-100;
@@ -150,16 +150,16 @@
     width: 100%;
   }
 
-  .additionalDiscountRow {
+  .bulkDiscountRow {
     display: block;
   }
 
-  .additionalDiscountControl {
+  .bulkDiscountControl {
     grid-column: auto;
     width: 100%;
   }
 
-  .additionalDiscountEditorShell {
+  .bulkDiscountEditorShell {
     flex: 1 1 auto;
     min-width: 0;
   }

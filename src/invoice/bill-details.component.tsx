@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
-import AdditionalDiscountControl from './additional-discount-control.component';
+import BulkDiscountControl from './bulk-discount-control.component';
 import { InvoiceActions } from './invoice-actions.component';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
@@ -102,7 +102,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
   };
 
-  const handleAdditionalDiscountUpdated = async (_discounts: number, updatedBill?: MappedBill) => {
+  const handleBulkDiscountUpdated = async (_discounts: number, updatedBill?: MappedBill) => {
     if (updatedBill) {
       setEditableBill(updatedBill);
     }
@@ -235,7 +235,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           onLineItemUpdated={handleLineItemUpdated}
           onVisibleColumnsChange={setVisibleLineItemColumnKeys}
         />
-        <AdditionalDiscountControl bill={billToRender} onAdditionalDiscountUpdated={handleAdditionalDiscountUpdated} />
+        <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
         <Payments
           bill={billToRender}
           selectedLineItems={selectedLineItems}

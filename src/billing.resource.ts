@@ -80,7 +80,6 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
     totalActualPayments: bill?.totalActualPayments ?? 0,
-    additionalDiscount: 0,
     totalTax: bill?.totalTax ?? 0,
     billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount: lineItems.reduce(
@@ -378,33 +377,6 @@ export const billingFormSchema = z.object({
 export const addPaymentToBill = (billUuid: string, payload: Record<string, any>) => {
   const url = `${restBaseUrl}/cashier/bill/${billUuid}/payment`;
   return openmrsFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
-};
-
-export type AdditionalDiscountUpdate = {
-  discounts?: number;
-  additionalDiscount?: number;
-  sponsor?: string;
-  comment?: string;
-};
-
-export const updateBillAdditionalDiscount = (
-  billUuid: string,
-  additionalDiscount: number | AdditionalDiscountUpdate,
-) => {
-  const url = `${restBaseUrl}/kenyaemr-cashier/bill/${billUuid}/additional-discount`;
-  const body =
-    typeof additionalDiscount === 'number'
-      ? { discounts: additionalDiscount }
-      : {
-          ...additionalDiscount,
-          discounts: additionalDiscount.discounts ?? additionalDiscount.additionalDiscount ?? 0,
-          additionalDiscount: undefined,
-        };
-  return openmrsFetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  });
 };
 
 export const updateBillItems = (payload) => {

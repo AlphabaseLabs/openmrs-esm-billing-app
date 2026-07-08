@@ -97,7 +97,6 @@ const paymentBill = {
   totalTax: 0,
   totalActualPayments: 0,
   totalDeposits: 0,
-  additionalDiscount: 0,
 };
 
 const normalizeWhitespace = (value: string) => value.replace(/\s/g, ' ');
@@ -299,7 +298,6 @@ describe('Payment', () => {
             totalAmountWithoutTaxAndDiscount: 320,
             totalTax: 10,
             billLineItemDiscounts: 20,
-            additionalDiscount: 50,
             totalDiscounts: 20,
             totalActualPayments: 100,
             totalWaived: 25,
@@ -314,7 +312,6 @@ describe('Payment', () => {
     expectCurrencyValue(320);
     expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
     expectCurrencyValue(20);
-    expect(screen.queryByText(/Additional discount:/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Tax:/i)).toBeInTheDocument();
     expectCurrencyValue(10);
     expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
@@ -360,7 +357,7 @@ describe('Payment', () => {
     expectCurrencyValue(150);
   });
 
-  test('should validate payment amount against discounted amount due', async () => {
+  test('should validate payment amount against amount due', async () => {
     const user = userEvent.setup();
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
@@ -375,7 +372,6 @@ describe('Payment', () => {
           {
             ...paymentBill,
             totalAmount: 300,
-            additionalDiscount: 50,
             totalDiscounts: 50,
             balance: 250,
           } as any

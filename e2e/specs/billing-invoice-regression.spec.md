@@ -4,7 +4,7 @@ This is a non-executable reference spec for the future Playwright regression sui
 
 ## Purpose
 
-Verify billing invoice behavior across creation, inline editing, line discounts, additional discounts, full and partial payment, refunds, closing, reopening, payment deletion, line deletion, and bill deletion.
+Verify billing invoice behavior across creation, inline editing, line discounts, Bulk discount editing, full and partial payment, refunds, closing, reopening, payment deletion, line deletion, and bill deletion.
 
 Prefer one independent bill per scenario. Chain scenarios only when the user flow itself requires continuity, such as partial payment followed by remaining payment.
 
@@ -27,10 +27,10 @@ lineDiscount       = sum(line.discounts.amount)
 lineTax            = sum(line.taxes.amount)
 lineTotal          = lineSubtotal - lineDiscount + lineTax
 lineItemsTotal     = sum(non-voided lineTotal)
-billTotal          = lineItemsTotal - additionalDiscount
-displayDiscount    = sum(lineDiscount) + additionalDiscount
+billTotal          = lineItemsTotal
+displayDiscount    = sum(lineDiscount)
 amountDue          = billTotal - totalActualPayments
-additionalDiscount = bill-level, tax-neutral, not copied into line items
+Bulk discount      = UI editor over line-item discounts
 ```
 
 ## Scenario Matrix
@@ -114,7 +114,7 @@ Expected:
 - Payment history shows both payments.
 - No duplicate or voided payment is counted in totals.
 
-### BI-005: Add Items, Line Discount, Additional Discount
+### BI-005: Add Items, Line Discount, Bulk Discount
 
 Setup:
 
@@ -123,16 +123,15 @@ Setup:
 
 Actions:
 
-- Apply a bill-level additional discount.
+- Edit Bulk discount through the UI.
 - Verify invoice summary.
 
 Expected:
 
-- Line item totals remain unchanged.
-- Line item taxes remain unchanged.
-- Additional discount is not copied into line discounts.
-- Display discount equals `sum(lineDiscounts) + additionalDiscount`.
-- Bill total equals `sum(lineTotals) - additionalDiscount`.
+- Bulk discount changes persist as line-item discounts.
+- Line item taxes recalculate from line subtotals after line discounts.
+- Display discount equals `sum(lineDiscounts)`.
+- Bill total equals `sum(lineTotals)`.
 - Amount due equals `billTotal - totalActualPayments`.
 
 ### BI-006: Add Items, Override Price, Discounts, Full Payment
@@ -302,26 +301,23 @@ Expected:
 - Bill status and balance recompute.
 - If edit creates a payment gap, bill becomes `POSTED`.
 
-### BI-015: Refund Item From Bill With Line-Level And Additional Discounts
+### BI-015: Refund Item From Bill With Line-Level Discounts
 
 Policy decision:
 
-- Use Option B.
-- Refund amount equals refunded line net total minus proportional share of additional discount.
+- Refund amount equals the refunded line net total.
 
 Formula:
 
 ```text
-eligibleBillNetTotal          = sum(refundable positive line totals)
-lineAdditionalDiscountShare   = additionalDiscount * (refundedLineNetTotal / eligibleBillNetTotal)
-refundAmount                  = refundedLineNetTotal - lineAdditionalDiscountShare
+refundAmount = refundedLineNetTotal
 ```
 
 Setup:
 
 - Create a bill with multiple positive line items.
 - Apply at least one line-level discount.
-- Apply bill-level additional discount.
+- Optionally use Bulk discount to create additional line-item discounts.
 - Fully pay the bill.
 
 Actions:
@@ -333,7 +329,6 @@ Expected:
 - Original paid line remains unchanged.
 - A new negative `CREDITED` line is created.
 - Refund line reverses the original line-level discount and tax values proportionally to the refunded line.
-- Refund amount subtracts the proportional share of bill-level additional discount.
 - Bill total, tendered amount, and balance reflect the refund policy.
 - Refund action is not offered again for the same paid line once matched by a refund line.
 
@@ -342,9 +337,7 @@ Example:
 ```text
 line A net total: 100
 line B net total: 300
-additionalDiscount: 40
-refund line A share: 40 * (100 / 400) = 10
-refund amount for line A: 100 - 10 = 90
+refund amount for line A: 100
 ```
 
 ### BI-016: Delete Bill

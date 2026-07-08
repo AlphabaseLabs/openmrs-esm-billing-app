@@ -10,7 +10,6 @@ import {
   getLineItemTotal,
   parseEditableNumber,
   recalculateLineItem,
-  recomputeBillWithAdditionalDiscount,
   recomputeBillWithLineItem,
 } from './utils';
 import { testDiscountedLineItem, testLineItem } from './editable-cell-test-utils';
@@ -161,13 +160,12 @@ describe('editable line item utils', () => {
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 
-  it('ignores legacy additional discount after a line item change', () => {
+  it('derives discount totals from line items after a line item change', () => {
     const bill = {
       uuid: 'bill',
       lineItems: [testDiscountedLineItem],
       payments: [],
       status: PaymentStatus.PENDING,
-      additionalDiscount: 100,
       totalActualPayments: 200,
       totalWaived: 50,
       totalDeposits: 25,
@@ -183,39 +181,8 @@ describe('editable line item utils', () => {
 
     expect(updatedBill.totalAmount).toBe(1800);
     expect(updatedBill.billLineItemDiscounts).toBe(250);
-    expect(updatedBill.additionalDiscount).toBe(0);
     expect(updatedBill.totalDiscounts).toBe(250);
     expect(updatedBill.balance).toBe(1525);
-    expect(updatedBill.status).toBe(PaymentStatus.POSTED);
-  });
-
-  it('keeps Discounts line-sourced when the legacy additional discount recompute helper is called', () => {
-    const lineItem = {
-      ...testDiscountedLineItem,
-      discounts: [{ amount: 250, baseAmount: 2000 }],
-      total: 1750,
-    };
-    const bill = {
-      uuid: 'bill',
-      lineItems: [lineItem],
-      payments: [],
-      status: PaymentStatus.PENDING,
-      totalAmount: 1750,
-      billLineItemDiscounts: 250,
-      totalActualPayments: 200,
-      totalWaived: 50,
-      totalDeposits: 25,
-      additionalDiscount: 0,
-      totalDiscounts: 250,
-      balance: 1475,
-    } as MappedBill;
-
-    const updatedBill = recomputeBillWithAdditionalDiscount(bill, 100);
-
-    expect(updatedBill.lineItems[0]).toBe(lineItem);
-    expect(updatedBill.additionalDiscount).toBe(0);
-    expect(updatedBill.totalDiscounts).toBe(250);
-    expect(updatedBill.balance).toBe(1475);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
   });
 

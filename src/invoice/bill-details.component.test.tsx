@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
-import { updateBillAdditionalDiscount, updateBillLineItem } from '../billing.resource';
+import { updateBillLineItem } from '../billing.resource';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import BillDetails from './bill-details.component';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, type LineItemColumnKey } from './line-item-column-visibility';
@@ -29,7 +29,6 @@ jest.mock('./invoice-actions.component', () => ({
 }));
 
 jest.mock('../billing.resource', () => ({
-  updateBillAdditionalDiscount: jest.fn(),
   updateBillLineItem: jest.fn(),
 }));
 
@@ -93,14 +92,10 @@ const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
-const mockUpdateBillAdditionalDiscount = updateBillAdditionalDiscount as jest.MockedFunction<
-  typeof updateBillAdditionalDiscount
->;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
-const billWithAdditionalDiscountBase = {
+const billWithBulkDiscountBase = {
   ...mockBillData[0],
-  additionalDiscount: 0,
   balance: 100,
   totalAmount: 100,
   totalAmountWithoutTaxAndDiscount: 100,
@@ -155,7 +150,7 @@ const createBill = (lineItems: Array<LineItem>, overrides: Partial<MappedBill> =
   const totalActualPayments = overrides.totalActualPayments ?? 0;
 
   return {
-    ...billWithAdditionalDiscountBase,
+    ...billWithBulkDiscountBase,
     lineItems,
     totalAmountWithoutTaxAndDiscount,
     totalTax,
@@ -209,7 +204,7 @@ describe('BillDetails', () => {
   });
 
   it('renders Bulk discount between line items and payments with a zero fallback', () => {
-    render(<BillDetails bill={{ ...billWithAdditionalDiscountBase, additionalDiscount: undefined }} />);
+    render(<BillDetails bill={billWithBulkDiscountBase} />);
 
     const invoiceTable = screen.getByTestId('invoice-table');
     const discountsLabel = screen.getByText('Bulk discount:');
@@ -223,7 +218,7 @@ describe('BillDetails', () => {
   it('passes tax summary visibility from line-item column visibility to payments', async () => {
     const user = userEvent.setup();
 
-    render(<BillDetails bill={billWithAdditionalDiscountBase} />);
+    render(<BillDetails bill={billWithBulkDiscountBase} />);
 
     expect(screen.getByTestId('payments')).toHaveTextContent('Tax summary visible: false');
 
@@ -247,7 +242,6 @@ describe('BillDetails', () => {
 
     expect(screen.getByTestId('line-discount-line-one')).toHaveTextContent('0');
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('commits a fixed Bulk discount amount through changed line-item updates', async () => {
@@ -280,7 +274,6 @@ describe('BillDetails', () => {
     await waitFor(() => expect(screen.getByTestId('line-discount-line-one')).toHaveTextContent('50'));
     expect(screen.getByTestId('payments')).toHaveTextContent('Discount total: 50');
     expect(screen.getByTestId('payments')).toHaveTextContent('Amount due: 50');
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
     expect(mockShowSnackbar).toHaveBeenCalledWith({
       title: 'Bulk discount saved',
       subtitle: 'Invoice bulk discount was applied successfully',
@@ -342,7 +335,6 @@ describe('BillDetails', () => {
         }),
       ),
     );
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('shows error feedback and restores server-confirmed value when Bulk discount update fails', async () => {
@@ -371,7 +363,6 @@ describe('BillDetails', () => {
     expect(screen.getByTestId('line-discount-line-one')).toHaveTextContent('0');
     expect(screen.getByTestId('payments')).toHaveTextContent('Discount total: 0');
     expect(screen.getByTestId('payments')).toHaveTextContent('Amount due: 100');
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('rejects a fixed amount greater than the current discountable amount', async () => {
@@ -386,7 +377,6 @@ describe('BillDetails', () => {
     await user.type(input, '101{Enter}');
 
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
     expect(screen.getByText(/Enter Bulk discount between 0 and PKR\s*100\.00/i)).toBeInTheDocument();
   });
 
@@ -417,7 +407,6 @@ describe('BillDetails', () => {
         }),
       ),
     );
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('submits Bulk discount sponsor and comment in line-item discount payloads', async () => {
@@ -444,7 +433,6 @@ describe('BillDetails', () => {
         ],
       }),
     );
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('confirms before replacing a conflicting increased line discount sponsor', async () => {
@@ -469,7 +457,6 @@ describe('BillDetails', () => {
     expect(await screen.findByText('Confirm sponsor change')).toBeInTheDocument();
     expect(screen.getByText('Consultation discount sponsor will set to Dr Sponsor.')).toBeInTheDocument();
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: /confirm/i }));
 
@@ -511,7 +498,6 @@ describe('BillDetails', () => {
     await user.click(screen.getByRole('button', { name: /cancel/i }));
 
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.getByText('Confirm sponsor change').closest('.cds--modal')).toHaveAttribute('aria-hidden', 'true'),
     );
@@ -582,17 +568,16 @@ describe('BillDetails', () => {
     expect(screen.getByTestId('line-discount-paid-registration')).toHaveTextContent('50');
     expect(screen.getByTestId('line-discount-paid-discounted-registration')).toHaveTextContent('450');
     expect(screen.getByTestId('line-discount-pending-registration')).toHaveTextContent('0');
-    expect(mockUpdateBillAdditionalDiscount).not.toHaveBeenCalled();
   });
 
   it('renders Bulk discount read-only for closed bills', () => {
     render(
       <BillDetails
         bill={{
-          ...billWithAdditionalDiscountBase,
+          ...billWithBulkDiscountBase,
           lineItems: [
             {
-              ...billWithAdditionalDiscountBase.lineItems[0],
+              ...billWithBulkDiscountBase.lineItems[0],
               discounts: [{ amount: 25, baseAmount: 100 }],
               totalDiscount: 25,
             },
