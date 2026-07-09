@@ -210,12 +210,13 @@ describe('editable line item utils', () => {
     expect(getBulkDiscountMaximum([activeDiscountedLine, legacyDiscountLine, voidedDiscountLine])).toBe(200);
   });
 
-  it('applies positive Bulk discount deltas top-to-bottom within line subtotal capacity', () => {
+  it('applies positive Bulk discount deltas top-to-bottom within unpaid line capacity', () => {
     const bill = createBill([
       createLineItem({
         uuid: 'first',
         price: 100,
         discounts: [{ amount: 80, baseAmount: 100, sponsor: 'old-sponsor' }],
+        totalAllocated: 10,
       }),
       createLineItem({ uuid: 'second', price: 50 }),
       createLineItem({ uuid: 'third', price: 10, discounts: [{ amount: 10, baseAmount: 10 }] }),
@@ -226,14 +227,14 @@ describe('editable line item utils', () => {
       description: 'Bulk increase',
     });
 
-    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'first'))).toBe(100);
-    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'second'))).toBe(20);
+    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'first'))).toBe(90);
+    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'second'))).toBe(30);
     expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'third'))).toBe(10);
     expect(draft.remainingDelta).toBe(0);
     expect(draft.lineItemUpdates.map((update) => update.lineItem.uuid)).toEqual(['first', 'second']);
     expect(draft.lineItemUpdates[0].discounts).toEqual([
       expect.objectContaining({
-        amount: 100,
+        amount: 90,
         baseAmount: 100,
         sponsor: 'bulk-sponsor',
         description: 'Bulk increase',
@@ -384,6 +385,7 @@ describe('editable line item utils', () => {
         uuid: 'paid-registration',
         display: 'Registration',
         price: 500,
+        totalAllocated: 500,
         paymentStatus: PaymentStatus.PAID,
       }),
       createLineItem({
@@ -406,12 +408,12 @@ describe('editable line item utils', () => {
     expect(getBulkDiscountTotal(bill.lineItems)).toBe(1859);
     expect(getBulkDiscountTotal(draft.bill.lineItems)).toBe(2000);
     expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'dental-session'))).toBe(1500);
-    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'paid-registration'))).toBe(50);
+    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'paid-registration'))).toBe(0);
     expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'paid-discounted-registration'))).toBe(450);
-    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'pending-registration'))).toBe(0);
+    expect(getLineItemDiscountAmount(findLineItem(draft.bill, 'pending-registration'))).toBe(50);
     expect(draft.lineItemUpdates.map((update) => update.lineItem.uuid)).toEqual([
       'dental-session',
-      'paid-registration',
+      'pending-registration',
     ]);
     expect(draft.lineItemUpdates.map((update) => update.discounts?.[0]?.amount ?? 0)).toEqual([1500, 50]);
   });

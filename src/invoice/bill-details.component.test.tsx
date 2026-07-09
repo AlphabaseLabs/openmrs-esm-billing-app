@@ -570,6 +570,7 @@ describe('BillDetails', () => {
         uuid: 'paid-registration',
         display: 'Registration',
         price: 500,
+        totalAllocated: 500,
         paymentStatus: PaymentStatus.PAID,
       }),
       createLineItem({
@@ -611,15 +612,15 @@ describe('BillDetails', () => {
     );
     expect(mockUpdateBillLineItem).toHaveBeenNthCalledWith(
       2,
-      'paid-registration',
+      'pending-registration',
       expect.objectContaining({
-        discounts: [expect.objectContaining({ amount: 50, baseAmount: 500 })],
+        discounts: [expect.objectContaining({ amount: 50, baseAmount: 450 })],
       }),
     );
     await waitFor(() => expect(screen.getByTestId('line-discount-dental-session')).toHaveTextContent('1500'));
-    expect(screen.getByTestId('line-discount-paid-registration')).toHaveTextContent('50');
+    expect(screen.getByTestId('line-discount-paid-registration')).toHaveTextContent('0');
     expect(screen.getByTestId('line-discount-paid-discounted-registration')).toHaveTextContent('450');
-    expect(screen.getByTestId('line-discount-pending-registration')).toHaveTextContent('0');
+    expect(screen.getByTestId('line-discount-pending-registration')).toHaveTextContent('50');
   });
 
   it('renders Bulk discount read-only for closed bills', () => {

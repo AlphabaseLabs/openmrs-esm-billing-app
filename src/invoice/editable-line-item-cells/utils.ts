@@ -1,6 +1,7 @@
 import { type BillLineItemUpdate } from '../../billing.resource';
 import { type BillableService, type LineItem, type MappedBill, PaymentStatus } from '../../types';
 import {
+  getBulkDiscountIncreaseCapacity,
   getBulkDiscountMaximum,
   getLineDiscountMaximum,
   isBulkDiscountableLineItem,
@@ -38,6 +39,11 @@ export const getLineItemAmountDue = (lineItem: LineItem) => {
 };
 
 const isActiveLineItem = (lineItem: LineItem) => !lineItem.voided;
+const bulkDiscountReductionStatuses = [PaymentStatus.PENDING, PaymentStatus.POSTED, PaymentStatus.PAID] as const;
+
+const isBulkDiscountReductionLineItem = (lineItem: LineItem) =>
+  isActiveLineItem(lineItem) &&
+  bulkDiscountReductionStatuses.includes(lineItem.paymentStatus as (typeof bulkDiscountReductionStatuses)[number]);
 
 export const getBulkDiscountTotal = (lineItems: Array<LineItem> = []) =>
   roundLineItemAmount(
@@ -256,16 +262,19 @@ export const applyBulkDiscountDraft = (
   const currentBulkDiscount = getBulkDiscountTotal(bill.lineItems ?? []);
   let remainingDelta = roundLineItemAmount(targetBulkDiscount - currentBulkDiscount);
   const updatedLineItemsByUuid = new Map<string, LineItem>();
-  const activeLineItems = (bill.lineItems ?? []).filter(isBulkDiscountableLineItem);
+  const lineItems = bill.lineItems ?? [];
+  const increaseLineItems = lineItems.filter(isBulkDiscountableLineItem);
+  const reductionLineItems = lineItems.filter(isBulkDiscountReductionLineItem);
 
   if (remainingDelta > 0) {
-    for (const lineItem of activeLineItems) {
+    for (const lineItem of increaseLineItems) {
       if (remainingDelta <= 0) {
         break;
       }
 
-      const currentDiscount = getLineItemDiscountAmount(updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem);
-      const capacity = roundLineItemAmount(Math.max(getLineItemSubtotal(lineItem) - currentDiscount, 0));
+      const currentLineItem = updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem;
+      const currentDiscount = getLineItemDiscountAmount(currentLineItem);
+      const capacity = getBulkDiscountIncreaseCapacity(currentLineItem);
       if (capacity <= 0) {
         continue;
       }
@@ -282,7 +291,7 @@ export const applyBulkDiscountDraft = (
     let amountToRemove = Math.abs(remainingDelta);
 
     for (const status of [PaymentStatus.PENDING, PaymentStatus.POSTED, PaymentStatus.PAID]) {
-      const linesForStatus = activeLineItems
+      const linesForStatus = reductionLineItems
         .filter((lineItem) => lineItem.paymentStatus === status)
         .slice()
         .reverse();

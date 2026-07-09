@@ -55,16 +55,36 @@ describe('discount amount validation', () => {
     expect(getLineDiscountMaximum(createLineItem({ price: 125.255, quantity: 2 }))).toBe(250.51);
   });
 
-  it('calculates Bulk maximum from active settlement line subtotals', () => {
+  it('calculates Bulk maximum from current discounts plus unpaid pending and posted capacity', () => {
     expect(
       getBulkDiscountMaximum([
-        createLineItem({ uuid: 'pending', price: 100, quantity: 2, paymentStatus: PaymentStatus.PENDING }),
-        createLineItem({ uuid: 'posted', price: 50, quantity: 1, paymentStatus: PaymentStatus.POSTED }),
+        createLineItem({
+          uuid: 'pending',
+          price: 100,
+          quantity: 2,
+          totalAllocated: 50,
+          paymentStatus: PaymentStatus.PENDING,
+        }),
+        createLineItem({
+          uuid: 'posted',
+          price: 50,
+          quantity: 1,
+          discounts: [{ amount: 10, baseAmount: 50 }],
+          totalAllocated: 15,
+          paymentStatus: PaymentStatus.POSTED,
+        }),
         createLineItem({ uuid: 'paid', price: 25, quantity: 1, paymentStatus: PaymentStatus.PAID }),
+        createLineItem({
+          uuid: 'paid-discounted',
+          price: 25,
+          quantity: 1,
+          discounts: [{ amount: 20, baseAmount: 25 }],
+          paymentStatus: PaymentStatus.PAID,
+        }),
         createLineItem({ uuid: 'cancelled', price: 200, quantity: 1, paymentStatus: PaymentStatus.CANCELLED }),
         createLineItem({ uuid: 'voided', price: 200, quantity: 1, voided: true }),
       ]),
-    ).toBe(275);
+    ).toBe(205);
   });
 
   it('formats percent display consistently', () => {
