@@ -64,6 +64,7 @@ type InvoiceTableProps = {
   selectedLineItems?: Array<LineItem>;
   onSelectItem?: (selectedLineItems: LineItem[]) => void;
   onLineItemUpdated?: (lineItem: LineItem) => void;
+  onRefreshBill?: () => unknown;
   onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
 };
 
@@ -74,6 +75,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   selectedLineItems = [],
   onSelectItem,
   onLineItemUpdated,
+  onRefreshBill,
   onVisibleColumnsChange,
 }) => {
   const { t } = useTranslation();
@@ -310,6 +312,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           throw new Error('Line item update failed');
         }
         onLineItemUpdated?.(optimisticLineItem);
+        onRefreshBill?.();
       } catch (error) {
         showSnackbar({
           title: t('billUpdate', 'Bill update'),
@@ -320,7 +323,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
         throw error;
       }
     },
-    [onLineItemUpdated, t],
+    [onLineItemUpdated, onRefreshBill, t],
   );
 
   if (isLoadingBill) {

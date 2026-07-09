@@ -295,6 +295,7 @@ describe('InvoiceTable', () => {
   it('commits a bill-item edit using the production inline path', async () => {
     const user = userEvent.setup();
     const onLineItemUpdated = jest.fn();
+    const onRefreshBill = jest.fn();
 
     mockUseBillableServices.mockReturnValue({
       billableServices: [
@@ -317,7 +318,7 @@ describe('InvoiceTable', () => {
       isLoading: false,
     } as ReturnType<typeof useBillableServices>);
 
-    render(<InvoiceTable bill={openPendingBill} onLineItemUpdated={onLineItemUpdated} />);
+    render(<InvoiceTable bill={openPendingBill} onLineItemUpdated={onLineItemUpdated} onRefreshBill={onRefreshBill} />);
 
     await user.click(screen.getByRole('button', { name: /clear aligner/i }));
 
@@ -332,6 +333,7 @@ describe('InvoiceTable', () => {
       }),
     );
     expect(onLineItemUpdated).toHaveBeenCalled();
+    expect(onRefreshBill).toHaveBeenCalled();
   });
 
   it('restores and hides the default-hidden tax column while keeping headers and cells synchronized', async () => {

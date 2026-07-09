@@ -233,6 +233,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           selectedLineItems={selectedLineItems}
           onSelectItem={handleSelectItem}
           onLineItemUpdated={handleLineItemUpdated}
+          onRefreshBill={onRefreshBill}
           onVisibleColumnsChange={setVisibleLineItemColumnKeys}
         />
         <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
