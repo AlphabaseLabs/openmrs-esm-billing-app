@@ -250,6 +250,16 @@
   margin-inline-end: layout.$spacing-02;
 }
 
+.deleteBlockerModalPrimaryButton {
+  background-color: var(--brand-03, #007d79);
+  border-color: var(--brand-03, #007d79);
+
+  &:hover {
+    background-color: var(--brand-02, #004144);
+    border-color: var(--brand-02, #004144);
+  }
+}
+
 .toolbarWrapper {
   position: relative;
   width: 100%;

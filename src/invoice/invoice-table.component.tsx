@@ -3,9 +3,13 @@ import { useTranslation } from 'react-i18next';
 import fuzzy from 'fuzzy';
 import {
   Button,
+  ComposedModal,
   DataTable,
   DataTableSkeleton,
   Layer,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   Table,
   TableBody,
   TableCell,
@@ -85,6 +89,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
+  const [blockedDeleteLineItem, setBlockedDeleteLineItem] = useState<LineItem | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const columnVisibilityControlRef = useRef<HTMLDivElement>(null);
   const [tableContainerWidth, setTableContainerWidth] = useState(0);
@@ -203,6 +208,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
+      if (row.paymentStatus !== PaymentStatus.PENDING) {
+        setBlockedDeleteLineItem(row);
+        return;
+      }
+
       launchBillingWorkspace('cancel-bill-workspace', {
         bill,
         lineItem: row,
@@ -283,7 +293,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                   iconDescription={t('cancelItem', 'Cancel item')}
                   kind="ghost"
                   onClick={() => handleCancelLineItem(item)}
-                  disabled={item.paymentStatus !== PaymentStatus.PENDING}
                 />
               )}
             </div>
@@ -620,6 +629,32 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           </Layer>
         </div>
       )}
+      <ComposedModal open={!!blockedDeleteLineItem} size="sm" onClose={() => setBlockedDeleteLineItem(null)}>
+        <ModalHeader
+          closeModal={() => setBlockedDeleteLineItem(null)}
+          title={
+            blockedDeleteLineItem
+              ? t('lineItemStillInUse', '{{itemName}} is still in use', {
+                  itemName: getLineItemLabel(blockedDeleteLineItem),
+                })
+              : ''
+          }
+        />
+        <ModalBody>
+          {t(
+            'deleteLineItemStillInUseMessage',
+            'To delete this item, first delete the payments and expenses or provider shares linked to it.',
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            className={styles.deleteBlockerModalPrimaryButton}
+            kind="primary"
+            onClick={() => setBlockedDeleteLineItem(null)}>
+            {t('gotIt', 'Got it')}
+          </Button>
+        </ModalFooter>
+      </ComposedModal>
     </div>
   );
 };

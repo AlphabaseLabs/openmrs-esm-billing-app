@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSession } from '@openmrs/esm-framework';
 import InvoiceTable from './invoice-table.component';
@@ -14,7 +14,8 @@ import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY } from './line-item-column-visi
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback: string) => fallback,
+    t: (_key: string, fallback: string, options?: Record<string, string>) =>
+      fallback.replace(/\{\{(\w+)\}\}/g, (_match, key) => options?.[key] ?? `{{${key}}}`),
   }),
 }));
 
@@ -240,6 +241,55 @@ describe('InvoiceTable', () => {
     await user.click(discountEditorButtons[0]);
 
     expect(screen.getByRole('textbox', { name: /percent/i })).toBeInTheDocument();
+  });
+
+  it('shows guidance instead of launching delete for non-pending line items', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    const paidLineDeleteButton = screen.getByTestId('cancel-button-line-item-paid-consultation');
+    expect(paidLineDeleteButton).toBeEnabled();
+
+    await user.click(paidLineDeleteButton);
+
+    expect(screen.getByText('Consultation is still in use')).toBeInTheDocument();
+    expect(
+      screen.getByText('To delete this item, first delete the payments and expenses or provider shares linked to it.'),
+    ).toBeInTheDocument();
+    expect(mockLaunchBillingWorkspace).not.toHaveBeenCalledWith(
+      'cancel-bill-workspace',
+      expect.objectContaining({
+        bill: openPendingBill,
+        lineItem: openPendingBill.lineItems[0],
+      }),
+    );
+
+    await user.click(screen.getByRole('button', { name: /got it/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Consultation is still in use')).not.toBeInTheDocument();
+    });
+  });
+
+  it('still launches delete workspace for pending line items', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={openPendingBill} />);
+
+    await user.click(screen.getByTestId('cancel-button-line-item-clear-aligner'));
+
+    expect(mockLaunchBillingWorkspace).toHaveBeenCalledWith('cancel-bill-workspace', {
+      bill: openPendingBill,
+      lineItem: openPendingBill.lineItems[1],
+    });
+  });
+
+  it('keeps row delete actions hidden when the whole bill is paid', () => {
+    render(<InvoiceTable bill={paidBill} />);
+
+    expect(screen.queryByTestId('cancel-button-line-item-paid-consultation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
   });
 
   it('commits a bill-item edit using the production inline path', async () => {
