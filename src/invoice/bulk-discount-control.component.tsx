@@ -11,9 +11,9 @@ import { extractErrorMessagesFromResponse } from '../utils';
 import {
   applyBulkDiscountDraft,
   type BulkDiscountDraft,
-  getBulkDiscountMaximum,
   getBulkDiscountTotal,
   getLineItemDiscountAmount,
+  roundMoneyAmount,
 } from './editable-line-item-cells';
 import {
   formatDiscountAmount,
@@ -89,6 +89,9 @@ const getLineItemLabel = (lineItem: LineItem) =>
 
 const getSponsorLabel = (sponsor: ProviderOption | null) => sponsor?.label || sponsor?.uuid || 'No sponsor';
 
+const getBulkDiscountValidationMaximum = (bill: MappedBill) =>
+  roundMoneyAmount(getBulkDiscountTotal(bill.lineItems ?? []) + Math.max(Number(bill.balance ?? 0), 0));
+
 const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disabled = false, onBulkDiscountUpdated }) => {
   const { t } = useTranslation();
   const { currentProvider } = useSession();
@@ -101,7 +104,7 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
     () => getProviderSponsorOptions(providerOptions, currentProviderOption),
     [currentProviderOption, providerOptions],
   );
-  const discountableAmount = useMemo(() => getBulkDiscountMaximum(sourceBill.lineItems ?? []), [sourceBill.lineItems]);
+  const discountableAmount = useMemo(() => getBulkDiscountValidationMaximum(sourceBill), [sourceBill]);
   const [mode, setMode] = useState<EditorMode>(null);
   const [amount, setAmount] = useState(formatDiscountAmountDraft(currentDiscounts));
   const [percent, setPercent] = useState(
