@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
-import { updateBillLineItem } from '../billing.resource';
+import { syncBillStatus, updateBillLineItem } from '../billing.resource';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import BillDetails from './bill-details.component';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, type LineItemColumnKey } from './line-item-column-visibility';
@@ -29,6 +29,7 @@ jest.mock('./invoice-actions.component', () => ({
 }));
 
 jest.mock('../billing.resource', () => ({
+  syncBillStatus: jest.fn(),
   updateBillLineItem: jest.fn(),
 }));
 
@@ -46,9 +47,11 @@ jest.mock('./invoice-table.component', () => ({
   __esModule: true,
   default: ({
     bill,
+    onRefreshBill,
     onVisibleColumnsChange,
   }: {
     bill?: MappedBill;
+    onRefreshBill?: () => void;
     onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
   }) => (
     <div data-testid="invoice-table">
@@ -63,6 +66,9 @@ jest.mock('./invoice-table.component', () => ({
         type="button"
         onClick={() => onVisibleColumnsChange?.(['billItem', 'price', 'tax', 'total', 'actionButton'])}>
         Show tax column
+      </button>
+      <button type="button" onClick={() => onRefreshBill?.()}>
+        Refresh edited row
       </button>
     </div>
   ),
@@ -92,6 +98,7 @@ const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
+const mockSyncBillStatus = syncBillStatus as jest.MockedFunction<typeof syncBillStatus>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
 const billWithBulkDiscountBase = {
@@ -174,6 +181,7 @@ describe('BillDetails', () => {
       sessionLocation: { uuid: 'location-uuid', display: 'Luqman Clinic' },
       currentProvider: { uuid: 'provider-uuid', display: 'Dr Sponsor' },
     } as unknown as ReturnType<typeof useSession>);
+    mockSyncBillStatus.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof syncBillStatus>>);
   });
 
   it('shows a start snackbar immediately and a success snackbar when sending invoice succeeds', async () => {
@@ -282,7 +290,7 @@ describe('BillDetails', () => {
     });
   });
 
-  it('refreshes the bill after a Bulk discount update succeeds', async () => {
+  it('syncs and refreshes the bill after a Bulk discount update succeeds', async () => {
     const user = userEvent.setup();
     const onRefreshBill = jest.fn();
     const bill = createBill([createLineItem({ uuid: 'line-one', price: 100 })]);
@@ -295,7 +303,21 @@ describe('BillDetails', () => {
     await user.clear(input);
     await user.type(input, '50{Enter}');
 
+    await waitFor(() => expect(mockSyncBillStatus).toHaveBeenCalledWith(bill.uuid));
     await waitFor(() => expect(onRefreshBill).toHaveBeenCalled());
+  });
+
+  it('does not sync a closed bill when refreshing after a line item update', async () => {
+    const user = userEvent.setup();
+    const onRefreshBill = jest.fn();
+    const bill = createBill([createLineItem({ uuid: 'line-one', price: 100 })], { closed: true });
+
+    render(<BillDetails bill={bill} onRefreshBill={onRefreshBill} />);
+
+    await user.click(screen.getByRole('button', { name: /refresh edited row/i }));
+
+    await waitFor(() => expect(onRefreshBill).toHaveBeenCalled());
+    expect(mockSyncBillStatus).not.toHaveBeenCalled();
   });
 
   it('keeps Bulk discount editable without disabled tooltip when line-item discounts exist', async () => {
@@ -378,6 +400,30 @@ describe('BillDetails', () => {
 
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
     expect(screen.getByText(/Enter Bulk discount between 0 and PKR\s*100\.00/i)).toBeInTheDocument();
+  });
+
+  it('limits fixed Bulk discount validation to current discount plus available balance', async () => {
+    const user = userEvent.setup();
+    const bill = createBill(
+      [
+        createLineItem({
+          uuid: 'line-one',
+          price: 250,
+          discounts: [{ amount: 50, baseAmount: 250, sponsor: 'provider-uuid' }],
+        }),
+      ],
+      { balance: 100 },
+    );
+
+    render(<BillDetails bill={bill} />);
+
+    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    const input = screen.getByRole('textbox', { name: /Bulk discount/i });
+    await user.clear(input);
+    await user.type(input, '151{Enter}');
+
+    expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
+    expect(screen.getByText(/Enter Bulk discount between 0 and PKR\s*150\.00/i)).toBeInTheDocument();
   });
 
   it('rejects invalid fixed Bulk discount text without submitting line-item updates', async () => {

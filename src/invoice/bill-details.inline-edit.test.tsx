@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event';
 import BillDetails from './bill-details.component';
 import { openPendingBill, paidBill } from './invoice-story.fixtures';
 import useBillableServices from '../hooks/useBillableServices';
-import { updateBillLineItem, usePaymentModes } from '../billing.resource';
+import { syncBillStatus, updateBillLineItem, usePaymentModes } from '../billing.resource';
 
+const mockSyncBillStatus = syncBillStatus as jest.MockedFunction<typeof syncBillStatus>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
@@ -39,6 +40,7 @@ jest.mock('../workspaces', () => ({
 }));
 
 jest.mock('../billing.resource', () => ({
+  syncBillStatus: jest.fn(),
   updateBillLineItem: jest.fn(),
   usePaymentModes: jest.fn(),
 }));
@@ -55,6 +57,7 @@ jest.mock('./payments/payments.component', () => ({
 describe('BillDetails inline editing integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSyncBillStatus.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof syncBillStatus>>);
     mockUpdateBillLineItem.mockResolvedValue({ ok: true } as any);
     mockUseBillableServices.mockReturnValue({
       billableServices: [
@@ -92,6 +95,7 @@ describe('BillDetails inline editing integration', () => {
     await waitFor(() =>
       expect(mockUpdateBillLineItem).toHaveBeenCalledWith('line-item-clear-aligner', { price: 250000 }),
     );
+    await waitFor(() => expect(mockSyncBillStatus).toHaveBeenCalledWith(openPendingBill.uuid));
     await waitFor(() => expect(screen.getByText(/PKR 250,000.00/i)).toBeInTheDocument());
   });
 

@@ -1,11 +1,12 @@
 import { Button, Tooltip } from '@carbon/react';
 import { Printer } from '@carbon/react/icons';
 import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
+import { syncBillStatus } from '../billing.resource';
 import BulkDiscountControl from './bulk-discount-control.component';
 import { InvoiceActions } from './invoice-actions.component';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
@@ -102,9 +103,26 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
   };
 
+  const syncBillStatusAndRefresh = useCallback(
+    async (billToSync: MappedBill = billToRender) => {
+      if (billToSync?.uuid && !billToSync.closed) {
+        try {
+          await syncBillStatus(billToSync.uuid);
+        } catch {
+          // Refresh still runs so the bill can reflect the latest server state.
+        }
+      }
+
+      await onRefreshBill?.();
+    },
+    [billToRender, onRefreshBill],
+  );
+
   const handleBulkDiscountUpdated = async (_discounts: number, updatedBill?: MappedBill) => {
     if (updatedBill) {
       setEditableBill(updatedBill);
+      await syncBillStatusAndRefresh(updatedBill);
+      return;
     }
 
     await onRefreshBill?.();
@@ -233,7 +251,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           selectedLineItems={selectedLineItems}
           onSelectItem={handleSelectItem}
           onLineItemUpdated={handleLineItemUpdated}
-          onRefreshBill={onRefreshBill}
+          onRefreshBill={syncBillStatusAndRefresh}
           onVisibleColumnsChange={setVisibleLineItemColumnKeys}
         />
         <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />

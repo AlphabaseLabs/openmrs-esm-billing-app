@@ -149,20 +149,20 @@ export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?
   const hasSyncedStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const billUuid = formattedBill?.uuid;
+    const hasBillUuid = Boolean(billUuid);
+    const billIsClosed = Boolean(formattedBill?.closed);
+    const billAllowsSync = !billIsClosed;
+    const hasAlreadySynced = hasSyncedStatusRef.current === billUuid;
     const shouldSyncStatus =
-      options?.syncStatusWhenZeroBalance &&
-      !isLoading &&
-      formattedBill?.uuid &&
-      formattedBill?.status !== 'PAID' &&
-      Number(formattedBill?.balance ?? 0) === 0 &&
-      hasSyncedStatusRef.current !== formattedBill.uuid;
+      options?.syncStatusWhenZeroBalance && !isLoading && hasBillUuid && billAllowsSync && !hasAlreadySynced;
 
-    if (!shouldSyncStatus) {
+    if (!shouldSyncStatus || !billUuid) {
       return;
     }
 
-    hasSyncedStatusRef.current = formattedBill.uuid;
-    syncBillStatus(formattedBill.uuid)
+    hasSyncedStatusRef.current = billUuid;
+    syncBillStatus(billUuid)
       .then((response) => {
         if (response?.ok) {
           mutate();
@@ -173,14 +173,7 @@ export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?
       .catch(() => {
         hasSyncedStatusRef.current = null;
       });
-  }, [
-    options?.syncStatusWhenZeroBalance,
-    isLoading,
-    formattedBill?.uuid,
-    formattedBill?.status,
-    formattedBill?.balance,
-    mutate,
-  ]);
+  }, [options?.syncStatusWhenZeroBalance, isLoading, formattedBill?.uuid, formattedBill?.closed, mutate]);
 
   return {
     bill: formattedBill,

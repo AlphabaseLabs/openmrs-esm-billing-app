@@ -1,5 +1,13 @@
-import { mapBillProperties } from './billing.resource';
+import { renderHook, waitFor } from '@testing-library/react';
+import { openmrsFetch } from '@openmrs/esm-framework';
+import useSWR from 'swr';
+import { mapBillProperties, useBill } from './billing.resource';
 import { PaymentStatus } from './types';
+
+jest.mock('swr', () => jest.fn());
+
+const mockUseSWR = useSWR as jest.Mock;
+const mockOpenmrsFetch = openmrsFetch as jest.MockedFunction<typeof openmrsFetch>;
 
 const baseInvoice = {
   id: 1,
@@ -91,5 +99,59 @@ describe('mapBillProperties', () => {
     expect(mappedBill.totalDiscounts).toBe(0);
     expect(mappedBill.totalAmount).toBe(0);
     expect(mappedBill.tenderedAmount).toBe(0);
+  });
+});
+
+describe('useBill', () => {
+  beforeEach(() => {
+    mockOpenmrsFetch.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const mockBill = (bill: { status: string; balance: number; closed: boolean }) => {
+    mockUseSWR.mockReturnValue({
+      data: {
+        data: {
+          uuid: 'bill-uuid',
+          status: bill.status,
+          balance: bill.balance,
+          closed: bill.closed,
+          patient: {
+            uuid: 'patient-uuid',
+            display: 'ABC123 - Test Patient',
+          },
+          lineItems: [],
+          payments: [],
+        },
+      },
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: jest.fn(),
+    });
+  };
+
+  it('syncs bill status for an open bill regardless of status and balance', async () => {
+    mockBill({ status: 'PAID', balance: 171300, closed: false });
+
+    renderHook(() => useBill('bill-uuid', { syncStatusWhenZeroBalance: true }));
+
+    await waitFor(() =>
+      expect(mockOpenmrsFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/cashier/bill/sync-status/bill-uuid'),
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+  });
+
+  it('does not sync bill status when the bill is closed', async () => {
+    mockBill({ status: 'PAID', balance: 171300, closed: true });
+
+    renderHook(() => useBill('bill-uuid', { syncStatusWhenZeroBalance: true }));
+
+    await waitFor(() => expect(mockOpenmrsFetch).not.toHaveBeenCalled());
   });
 });
