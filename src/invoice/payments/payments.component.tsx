@@ -20,6 +20,7 @@ import {
   useAiPaymentsIntegration,
 } from './ai-payments.integration';
 import { getLineItemAmountDue } from '../editable-line-item-cells/utils';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 
 type PaymentProps = {
   bill: MappedBill;
@@ -55,7 +56,7 @@ const Payments: React.FC<PaymentProps> = ({
   });
 
   const selectedUnpaidLineItems = useMemo(
-    () => selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID),
+    () => getActiveBillingRecords(selectedLineItems).filter((item) => item.paymentStatus !== PaymentStatus.PAID),
     [selectedLineItems],
   );
 
@@ -90,7 +91,10 @@ const Payments: React.FC<PaymentProps> = ({
   const isFullyPaid = !hasSelectedUnpaidLineItems || totalNewPayments >= selectedLineItemsRequiredPayment;
   const hasAmountPaidExceeded = amountDue > 0 && totalNewPayments > amountDue;
   const isPaymentInvalid =
-    hasSelectedUnpaidLineItems && hasEnteredPaymentAmount && !isFullyPaid && bill.lineItems.length > 1;
+    hasSelectedUnpaidLineItems &&
+    hasEnteredPaymentAmount &&
+    !isFullyPaid &&
+    getActiveBillingRecords(bill.lineItems).length > 1;
   const showAiPaymentsAction = bill.status !== PaymentStatus.PAID;
   const isProcessPaymentDisabled = !hasEnteredPaymentAmount || hasAmountPaidExceeded || isSubmittingPayments;
 

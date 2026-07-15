@@ -17,13 +17,14 @@ import {
 import { Add, TaskComplete } from '@carbon/react/icons';
 import { isDesktop, useLayoutType, usePagination, useConfig } from '@openmrs/esm-framework';
 import { ErrorState, usePaginationInfo, CardHeader, EmptyState } from '@openmrs/esm-patient-common-lib';
+import { getActiveBillingRecords } from '../billing-voided-utils';
 import { useBill, useBills } from '../billing.resource';
 import BillDetails from '../invoice/bill-details.component';
 import { convertToCurrency } from '../helpers';
 import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
-import { PaymentStatus } from '../types';
+import { type MappedBill, PaymentStatus } from '../types';
 import {
   launchBillingWorkspace,
   mergePatientChartBillingFormProps,
@@ -152,8 +153,8 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
     },
   ];
 
-  const setBilledItems = (bill) =>
-    bill.lineItems?.reduce(
+  const setBilledItems = (bill: MappedBill) =>
+    getActiveBillingRecords(bill.lineItems ?? []).reduce(
       (acc, item) => acc + (acc ? ' & ' : '') + (item.billableService?.split(':')[1] || item.item?.split(':')[1] || ''),
       '',
     );

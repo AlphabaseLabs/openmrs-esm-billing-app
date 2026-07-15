@@ -13,6 +13,7 @@ import {
 import { useFieldArray, type FieldArrayWithId, type UseFormReturn } from 'react-hook-form';
 import { mutate } from 'swr';
 import { addPaymentToBill } from '../../billing.resource';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { type BillingConfig } from '../../config-schema';
 import { extractErrorMessagesFromResponse } from '../../utils';
 import {
@@ -218,7 +219,7 @@ function buildBillingPaymentAttributes(row: FormPayment) {
 }
 
 export function createLineItemAllocationBuilder(lineItems: Array<LineItem>) {
-  const remainingLineItemAmounts = lineItems.map((lineItem) => ({
+  const remainingLineItemAmounts = getActiveBillingRecords(lineItems).map((lineItem) => ({
     uuid: lineItem.uuid,
     remainingAmount: getLineItemAmountDue(lineItem),
   }));

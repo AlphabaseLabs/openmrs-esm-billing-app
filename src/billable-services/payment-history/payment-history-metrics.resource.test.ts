@@ -1,4 +1,4 @@
-import { summarizePaymentHistoryEntries } from './payment-history.utils';
+import { buildPaymentHistoryEntries, summarizePaymentHistoryEntries } from './payment-history.utils';
 import { type PaymentHistoryEntry } from './payment-history.utils';
 
 const makeEntry = (overrides: Partial<PaymentHistoryEntry>): PaymentHistoryEntry => ({
@@ -59,5 +59,44 @@ describe('summarizePaymentHistoryEntries', () => {
         { paymentMethod: 'Mobile Money', total: 60 },
       ],
     });
+  });
+});
+
+describe('buildPaymentHistoryEntries', () => {
+  it('excludes voided payments from history entries', () => {
+    const entries = buildPaymentHistoryEntries(
+      [
+        {
+          uuid: 'bill-1',
+          patientUuid: 'patient-1',
+          patientName: 'Jane Doe',
+          identifier: 'ID-001',
+          receiptNumber: 'INV-001',
+          payments: [
+            {
+              uuid: 'active-payment',
+              amountTendered: 100,
+              dateCreated: Date.parse('2026-04-10T08:30:00.000Z'),
+              instanceType: { name: 'Cash' },
+              attributes: [],
+              voided: false,
+            },
+            {
+              uuid: 'voided-payment',
+              amountTendered: 999,
+              dateCreated: Date.parse('2026-04-10T08:30:00.000Z'),
+              instanceType: { name: 'Card' },
+              attributes: [],
+              voided: true,
+            },
+          ],
+        } as any,
+      ],
+      new Date('2026-04-01T00:00:00.000Z'),
+      new Date('2026-04-30T23:59:59.999Z'),
+    );
+
+    expect(entries.map((entry) => entry.paymentUuid)).toEqual(['active-payment']);
+    expect(entries[0].paymentAmount).toBe(100);
   });
 });

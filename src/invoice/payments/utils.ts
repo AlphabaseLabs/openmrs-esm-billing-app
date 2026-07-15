@@ -1,4 +1,5 @@
-import { PaymentStatus } from '../../types';
+import { type LineItem, PaymentStatus } from '../../types';
+import { getActiveBillingRecords, sumActivePaymentTenderedAmounts } from '../../billing-voided-utils';
 
 /**
  * Checks if a specific billable item exists within a collection of billable items
@@ -114,7 +115,9 @@ export const createPaymentPayload = (
   selectedBillableItems,
   timesheetDetails,
 ) => {
-  const { totalAmount, payments = [], lineItems = [] } = billDetails;
+  const { totalAmount, payments = [] } = billDetails;
+  const lineItems = getActiveBillingRecords((billDetails.lineItems ?? []) as Array<LineItem>);
+  const activeSelectedBillableItems = getActiveBillingRecords((selectedBillableItems ?? []) as Array<LineItem>);
   const initialPaymentStatus = remainingBalance <= 0 ? PaymentStatus.PAID : PaymentStatus.PENDING;
 
   // Transform existing payments
@@ -157,10 +160,10 @@ export const createPaymentPayload = (
       voided: payment?.voided,
       resourceVersion: payment?.resourceVersion,
     })) ?? [];
-  const totalPaidAmount = consolidatedPayments.reduce((sum, payment) => sum + payment.amountTendered, 0);
+  const totalPaidAmount = sumActivePaymentTenderedAmounts(consolidatedPayments);
 
   // Process selected items and update their payment status
-  const processedSelectedBillableItems = selectedBillableItems.map((billableItem) => ({
+  const processedSelectedBillableItems = activeSelectedBillableItems.map((billableItem) => ({
     ...billableItem,
     billableService: extractServiceIdentifier(billableItem),
     item: extractServiceIdentifier(billableItem),
@@ -174,7 +177,7 @@ export const createPaymentPayload = (
 
   // Handle remaining line items based on whether there are selected items
   const remainingLineItems =
-    selectedBillableItems.length > 0
+    activeSelectedBillableItems.length > 0
       ? // If items were selected, exclude them from the original line items
         lineItems.filter((lineItem) => {
           const isItemSelected = processedSelectedBillableItems.some(
@@ -210,6 +213,6 @@ export const createPaymentPayload = (
     lineItems: processedLineItems,
     payments: consolidatedPayments,
     patient: patientUuid,
-    status: selectedBillableItems?.length > 0 ? overallBillStatus : initialPaymentStatus,
+    status: activeSelectedBillableItems?.length > 0 ? overallBillStatus : initialPaymentStatus,
   };
 };

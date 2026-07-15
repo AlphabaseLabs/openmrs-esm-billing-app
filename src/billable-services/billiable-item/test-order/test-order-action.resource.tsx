@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import { type QueueEntry } from '../../../types';
 import { type BillingConfig } from '../../../config-schema';
 import { useMemo } from 'react';
+import { getActiveBillingRecords } from '../../../billing-voided-utils';
 import { checkPaymentMethodExclusion, usePatientBills } from '../../../prompt-payment/prompt-payment.resource';
 
 export const useTestOrderBillStatus = (orderUuid: string, patientUuid: string) => {
@@ -61,7 +62,7 @@ export const useOrderPendingPaymentStatus = (patientUuid: string, orderUuid: str
   const { patientBills, isLoading, error } = usePatientBills(patientUuid);
   const flattenedLineItems = useMemo(() => {
     return patientBills
-      ?.map((bill) => bill.lineItems)
+      ?.map((bill) => getActiveBillingRecords(bill.lineItems))
       .flat()
       .filter((lineItem) => lineItem.order && lineItem.order.uuid === orderUuid);
   }, [patientBills, orderUuid]);
@@ -79,7 +80,7 @@ export const useOrderBill = (patientUuid: string, orderUuid: string) => {
   const { patientBills, isLoading, error } = usePatientBills(patientUuid);
   const itemHasBill = useMemo(() => {
     return patientBills
-      ?.map((bill) => bill.lineItems)
+      ?.map((bill) => getActiveBillingRecords(bill.lineItems))
       .flat()
       .filter((lineItem) => lineItem.order && lineItem.order.uuid === orderUuid);
   }, [patientBills, orderUuid]);

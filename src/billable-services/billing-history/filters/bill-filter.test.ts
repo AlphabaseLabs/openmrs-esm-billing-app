@@ -133,6 +133,22 @@ describe('Bill Filter', () => {
     expect(result.find((bill) => bill.uuid === '3')).toBeUndefined();
   });
 
+  it('should ignore voided payments when filtering by payment method', () => {
+    const bills = [
+      {
+        uuid: 'voided-payment-bill',
+        payments: [{ instanceType: { name: 'Cash' }, amount: 100, voided: true }],
+        lineItems: [],
+        status: 'PAID',
+        cashier: { uuid: 'cashier-1' },
+      },
+    ] as Array<MappedBill>;
+
+    const result = filterBills(bills, { paymentMethods: ['Cash'] });
+
+    expect(result).toHaveLength(0);
+  });
+
   it('should include bills with no payments when no payment method filter is applied', () => {
     const billsWithEmptyPayments = [
       ...mockBills,

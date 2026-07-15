@@ -100,6 +100,61 @@ describe('mapBillProperties', () => {
     expect(mappedBill.totalAmount).toBe(0);
     expect(mappedBill.tenderedAmount).toBe(0);
   });
+
+  it('excludes voided line items and payments from mapped totals while retaining payment history rows', () => {
+    const mappedBill = mapBillProperties({
+      ...baseInvoice,
+      balance: 0,
+      totalActualPayments: 1099,
+      totalDiscount: undefined,
+      lineItems: [
+        {
+          uuid: 'active-line',
+          item: 'Consultation',
+          quantity: 1,
+          price: 100,
+          discounts: [],
+          taxes: [],
+          total: 100,
+          voided: false,
+        },
+        {
+          uuid: 'voided-line',
+          item: 'Registration',
+          quantity: 1,
+          price: 999,
+          discounts: [],
+          taxes: [],
+          total: 999,
+          voided: true,
+        },
+      ],
+      payments: [
+        {
+          uuid: 'active-payment',
+          amountTendered: 100,
+          attributes: [{ attributeType: { description: 'Reference Number' }, value: 'ACTIVE-REF' }],
+          instanceType: { name: 'Cash' },
+          voided: false,
+        },
+        {
+          uuid: 'voided-payment',
+          amountTendered: 999,
+          attributes: [{ attributeType: { description: 'Reference Number' }, value: 'VOIDED-REF' }],
+          instanceType: { name: 'Card' },
+          voided: true,
+        },
+      ],
+    } as any);
+
+    expect(mappedBill.lineItems.map((item) => item.uuid)).toEqual(['active-line']);
+    expect(mappedBill.payments.map((payment) => payment.uuid)).toEqual(['active-payment', 'voided-payment']);
+    expect(mappedBill.totalAmount).toBe(100);
+    expect(mappedBill.totalActualPayments).toBe(100);
+    expect(mappedBill.totalPayments).toBe(100);
+    expect(mappedBill.tenderedAmount).toBe(100);
+    expect(mappedBill.referenceCodes).toBe('Cash: ACTIVE-REF');
+  });
 });
 
 describe('useBill', () => {

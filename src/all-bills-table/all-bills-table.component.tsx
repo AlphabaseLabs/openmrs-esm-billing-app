@@ -23,6 +23,7 @@ import { Renew } from '@carbon/react/icons';
 import { ErrorState, isDesktop, navigate, useConfig, useLayoutType } from '@openmrs/esm-framework';
 import { EmptyDataIllustration } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
+import { getActiveBillingRecords } from '../billing-voided-utils';
 import { useBillsPaginated } from '../billing.resource';
 import SelectedDateContext from '../hooks/selectedDateContext';
 import { convertToCurrency, getInvoiceUrl } from '../helpers';
@@ -94,7 +95,7 @@ const getBillLineItemLabel = (value?: string) => {
 };
 
 const getBilledItems = (bill: MappedBill) =>
-  bill.lineItems
+  getActiveBillingRecords(bill.lineItems)
     ?.map((item) => getBillLineItemLabel(item?.billableService) || getBillLineItemLabel(item?.item))
     .filter(Boolean)
     .join(' & ') ?? '';

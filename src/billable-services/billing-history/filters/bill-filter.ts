@@ -1,3 +1,4 @@
+import { getActiveBillingRecords } from '../../../billing-voided-utils';
 import { type Filter, type MappedBill } from '../../../types';
 
 const createPaymentMethodFilter =
@@ -11,7 +12,7 @@ const createPaymentMethodFilter =
     // Create a new bill object with filtered payments
     return {
       ...bill,
-      payments: bill.payments.filter((payment) =>
+      payments: getActiveBillingRecords(bill.payments).filter((payment) =>
         paymentMethods.some((method) => payment.instanceType.name.toLowerCase() === method.toLowerCase()),
       ),
     };
@@ -23,7 +24,7 @@ const createServiceTypesFilter =
     if (!serviceUuids || serviceUuids.length === 0) {
       return true;
     }
-    return bill.lineItems.some((item) => serviceUuids.includes(item.serviceTypeUuid));
+    return getActiveBillingRecords(bill.lineItems).some((item) => serviceUuids.includes(item.serviceTypeUuid));
   };
 
 // Main filtering function

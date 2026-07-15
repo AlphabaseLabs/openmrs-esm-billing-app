@@ -2,6 +2,7 @@ import { type Visit, openmrsFetch, restBaseUrl, useConfig, useVisit } from '@ope
 import { useMemo } from 'react';
 import useSWR from 'swr';
 import { mapBillProperties } from '../billing.resource';
+import { getActiveBillingRecords } from '../billing-voided-utils';
 import { type BillingConfig } from '../config-schema';
 import { type BillingPromptType, type MappedBill, type PatientInvoice } from '../types';
 import dayjs from 'dayjs';
@@ -69,7 +70,7 @@ const shouldShowPrompt = (
 };
 // Check if all line items are orders
 const hasOnlyOrderBills = (bills: Array<MappedBill>): boolean => {
-  const flattenedBills = bills.flatMap((bill) => bill.lineItems);
+  const flattenedBills = bills.flatMap((bill) => getActiveBillingRecords(bill.lineItems));
   // check if all line items are orders, line item with order has order not set to null
   return flattenedBills.every((item) => item?.order);
 };

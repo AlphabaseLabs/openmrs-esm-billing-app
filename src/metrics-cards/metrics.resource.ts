@@ -1,4 +1,5 @@
 import { convertToCurrency } from '../helpers';
+import { getActiveBillingRecords } from '../billing-voided-utils';
 import { type MappedBill, PaymentStatus } from '../types';
 
 /**
@@ -57,7 +58,7 @@ const calculateBillTotals = (bills: Array<MappedBill>) => {
     const discountAmount = Number(bill.billLineItemDiscounts ?? 0);
     const waivedAmount = Number(bill.totalWaived ?? 0);
     const actualPayments = bill.payments?.length
-      ? bill.payments
+      ? getActiveBillingRecords(bill.payments)
           .filter((payment) => payment.instanceType?.name !== 'Waiver')
           .reduce((sum, payment) => sum + (Number(payment.amountTendered) || 0), 0)
       : Number(bill.totalActualPayments ?? 0);

@@ -1,3 +1,4 @@
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../types';
 
 const getResourceUuid = (resourceReference?: string) => resourceReference?.split(':').at(0) ?? '';
@@ -17,13 +18,14 @@ export const isLineItemRefunded = (bill: MappedBill, lineItem: LineItem) => {
     return true;
   }
 
-  const matchingPaidLineItems = bill.lineItems.filter(
+  const activeLineItems = getActiveBillingRecords(bill.lineItems);
+  const matchingPaidLineItems = activeLineItems.filter(
     (item) =>
       !isRefundLineItem(item) &&
       item.paymentStatus === PaymentStatus.PAID &&
       getRefundMatchKey(item) === getRefundMatchKey(lineItem),
   );
-  const matchingRefundLineItems = bill.lineItems.filter(
+  const matchingRefundLineItems = activeLineItems.filter(
     (item) => isRefundLineItem(item) && getRefundMatchKey(item) === getRefundMatchKey(lineItem),
   );
 

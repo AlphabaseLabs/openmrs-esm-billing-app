@@ -1,4 +1,5 @@
 import { type LineItem, type MappedBill, type Payment, type PaymentMethod, PaymentStatus } from './types';
+import { getActiveBillingRecords } from './billing-voided-utils';
 
 // Helper functions
 const formatAmount = (amount: number): number => {
@@ -92,7 +93,7 @@ export const createBillWaiverPayload = (
 
   const previousPaymentsPayload = bill.payments.map(createPaymentPayload);
 
-  const processedLineItems = lineItems.map((lineItem) => ({
+  const processedLineItems = getActiveBillingRecords(lineItems).map((lineItem) => ({
     ...lineItem,
     billableService: processBillItem(lineItem),
     item: processBillItem(lineItem),
@@ -173,6 +174,6 @@ export const computeWaivedAmount = (bill: MappedBill) => {
   }
 
   return bill.payments
-    .filter((payment) => payment.instanceType.name.toLowerCase() === 'waiver')
+    .filter((payment) => !payment.voided && payment.instanceType.name.toLowerCase() === 'waiver')
     .reduce((curr: number, prev) => curr + Number(prev.amountTendered), 0);
 };

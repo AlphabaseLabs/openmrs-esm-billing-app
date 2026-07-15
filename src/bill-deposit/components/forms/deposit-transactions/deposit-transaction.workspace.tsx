@@ -9,6 +9,7 @@ import {
   useLayoutType,
 } from '@openmrs/esm-framework';
 import { usePatientBills } from '../../../../prompt-payment/prompt-payment.resource';
+import { getActiveBillingRecords } from '../../../../billing-voided-utils';
 import { type LineItem, PaymentStatus } from '../../../../types';
 import { ButtonSet, Button, InlineLoading, ComboBox, NumberInput, TextInput, InlineNotification } from '@carbon/react';
 import { useForm, Controller } from 'react-hook-form';
@@ -39,7 +40,7 @@ const DepositTransactionWorkspace: React.FC<Workspace2DefinitionProps<DepositTra
   const pendingLineItems: Array<LineItem> = uniqBy(
     patientBills
       ?.filter((bill) => bill.status !== PaymentStatus.PAID && bill.status !== PaymentStatus.EXEMPTED)
-      .map((bill) => bill.lineItems)
+      .map((bill) => getActiveBillingRecords(bill.lineItems))
       .flat() ?? [],
     'uuid',
   );

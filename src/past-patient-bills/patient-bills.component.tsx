@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { ConfigurableLink, getPatientName, usePatient } from '@openmrs/esm-framework';
 import capitalize from 'lodash/capitalize';
 
+import { getActiveBillingRecords } from '../billing-voided-utils';
 import { convertToCurrency } from '../helpers';
 import { type MappedBill } from '../types';
 import EmptyPatientBill from './patient-bills-dashboard/empty-patient-bill.component';
@@ -60,7 +61,9 @@ export const PatientBills: React.FC<PatientBillsProps> = ({ bills, onCancel, pat
         style={{ textDecoration: 'none', maxWidth: '50%' }}
         to={billingUrl}
         templateParams={{ patientUuid: bill.patientUuid, uuid: bill.uuid }}>
-        {bill.lineItems.map((item) => item?.billableService?.split(':')[1]).join(', ')}
+        {getActiveBillingRecords(bill.lineItems)
+          .map((item) => item?.billableService?.split(':')[1])
+          .join(', ')}
       </ConfigurableLink>
     ),
     totalAmount: convertToCurrency(bill.totalAmount),

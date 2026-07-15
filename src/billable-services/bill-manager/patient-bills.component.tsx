@@ -13,6 +13,7 @@ import {
   TableCell,
   TableExpandedRow,
 } from '@carbon/react';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { convertToCurrency } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@openmrs/esm-patient-common-lib';
@@ -28,7 +29,9 @@ type PatientBillsProps = {
 const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
   const { t } = useTranslation();
 
-  const hasRefundedItems = bills.some((bill) => bill.lineItems.some((li) => Math.sign(li.price) === -1));
+  const hasRefundedItems = bills.some((bill) =>
+    getActiveBillingRecords(bill.lineItems).some((li) => Math.sign(li.price) === -1),
+  );
 
   const tableHeaders = [
     { header: 'Date', key: 'date' },
@@ -58,7 +61,9 @@ const PatientBills: React.FC<PatientBillsProps> = ({ bills }) => {
     amountWaived: convertToCurrency(bill.totalWaived),
     ...(hasRefundedItems && {
       creditAmount: convertToCurrency(
-        bill.lineItems.filter((li) => Math.sign(li.price) === -1).reduce((acc, curr) => acc + Math.abs(curr.price), 0),
+        getActiveBillingRecords(bill.lineItems)
+          .filter((li) => Math.sign(li.price) === -1)
+          .reduce((acc, curr) => acc + Math.abs(curr.price), 0),
       ),
     }),
     identifier: bill?.identifier,

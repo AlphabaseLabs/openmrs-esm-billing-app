@@ -19,6 +19,7 @@ import { type z } from 'zod';
 import { mutate } from 'swr';
 import { convertToCurrency } from '../../../helpers';
 import { createLineItemAllocationBuilder } from '../ai-payments.integration';
+import { getActiveBillingRecords } from '../../../billing-voided-utils';
 
 type PaymentWorkspaceProps = {
   bill: MappedBill;
@@ -46,7 +47,9 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
   } = formMethods;
 
   const onSubmit = async (data: PaymentFormData) => {
-    const selectedUnpaidLineItems = selectedLineItems.filter((item) => item.paymentStatus !== PaymentStatus.PAID);
+    const selectedUnpaidLineItems = getActiveBillingRecords(selectedLineItems).filter(
+      (item) => item.paymentStatus !== PaymentStatus.PAID,
+    );
     const allocations = createLineItemAllocationBuilder(selectedUnpaidLineItems)(data.amountTendered);
     const payment = {
       instanceType: data.instanceType?.uuid,

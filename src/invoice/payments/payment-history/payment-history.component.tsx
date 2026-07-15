@@ -1,5 +1,15 @@
-import React, { useCallback } from 'react';
-import { DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell, Button } from '@carbon/react';
+import React, { useCallback, useState } from 'react';
+import {
+  DataTable,
+  Table,
+  TableHead,
+  TableRow,
+  TableHeader,
+  TableBody,
+  TableCell,
+  Button,
+  Tooltip,
+} from '@carbon/react';
 import { type MappedBill, type Payment } from '../../../types';
 import { formatDate, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
 import { convertToCurrency } from '../../../helpers';
@@ -14,7 +24,15 @@ type PaymentHistoryProps = {
 
 const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
   const { t } = useTranslation();
+  const [hoveredVoidedPaymentUuid, setHoveredVoidedPaymentUuid] = useState<string | null>(null);
   const billIsOpen = !bill.closed;
+  const voidedPaymentTooltip = t(
+    'deletedPaymentsAreRetainedForRecordKeeping',
+    'Deleted payments are retained for record-keeping and cannot be modified.',
+  );
+  const voidedPaymentUuids = new Set(
+    (bill?.payments ?? []).filter((payment) => payment.voided).map((payment) => payment.uuid),
+  );
 
   // Check if any payment has reference codes
   const hasReferenceCodes = bill?.payments?.some(
@@ -62,8 +80,15 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     });
   }
 
-  const rows = bill?.payments
-    ?.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
+  const rows = (bill?.payments ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.voided !== b.voided) {
+        return Number(a.voided) - Number(b.voided);
+      }
+
+      return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
+    })
     .map((payment) => ({
       id: `${payment.uuid}`,
       dateCreated: formatDate(new Date(payment.dateCreated)),
@@ -75,19 +100,24 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
       }),
       ...(billIsOpen && {
         actions: (
-          <div className={styles.actionButtons}>
+          <span className={styles.actionButtons}>
             <UserHasAccess privilege="o3: Delete Bill">
               <Button
                 size="sm"
                 hasIconOnly
                 data-testid={`delete-payment-button-${payment.uuid}`}
+                disabled={payment.voided}
                 renderIcon={(props) => <TrashCan size={16} {...props} />}
                 iconDescription={t('deletePayment', 'Delete payment')}
                 kind="danger--ghost"
-                onClick={() => handleDeletePayment(payment)}
+                onClick={() => {
+                  if (!payment.voided) {
+                    handleDeletePayment(payment);
+                  }
+                }}
               />
             </UserHasAccess>
-          </div>
+          </span>
         ),
       }),
     }));
@@ -108,13 +138,45 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow {...getRowProps({ row })}>
-                {row.cells.map((cell) => (
-                  <TableCell key={cell.id}>{cell.value}</TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {rows.map((row) => {
+              const isVoidedPayment = voidedPaymentUuids.has(row.id);
+
+              return (
+                <TableRow
+                  {...getRowProps({ row })}
+                  className={isVoidedPayment ? styles.voidedPaymentRow : undefined}
+                  onMouseEnter={() => {
+                    if (isVoidedPayment) {
+                      setHoveredVoidedPaymentUuid(row.id);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (isVoidedPayment) {
+                      setHoveredVoidedPaymentUuid(null);
+                    }
+                  }}>
+                  {row.cells.map((cell, index) => (
+                    <TableCell key={cell.id}>
+                      {index === 0 && hoveredVoidedPaymentUuid === row.id ? (
+                        <Tooltip
+                          align="top-start"
+                          className={styles.voidedPaymentTooltip}
+                          defaultOpen
+                          enterDelayMs={0}
+                          label={voidedPaymentTooltip}>
+                          <span
+                            aria-label={voidedPaymentTooltip}
+                            className={styles.voidedPaymentTooltipAnchor}
+                            data-testid={`voided-payment-tooltip-${row.id}`}
+                          />
+                        </Tooltip>
+                      ) : null}
+                      {cell.value}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

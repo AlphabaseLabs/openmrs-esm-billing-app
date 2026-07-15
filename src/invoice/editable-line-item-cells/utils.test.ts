@@ -10,6 +10,7 @@ import {
   getLineItemTotal,
   parseEditableNumber,
   recalculateLineItem,
+  recomputeBillWithLineItems,
   recomputeBillWithLineItem,
 } from './utils';
 import { testDiscountedLineItem, testLineItem } from './editable-cell-test-utils';
@@ -158,6 +159,28 @@ describe('editable line item utils', () => {
     expect(updatedBill.totalAmount).toBe(2500);
     expect(updatedBill.balance).toBe(500);
     expect(updatedBill.status).toBe(PaymentStatus.POSTED);
+  });
+
+  it('recomputes bill totals from active line items and active payments only', () => {
+    const activeLineItem = createLineItem({ uuid: 'active-line', price: 100, quantity: 1 });
+    const voidedLineItem = createLineItem({ uuid: 'voided-line', price: 999, quantity: 1, voided: true });
+    const bill = {
+      uuid: 'bill',
+      lineItems: [activeLineItem, voidedLineItem],
+      payments: [
+        { uuid: 'active-payment', amountTendered: 25, voided: false },
+        { uuid: 'voided-payment', amountTendered: 999, voided: true },
+      ],
+      status: PaymentStatus.PENDING,
+      totalActualPayments: 1024,
+    } as MappedBill;
+
+    const updatedBill = recomputeBillWithLineItems(bill, [activeLineItem, voidedLineItem]);
+
+    expect(updatedBill.lineItems.map((lineItem) => lineItem.uuid)).toEqual(['active-line']);
+    expect(updatedBill.totalAmount).toBe(100);
+    expect(updatedBill.totalActualPayments).toBe(25);
+    expect(updatedBill.balance).toBe(75);
   });
 
   it('derives discount totals from line items after a line item change', () => {

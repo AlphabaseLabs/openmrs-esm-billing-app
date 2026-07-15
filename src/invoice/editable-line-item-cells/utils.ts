@@ -1,4 +1,5 @@
 import { type BillLineItemUpdate } from '../../billing.resource';
+import { getActiveBillingRecords, sumActivePaymentTenderedAmounts } from '../../billing-voided-utils';
 import { type BillableService, type LineItem, type MappedBill, PaymentStatus } from '../../types';
 import {
   getBulkDiscountIncreaseCapacity,
@@ -169,7 +170,7 @@ export const recalculateLineItem = (lineItem: LineItem): LineItem => {
 
 export const recomputeBillWithLineItems = (bill: MappedBill, updatedLineItems: Array<LineItem>): MappedBill => {
   const updatedLineItemsByUuid = new Map(updatedLineItems.map((lineItem) => [lineItem.uuid, lineItem]));
-  const lineItems = (bill.lineItems ?? []).map((lineItem) =>
+  const lineItems = getActiveBillingRecords(bill.lineItems ?? []).map((lineItem) =>
     recalculateLineItem(updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem),
   );
   const totalAmountWithoutTaxAndDiscount = lineItems.reduce(
@@ -179,7 +180,9 @@ export const recomputeBillWithLineItems = (bill: MappedBill, updatedLineItems: A
   const totalTax = lineItems.reduce((total, lineItem) => total + getLineItemTaxAmount(lineItem), 0);
   const billLineItemDiscounts = lineItems.reduce((total, lineItem) => total + getLineItemDiscountAmount(lineItem), 0);
   const totalAmount = totalAmountWithoutTaxAndDiscount + totalTax - billLineItemDiscounts;
-  const totalActualPayments = bill.totalActualPayments ?? bill.totalPayments ?? bill.tenderedAmount ?? 0;
+  const totalActualPayments = bill.payments?.length
+    ? sumActivePaymentTenderedAmounts(bill.payments)
+    : (bill.totalActualPayments ?? bill.totalPayments ?? bill.tenderedAmount ?? 0);
   const totalWaived = bill.totalWaived ?? 0;
   const totalDeposits = bill.totalDeposits ?? 0;
   const balance = totalAmount - totalActualPayments - totalWaived - totalDeposits;
@@ -195,6 +198,9 @@ export const recomputeBillWithLineItems = (bill: MappedBill, updatedLineItems: A
     billLineItemDiscounts,
     totalDiscounts: billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount,
+    totalActualPayments,
+    totalPayments: totalActualPayments,
+    tenderedAmount: totalActualPayments,
     balance,
   };
 };
@@ -262,7 +268,7 @@ export const applyBulkDiscountDraft = (
   const currentBulkDiscount = getBulkDiscountTotal(bill.lineItems ?? []);
   let remainingDelta = roundLineItemAmount(targetBulkDiscount - currentBulkDiscount);
   const updatedLineItemsByUuid = new Map<string, LineItem>();
-  const lineItems = bill.lineItems ?? [];
+  const lineItems = getActiveBillingRecords(bill.lineItems ?? []);
   const increaseLineItems = lineItems.filter(isBulkDiscountableLineItem);
   const reductionLineItems = lineItems.filter(isBulkDiscountReductionLineItem);
 
@@ -321,7 +327,7 @@ export const applyBulkDiscountDraft = (
     remainingDelta = amountToRemove > 0 ? -roundLineItemAmount(amountToRemove) : 0;
   }
 
-  const updatedLineItems = (bill.lineItems ?? []).map(
+  const updatedLineItems = getActiveBillingRecords(bill.lineItems ?? []).map(
     (lineItem) => updatedLineItemsByUuid.get(lineItem.uuid) ?? lineItem,
   );
   const draftBill = recomputeBillWithLineItems({ ...bill, lineItems: updatedLineItems }, updatedLineItems);

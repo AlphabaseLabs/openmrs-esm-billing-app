@@ -11,6 +11,7 @@ import {
 } from '@carbon/react';
 import { TaskAdd } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
+import { getActiveBillingRecords, sumActivePaymentTenderedAmounts } from '../../../../billing-voided-utils';
 import styles from './waive-bill-form.scss';
 import { type MappedBill } from '../../../../types';
 import { createBillWaiverPayload, extractErrorMessagesFromResponse } from '../../../../utils';
@@ -44,12 +45,13 @@ export const WaiveBillForm: React.FC<Workspace2DefinitionProps<BillWaiverFormPro
 
   const { t } = useTranslation();
 
-  const totalAmount = lineItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
+  const activeLineItems = getActiveBillingRecords(lineItems);
+  const totalAmount = activeLineItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
   const { isLoading, paymentModes = [] } = usePaymentModes(false);
   const waiverPaymentMode =
     first(paymentModes.filter((mode) => mode.name.toLowerCase().includes('waiver')))?.attributeTypes ?? [];
   // calculate amount already waived or paid this is to ensure that the amount to waive is not greater than the total amount
-  const amountAlreadyWaivedOrPaid = payments.reduce((acc, curr) => acc + curr.amountTendered, 0);
+  const amountAlreadyWaivedOrPaid = sumActivePaymentTenderedAmounts(payments);
 
   const schema = z.object({
     waiveAmount: z
@@ -91,7 +93,7 @@ export const WaiveBillForm: React.FC<Workspace2DefinitionProps<BillWaiverFormPro
     resolver: zodResolver(schema),
   });
 
-  if (lineItems?.length === 0) {
+  if (activeLineItems.length === 0) {
     return null;
   }
 
@@ -100,7 +102,7 @@ export const WaiveBillForm: React.FC<Workspace2DefinitionProps<BillWaiverFormPro
       bill,
       parseInt(waiveAmount),
       totalAmount,
-      lineItems,
+      activeLineItems,
       paymentModes,
       waiverReason,
     );
@@ -175,7 +177,7 @@ export const WaiveBillForm: React.FC<Workspace2DefinitionProps<BillWaiverFormPro
               <p className={styles.value}>
                 {t('billName', ' {{billName}} ', {
                   billName:
-                    lineItems.map((item) => extractString(item.item || item.billableService)).join(', ') ?? '--',
+                    activeLineItems.map((item) => extractString(item.item || item.billableService)).join(', ') ?? '--',
                 })}
               </p>
             </section>

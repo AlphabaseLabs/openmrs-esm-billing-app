@@ -9,6 +9,7 @@ import {
   OverflowMenu,
 } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { convertToCurrency, extractString } from '../../helpers';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../types';
 import styles from './bill-manager.scss';
@@ -34,7 +35,7 @@ const BillLineItems: React.FC<{ bill: MappedBill }> = ({ bill }) => {
           </StructuredListRow>
         </StructuredListHead>
         <StructuredListBody>
-          {bill?.lineItems.map((lineItem) => (
+          {getActiveBillingRecords(bill?.lineItems ?? []).map((lineItem) => (
             <LineItemRow bill={bill} lineItem={lineItem} key={lineItem.uuid} />
           ))}
         </StructuredListBody>
@@ -45,7 +46,9 @@ const BillLineItems: React.FC<{ bill: MappedBill }> = ({ bill }) => {
 
 const LineItemRow = ({ lineItem, bill }: { lineItem: LineItem; bill: MappedBill }) => {
   const { t } = useTranslation();
-  const refundedLineItemUUIDs = bill.lineItems.filter((li) => Math.sign(li.price) === -1).map((li) => li.uuid);
+  const refundedLineItemUUIDs = getActiveBillingRecords(bill.lineItems)
+    .filter((li) => Math.sign(li.price) === -1)
+    .map((li) => li.uuid);
   const isRefundedLineItem = refundedLineItemUUIDs.includes(lineItem.uuid);
 
   const isRefundedBillableService = isLineItemRefunded(bill, lineItem);

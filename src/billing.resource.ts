@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
+import { getActiveBillingRecords, sumActivePaymentTenderedAmounts } from './billing-voided-utils';
 import { extractString, formatBillDateTime } from './helpers';
 import {
   FacilityDetail,
@@ -25,7 +26,12 @@ import {
 } from './types';
 
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
-  const lineItems = bill?.lineItems?.filter((li) => !li?.voided) ?? [];
+  const lineItems = getActiveBillingRecords(bill?.lineItems ?? []);
+  const payments = bill?.payments ?? [];
+  const hasPaymentsField = Array.isArray(bill?.payments);
+  const activePaymentTotal = hasPaymentsField
+    ? sumActivePaymentTenderedAmounts(payments)
+    : (bill?.totalActualPayments ?? bill?.totalPayments ?? 0);
   const lineItemDiscountTotal = lineItems.reduce(
     (total, item) => total + (item?.discounts ?? []).reduce((sum, discount) => sum + (discount?.amount ?? 0), 0),
     0,
@@ -48,7 +54,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     dateCreatedUnformatted: bill?.dateCreated,
     lineItems,
     billingService: extractString(lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  ')),
-    payments: bill?.payments ?? [],
+    payments,
     display: bill?.display,
     totalAmount:
       lineItems.reduce((sum, item) => {
@@ -57,8 +63,8 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
         const discount = (item?.discounts ?? []).reduce((acc, d) => acc + (d?.amount ?? 0), 0);
         return sum + (item?.total ?? subtotal + tax - discount);
       }, 0) ?? 0,
-    tenderedAmount: (bill?.payments ?? []).reduce((total, item) => total + (item?.amountTendered ?? 0), 0),
-    referenceCodes: (bill?.payments ?? [])
+    tenderedAmount: activePaymentTotal,
+    referenceCodes: getActiveBillingRecords(payments)
       .map((payment) =>
         (payment.attributes ?? [])
           .filter((attr) => attr.attributeType?.description === 'Reference Number')
@@ -74,12 +80,12 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
       .join(', '),
     adjustmentReason: bill?.adjustmentReason,
     balance: bill?.balance,
-    totalPayments: bill?.totalPayments ?? 0,
+    totalPayments: activePaymentTotal,
     totalDeposits: bill?.totalDeposits ?? 0,
     totalExempted: bill?.totalExempted ?? 0,
     totalWaived: bill?.totalWaivers ?? 0,
     closed: bill?.closed,
-    totalActualPayments: bill?.totalActualPayments ?? 0,
+    totalActualPayments: activePaymentTotal,
     totalTax: bill?.totalTax ?? 0,
     billLineItemDiscounts,
     totalAmountWithoutTaxAndDiscount: lineItems.reduce(
@@ -130,7 +136,7 @@ export const useBills = (
 };
 
 export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?: boolean }) => {
-  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=false&v=full`;
+  const url = `${restBaseUrl}/cashier/bill/${billUuid}?includeVoided=true&v=full`;
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: PatientInvoice }>(
     billUuid ? url : null,
     openmrsFetch,
@@ -142,7 +148,7 @@ export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?
   // filter out voided line items to prevent them from being included in the bill
   // TODO: add backend support for voided line items
   // https://thepalladiumgroup.atlassian.net/browse/KHP3-7068
-  const filteredLineItems = data?.data?.lineItems?.filter((li) => !li?.voided) ?? [];
+  const filteredLineItems = getActiveBillingRecords(data?.data?.lineItems ?? []);
   const formattedBill = data?.data
     ? mapBillProperties({ ...data?.data, lineItems: filteredLineItems })
     : ({} as MappedBill);

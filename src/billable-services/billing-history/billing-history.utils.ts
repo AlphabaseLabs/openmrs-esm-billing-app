@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { type Filter, type MappedBill } from '../../types';
 import { filterBills } from './filters/bill-filter';
 
@@ -14,7 +15,7 @@ export function extractServiceName(billableService: string): string {
 export function normalizeBillsForHistory(bills: Array<MappedBill>) {
   return bills.map((bill) => ({
     ...bill,
-    lineItems: bill.lineItems.map((item) => ({
+    lineItems: getActiveBillingRecords(bill.lineItems).map((item) => ({
       ...item,
       billableService: extractServiceName(item.billableService),
     })),

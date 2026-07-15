@@ -160,6 +160,7 @@
   "deleteChargeItem": "Delete charge item",
   "deleteDeposit": "Delete Deposit",
   "deleteDepositConfirmation": "Are you sure you want to delete this deposit?",
+  "deletedPaymentsAreRetainedForRecordKeeping": "Deleted payments are retained for record-keeping and cannot be modified.",
   "deleteLineItemStillInUseMessage": "To delete this item, first delete the payments and expenses or provider shares linked to it.",
   "deletePayment": "Delete Payment",
   "deletePaymentMode": "Delete Payment Mode",

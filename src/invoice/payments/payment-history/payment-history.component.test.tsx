@@ -78,4 +78,46 @@ describe('PaymentHistory', () => {
     expect(screen.queryByTestId('delete-payment-button-payment-1')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
   });
+
+  it('shows voided payments as read-only muted rows at the bottom', async () => {
+    const user = userEvent.setup();
+    const activePayment = {
+      ...payment,
+      uuid: 'payment-active',
+      dateCreated: '2026-01-01T00:00:00.000Z',
+      instanceType: {
+        uuid: 'card',
+        name: 'Card',
+      },
+    };
+    const voidedPayment = {
+      ...payment,
+      uuid: 'payment-voided',
+      dateCreated: '2026-01-02T00:00:00.000Z',
+      voided: true,
+    };
+
+    render(<PaymentHistory bill={{ ...bill, payments: [voidedPayment as any, activePayment as any] }} />);
+
+    const activeRow = screen.getByTestId('delete-payment-button-payment-active').closest('tr');
+    const voidedRow = screen.getByTestId('delete-payment-button-payment-voided').closest('tr');
+
+    expect(voidedRow).toHaveClass('voidedPaymentRow');
+    expect(activeRow.compareDocumentPosition(voidedRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    expect(screen.queryByTestId('voided-payment-tooltip-payment-voided')).not.toBeInTheDocument();
+
+    await user.hover(voidedRow);
+    expect(screen.getAllByTestId('voided-payment-tooltip-payment-voided')).toHaveLength(1);
+    expect(
+      await screen.findByText('Deleted payments are retained for record-keeping and cannot be modified.'),
+    ).toBeInTheDocument();
+
+    const deleteButton = screen.getByTestId('delete-payment-button-payment-voided');
+    expect(deleteButton).toBeDisabled();
+
+    await user.click(deleteButton);
+
+    expect(mockLaunchBillingWorkspace).not.toHaveBeenCalled();
+  });
 });

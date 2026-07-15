@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePaymentModes } from '../../billing.resource';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { type MappedBill, type Payment } from '../../types';
 import { useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
 
@@ -22,12 +23,16 @@ export const usePaymentModeGroupTotals = (bills: MappedBill[] = []) => {
     }
 
     const filteredRows = paymentModeFilters.length
-      ? bills.filter((row) => row.payments.some((payment) => paymentModeFilters?.includes(payment.instanceType.name)))
+      ? bills.filter((row) =>
+          getActiveBillingRecords(row.payments).some((payment) =>
+            paymentModeFilters?.includes(payment.instanceType.name),
+          ),
+        )
       : bills;
 
     // Process all payments in a single reduce operation
     const paymentTotals = filteredRows.reduce<Record<string, number>>((totals, bill) => {
-      bill.payments.forEach((payment: Payment) => {
+      getActiveBillingRecords(bill.payments).forEach((payment: Payment) => {
         const paymentType = payment.instanceType.name;
         totals[paymentType] = (totals[paymentType] || 0) + payment.amountTendered;
       });

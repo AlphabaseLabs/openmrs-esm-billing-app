@@ -2,6 +2,7 @@ import React from 'react';
 import { type PaymentMethodTotal } from './history.resource';
 import { type MappedBill } from '../../types';
 import { PaymentMethodSummaryTable } from './payment-method-summary-table.component';
+import { getActiveBillingRecords } from '../../billing-voided-utils';
 
 interface PaymentMethodDistributionProps {
   bills?: Array<MappedBill>;
@@ -20,7 +21,7 @@ const PaymentMethodDistribution = ({ bills = [], paymentMethodTotals, isLoading 
 
     const totals = new Map<string, number>();
     bills.forEach((bill) => {
-      bill.payments.forEach((payment) => {
+      getActiveBillingRecords(bill.payments).forEach((payment) => {
         const paymentMethod = payment.instanceType?.name || '--';
         totals.set(paymentMethod, (totals.get(paymentMethod) ?? 0) + (Number(payment.amountTendered) || 0));
       });
