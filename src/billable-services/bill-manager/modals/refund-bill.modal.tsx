@@ -3,7 +3,6 @@ import { ModalHeader, ModalBody, ModalFooter, Button, Loading } from '@carbon/re
 import { useTranslation } from 'react-i18next';
 import { showSnackbar } from '@openmrs/esm-framework';
 import { processBillItems } from '../../../billing.resource';
-import { processAccountingForLineItemRemoval } from '../../../accounting.resource';
 import { mutate } from 'swr';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import styles from './cancel-bill.scss';
@@ -30,40 +29,6 @@ export const RefundBillModal: React.FC<RefundBillModalProps> = ({ onClose, bill,
       mutate((key) => typeof key === 'string' && key.startsWith('/ws/rest/v1/cashier/bill'), undefined, {
         revalidate: true,
       });
-
-      // If the refunded line item had provider shares recorded, create matching negative provider shares.
-      try {
-        const accountingResult = await processAccountingForLineItemRemoval({
-          billId: bill.id,
-          billLineItemUuid: lineItem.uuid,
-          description: t('providerShare', 'Provider share'),
-          reason: t('refund', 'Refund'),
-          sourceType: 'BILL_LINE_ITEM_REFUND',
-        });
-
-        if (accountingResult.reversedCount > 0 || accountingResult.voidedCount > 0) {
-          showSnackbar({
-            title: t('accountingUpdated', 'Accounting updated'),
-            kind: 'success',
-            subtitle: t('accountingUpdatedSubtitle', 'Reversed: {{reversed}}. Voided: {{voided}}.', {
-              reversed: accountingResult.reversedCount,
-              voided: accountingResult.voidedCount,
-            }),
-            timeoutInMs: 4000,
-          });
-        }
-      } catch (error) {
-        showSnackbar({
-          title: t('providerShareRefundWarning', 'Provider share reversal warning'),
-          kind: 'warning',
-          subtitle:
-            error?.message ??
-            t(
-              'providerShareRefundWarningSubtitle',
-              'Refund completed, but an error occurred while reversing provider shares.',
-            ),
-        });
-      }
 
       showSnackbar({
         title: t('refundItems', 'Refund Items'),

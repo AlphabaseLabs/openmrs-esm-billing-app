@@ -1,6 +1,4 @@
 {
-  "accountingUpdated": "Accounting updated",
-  "accountingUpdatedSubtitle": "Reversed: {{reversed}}. Voided: {{voided}}.",
   "actions": "Actions",
   "activeVisitRequired": "Start visit to modify",
   "addAttributeType": "Add attribute type",
@@ -397,9 +395,6 @@
   "processingPayments": "Processing...",
   "processPayment": "Process Payment",
   "providerMessage": "By clicking Proceed to care, you acknowledge that you have advised the patient to settle the bill.",
-  "providerShare": "Provider share",
-  "providerShareRefundWarning": "Provider share reversal warning",
-  "providerShareRefundWarningSubtitle": "Refund completed, but an error occurred while reversing provider shares.",
   "quantity": "Quantity",
   "quantityValidationError": "Enter a valid quantity greater than 0",
   "reason": "Reason for {{action}} bill",
