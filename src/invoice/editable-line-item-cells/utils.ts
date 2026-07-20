@@ -18,7 +18,10 @@ export const getLineItemLabel = (lineItem: LineItem) => {
   return label || itemLabel || '--';
 };
 
-export const getLineItemSubtotal = (lineItem: LineItem) => getLineDiscountMaximum(lineItem);
+const roundLineItemAmount = roundMoneyAmount;
+
+export const getLineItemSubtotal = (lineItem: Pick<LineItem, 'price' | 'quantity'>) =>
+  roundLineItemAmount(Number(lineItem.price ?? 0) * Number(lineItem.quantity ?? 0));
 
 export const getLineItemDiscountAmount = (lineItem: LineItem) =>
   lineItem.discounts
@@ -30,8 +33,6 @@ export const getLineItemTaxAmount = (lineItem: LineItem) =>
 
 export const getLineItemTotal = (lineItem: LineItem) =>
   getLineItemSubtotal(lineItem) - getLineItemDiscountAmount(lineItem) + getLineItemTaxAmount(lineItem);
-
-const roundLineItemAmount = roundMoneyAmount;
 
 export const getLineItemAmountDue = (lineItem: LineItem) => {
   const total = Number(lineItem.total ?? getLineItemTotal(lineItem));

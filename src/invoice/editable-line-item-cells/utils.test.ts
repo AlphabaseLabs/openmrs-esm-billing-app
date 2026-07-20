@@ -6,6 +6,7 @@ import {
   getBulkDiscountTotal,
   getLineItemAmountDue,
   getLineItemDiscountAmount,
+  getLineItemSubtotal,
   getLineItemTaxAmount,
   getLineItemTotal,
   parseEditableNumber,
@@ -81,6 +82,22 @@ describe('editable line item utils', () => {
     expect(getLineItemTotal(lineItem)).toBe(1600);
   });
 
+  it('keeps refund line item subtotals signed when calculating totals', () => {
+    const refundLineItem = createLineItem({
+      price: -2000,
+      quantity: 1,
+      discounts: [{ amount: -300, baseAmount: -2000 }],
+      taxes: [{ amount: -255, baseAmount: -1700 }],
+      totalDiscount: -300,
+      totalTax: -255,
+    });
+
+    expect(getLineItemSubtotal(refundLineItem)).toBe(-2000);
+    expect(getLineItemDiscountAmount(refundLineItem)).toBe(-300);
+    expect(getLineItemTaxAmount(refundLineItem)).toBe(-255);
+    expect(getLineItemTotal(refundLineItem)).toBe(-1955);
+  });
+
   it('recomputes bill totals after a line item change', () => {
     const bill = {
       uuid: 'bill',
@@ -96,6 +113,37 @@ describe('editable line item utils', () => {
     expect(updatedBill.balance).toBe(2500);
     expect(updatedBill.totalAmountWithoutTaxAndDiscount).toBe(2500);
     expect(updatedBill.status).toBe(PaymentStatus.PENDING);
+  });
+
+  it('recomputes bill totals with refund line items as negative totals', () => {
+    const paidLineItem = createLineItem({
+      uuid: 'paid-line',
+      price: 2000,
+      quantity: 1,
+      discounts: [{ amount: 300, baseAmount: 2000 }],
+      taxes: [{ amount: 255, baseAmount: 1700 }],
+      paymentStatus: PaymentStatus.PAID,
+      totalAllocated: 1955,
+      total: 1955,
+    });
+    const refundLineItem = createLineItem({
+      uuid: 'refund-line',
+      price: -2000,
+      quantity: 1,
+      discounts: [{ amount: -300, baseAmount: -2000 }],
+      taxes: [{ amount: -255, baseAmount: -1700 }],
+      paymentStatus: PaymentStatus.PENDING,
+      total: -1955,
+    });
+    const bill = createBill([paidLineItem, refundLineItem]);
+
+    const updatedBill = recomputeBillWithLineItems(bill, [paidLineItem, refundLineItem]);
+
+    expect(findLineItem(updatedBill, 'refund-line').total).toBe(-1955);
+    expect(updatedBill.totalAmountWithoutTaxAndDiscount).toBe(0);
+    expect(updatedBill.totalTax).toBe(0);
+    expect(updatedBill.billLineItemDiscounts).toBe(0);
+    expect(updatedBill.totalAmount).toBe(0);
   });
 
   it('calculates remaining line item amount due', () => {
