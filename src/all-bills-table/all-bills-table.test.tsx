@@ -118,6 +118,10 @@ describe('AllBillsTable', () => {
         return buildBillsResponse([testBill]);
       }
 
+      if (billStatus === 'POSTED') {
+        return buildBillsResponse([postedBill]);
+      }
+
       if (billStatus === 'PAID') {
         return buildBillsResponse([paidBill]);
       }
@@ -210,6 +214,32 @@ describe('AllBillsTable', () => {
       expect.stringContaining('Posted Patient'),
       expect.stringContaining('Jane Doe'),
     ]);
+  });
+
+  test('filters bills by posted status using the backend filter', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SelectedDateContext.Provider value={{ selectedDate: null, setSelectedDate: jest.fn() }}>
+        <AllBillsTable />
+      </SelectedDateContext.Provider>,
+    );
+
+    await user.click(screen.getByText('All bills'));
+    await user.click(screen.getByText('Posted bills'));
+
+    await waitFor(() => {
+      expect(mockUseBillsPaginated).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          billStatus: 'POSTED',
+          page: 1,
+          pageSize: 10,
+        }),
+      );
+    });
+    expect(screen.getByText('Posted Patient')).toBeInTheDocument();
+    expect(screen.queryByText('Paid Patient')).not.toBeInTheDocument();
+    expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
   });
 
   test('filters bills by invoice number using the backend filter prop', async () => {

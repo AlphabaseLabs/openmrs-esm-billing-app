@@ -31,7 +31,7 @@ import { toPatientSearchOption, type PatientSearchResult, usePatientSearchResult
 import type { MappedBill } from '../types';
 import styles from './all-bills-table.scss';
 
-type BillStatusFilter = '' | 'PENDING' | 'PAID';
+type BillStatusFilter = '' | 'PENDING' | 'POSTED' | 'PAID';
 
 type FilterOption = {
   id: BillStatusFilter;
@@ -198,6 +198,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
     () => [
       { id: '', text: t('allBills', 'All bills') },
       { id: 'PENDING', text: t('pendingBills', 'Pending bills') },
+      { id: 'POSTED', text: t('postedBillsFilter', 'Posted bills') },
       { id: 'PAID', text: t('paidBillsFilter', 'Paid bills') },
     ],
     [t],
