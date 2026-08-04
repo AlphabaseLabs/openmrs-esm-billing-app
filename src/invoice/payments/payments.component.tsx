@@ -29,6 +29,7 @@ type PaymentProps = {
   showTaxSummary?: boolean;
   discardDestination?: string;
   onDiscard?: () => void | Promise<void>;
+  onRefreshBill?: () => unknown;
 };
 
 const Payments: React.FC<PaymentProps> = ({
@@ -38,6 +39,7 @@ const Payments: React.FC<PaymentProps> = ({
   showTaxSummary = true,
   discardDestination,
   onDiscard,
+  onRefreshBill,
 }) => {
   const { t } = useTranslation();
   const paymentSchema = usePaymentSchema(bill);
@@ -110,7 +112,7 @@ const Payments: React.FC<PaymentProps> = ({
             </CardHeader>
           </div>
           <div>
-            {bill && <PaymentHistory bill={bill} />}
+            {bill && <PaymentHistory bill={bill} onRefreshBill={onRefreshBill} />}
             {isPaymentInvalid && (
               <InlineNotification
                 title={t('incompletePayment', 'Incomplete payment')}

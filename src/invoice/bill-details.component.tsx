@@ -6,8 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { type BillingConfig } from '../config-schema';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
-import { syncBillStatus } from '../billing.resource';
+import { syncBillStatus, updateBillDate } from '../billing.resource';
 import BulkDiscountControl from './bulk-discount-control.component';
+import { EditableDatePicker, getDateWithCurrentTime } from './editable-date-picker.component';
 import { InvoiceActions } from './invoice-actions.component';
 import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
@@ -49,6 +50,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { sessionLocation } = useSession();
   const [editableBill, setEditableBill] = useState<MappedBill>(bill);
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const [isUpdatingBillDate, setIsUpdatingBillDate] = useState(false);
   const [visibleLineItemColumnKeys, setVisibleLineItemColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
@@ -126,6 +128,43 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     }
 
     await onRefreshBill?.();
+  };
+
+  const handleBillDateChange = async ([selectedDate]: Array<Date | string>) => {
+    if (!selectedDate || !billToRender?.uuid) {
+      return;
+    }
+
+    const dateCreated = getDateWithCurrentTime(selectedDate, billToRender.dateCreatedUnformatted);
+    setIsUpdatingBillDate(true);
+
+    try {
+      const response = await updateBillDate(billToRender.uuid, dateCreated);
+      if (!response.ok) {
+        throw new Error('Bill date update failed');
+      }
+
+      setEditableBill((currentBill) => ({
+        ...(currentBill ?? billToRender),
+        dateCreated: formatBillDateTime(new Date(dateCreated)),
+        dateCreatedUnformatted: new Date(dateCreated).toISOString(),
+      }));
+      await onRefreshBill?.();
+      showSnackbar({
+        title: t('billDateUpdated', 'Bill date updated'),
+        kind: 'success',
+        subtitle: t('billDateUpdatedSuccessfully', 'Bill date updated successfully'),
+      });
+    } catch (error) {
+      showSnackbar({
+        title: t('billDateUpdateFailed', 'Bill date update failed'),
+        kind: 'error',
+        subtitle:
+          error instanceof Error ? error.message : t('billDateUpdateFailedFallback', 'Unable to update bill date'),
+      });
+    } finally {
+      setIsUpdatingBillDate(false);
+    }
   };
 
   const openPrintPreview = (documentUrl: string, title: string) => {
@@ -211,6 +250,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
   const dateTimeLabel = t('dateAndTime', 'Date and time');
   const dateTimeTooltip = formatBillDateTime(billToRender?.dateCreatedUnformatted);
+  const canEditBillDate = Boolean(billToRender?.uuid && !billToRender?.closed);
   const patientFirstName = billToRender?.patientName?.trim().split(/\s+/)?.[0];
 
   return (
@@ -223,6 +263,9 @@ const BillDetails: React.FC<BillDetailsProps> = ({
               label={key}
               value={value}
               tooltip={key === dateTimeLabel ? dateTimeTooltip : undefined}
+              dateValue={key === dateTimeLabel ? billToRender?.dateCreatedUnformatted : undefined}
+              disabled={key === dateTimeLabel ? isUpdatingBillDate : undefined}
+              onDateChange={key === dateTimeLabel && canEditBillDate ? handleBillDateChange : undefined}
             />
           ))}
         </section>
@@ -262,6 +305,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           showTaxSummary={showTaxSummary}
           discardDestination={discardDestination}
           onDiscard={onDiscard}
+          onRefreshBill={onRefreshBill}
         />
       </div>
     </>
@@ -272,12 +316,36 @@ function InvoiceDetails({
   label,
   value,
   tooltip,
+  dateValue,
+  disabled,
+  onDateChange,
 }: {
   readonly label: string;
   readonly value: string | number;
   readonly tooltip?: string;
+  readonly dateValue?: string | Date | null;
+  readonly disabled?: boolean;
+  readonly onDateChange?: (selectedDates: Array<Date | string>) => void | Promise<void>;
 }) {
   const valueContent = <span className={styles.value}>{value}</span>;
+
+  if (onDateChange) {
+    return (
+      <div>
+        <h1 className={styles.label}>{label}</h1>
+        <EditableDatePicker
+          ariaLabel={label}
+          className={styles.value}
+          disabled={disabled}
+          displayValue={String(value)}
+          id={`invoice-date-${label.replace(/\W+/g, '-').toLowerCase()}`}
+          onChange={onDateChange}
+          tooltip={tooltip}
+          value={dateValue}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>

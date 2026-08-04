@@ -378,6 +378,21 @@ export const addPaymentToBill = (billUuid: string, payload: Record<string, any>)
   return openmrsFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
 };
 
+const updateDateCreated = (url: string, dateCreated: number) =>
+  openmrsFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { dateCreated },
+  });
+
+export const updateBillDate = (billUuid: string, dateCreated: number) => {
+  return updateDateCreated(`${restBaseUrl}/cashier/bill/${billUuid}`, dateCreated);
+};
+
+export const updatePaymentDate = (billUuid: string, paymentUuid: string, dateCreated: number) => {
+  return updateDateCreated(`${restBaseUrl}/cashier/bill/${billUuid}/payment/${paymentUuid}`, dateCreated);
+};
+
 export const updateBillItems = (payload) => {
   const url = `${restBaseUrl}/cashier/bill/${payload.uuid}`;
   return openmrsFetch(url, {

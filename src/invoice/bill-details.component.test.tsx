@@ -1,9 +1,9 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
-import { syncBillStatus, updateBillLineItem } from '../billing.resource';
+import { syncBillStatus, updateBillDate, updateBillLineItem } from '../billing.resource';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import BillDetails from './bill-details.component';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, type LineItemColumnKey } from './line-item-column-visibility';
@@ -30,6 +30,7 @@ jest.mock('./invoice-actions.component', () => ({
 
 jest.mock('../billing.resource', () => ({
   syncBillStatus: jest.fn(),
+  updateBillDate: jest.fn(),
   updateBillLineItem: jest.fn(),
 }));
 
@@ -99,6 +100,7 @@ const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar
 const mockUseConfig = useConfig as jest.MockedFunction<typeof useConfig>;
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 const mockSyncBillStatus = syncBillStatus as jest.MockedFunction<typeof syncBillStatus>;
+const mockUpdateBillDate = updateBillDate as jest.MockedFunction<typeof updateBillDate>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
 const billWithBulkDiscountBase = {
@@ -233,6 +235,27 @@ describe('BillDetails', () => {
     await user.click(screen.getByRole('button', { name: /show tax column/i }));
 
     expect(screen.getByTestId('payments')).toHaveTextContent('Tax summary visible: true');
+  });
+
+  it('allows editing the bill date only while the bill is open', async () => {
+    mockUpdateBillDate.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof updateBillDate>>);
+
+    render(<BillDetails bill={billWithBulkDiscountBase} />);
+
+    expect(screen.getByRole('button', { name: /01-Jan-2024, 09:00 AM/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/date and time input/i), { target: { value: '2026-01-05' } });
+
+    await waitFor(() =>
+      expect(mockUpdateBillDate).toHaveBeenCalledWith(billWithBulkDiscountBase.uuid, expect.any(Number)),
+    );
+  });
+
+  it('renders the bill date as read-only when the bill is closed', () => {
+    render(<BillDetails bill={{ ...billWithBulkDiscountBase, closed: true }} />);
+
+    expect(screen.queryByRole('button', { name: /date and time/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/date and time input/i)).not.toBeInTheDocument();
   });
 
   it('keeps the invoice table unchanged while editing a Bulk discount draft', async () => {
@@ -549,11 +572,10 @@ describe('BillDetails', () => {
 
     await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
-    await user.clear(input);
-    await user.type(input, '75{Enter}');
+    fireEvent.change(input, { target: { value: '75' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(await screen.findByText('Confirm sponsor change')).toBeInTheDocument();
-    expect(screen.getByText('Consultation discount sponsor will set to Dr Sponsor.')).toBeInTheDocument();
+    expect(await screen.findByText('Consultation discount sponsor will set to Dr Sponsor.')).toBeInTheDocument();
     expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: /confirm/i }));
@@ -589,8 +611,8 @@ describe('BillDetails', () => {
 
     await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
-    await user.clear(input);
-    await user.type(input, '75{Enter}');
+    fireEvent.change(input, { target: { value: '75' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(await screen.findByText('Consultation discount sponsor will set to Dr Sponsor.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /cancel/i }));

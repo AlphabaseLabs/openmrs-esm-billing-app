@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@carbon/react';
+import { UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import { Scalpel } from '@carbon/react/icons';
 import { type MappedBill, PaymentStatus } from '../../../types';
@@ -12,23 +13,25 @@ type WaiveBillActionButtonProps = {
 const WaiveBillActionButton: React.FC<WaiveBillActionButtonProps> = ({ bill }) => {
   const { t } = useTranslation();
 
-  if (bill.status == PaymentStatus.PAID) {
+  if (bill.status === PaymentStatus.PAID) {
     return null;
   }
-  const handleOpenWaiveBillWorkspace = (bill: MappedBill) => {
-    launchBillingWorkspace('waive-bill-form', {
-      bill: bill,
-    });
+
+  const handleOpenWaiveBillWorkspace = () => {
+    launchBillingWorkspace('waive-bill-form', { bill });
   };
+
   return (
-    <Button
-      size="sm"
-      onClick={() => handleOpenWaiveBillWorkspace(bill)}
-      renderIcon={(props) => <Scalpel size={24} {...props} />}
-      kind="danger--ghost"
-      iconDescription="TrashCan">
-      {t('waiveBill', 'Waive Bill')}
-    </Button>
+    <UserHasAccess privilege="Manage Cashier Bills">
+      <Button
+        size="sm"
+        onClick={handleOpenWaiveBillWorkspace}
+        renderIcon={(props) => <Scalpel size={24} {...props} />}
+        kind="danger--ghost"
+        iconDescription="TrashCan">
+        {t('waiveBill', 'Waive Bill')}
+      </Button>
+    </UserHasAccess>
   );
 };
 

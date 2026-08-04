@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Button, IconButton, Popover, PopoverContent } from '@carbon/react';
-import { Close, FolderOpen, OverflowMenuVertical, Printer, TrashCan } from '@carbon/react/icons';
+import { Close, FolderOpen, OverflowMenuVertical, Printer, Scalpel, TrashCan } from '@carbon/react/icons';
 import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import startCase from 'lodash-es/startCase';
-import { type MappedBill } from '../types';
+import { type MappedBill, PaymentStatus } from '../types';
+import { launchBillingWorkspace } from '../workspaces';
 import styles from './invoice.scss';
 
 interface InvoiceActionsProps {
@@ -42,10 +43,17 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
     setIsOpen(false);
   };
 
+  const launchWaiveBillWorkspace = () => {
+    launchBillingWorkspace('waive-bill-form', { bill });
+    setIsOpen(false);
+  };
+
   const closeAction = bill?.closed ? 'reopen' : 'close';
   const closeActionLabel = bill?.closed ? t('reopenBill', 'Reopen bill') : t('closeBill', 'Close bill');
   const closeActionIcon = bill?.closed ? FolderOpen : Close;
   const isCloseDisabled = !bill?.closed && bill?.balance !== 0;
+  const canWaiveBill = bill?.status !== PaymentStatus.PAID;
+  const hasReceipt = bill?.status === PaymentStatus.PAID || bill?.tenderedAmount > 0;
 
   return (
     <Popover align="bottom-right" open={isOpen} onRequestClose={() => setIsOpen(false)}>
@@ -60,7 +68,7 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
       </IconButton>
       <PopoverContent>
         <div className={styles.actionMenuContent}>
-          {(bill?.status === 'PAID' || bill?.tenderedAmount > 0) && (
+          {hasReceipt && (
             <Button
               kind="ghost"
               size="sm"
@@ -98,6 +106,18 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
               onClick={() => launchBillActionModal(closeAction)}>
               {closeActionLabel}
             </Button>
+          </UserHasAccess>
+          <UserHasAccess privilege="Manage Cashier Bills">
+            {canWaiveBill && (
+              <Button
+                kind="danger--ghost"
+                size="sm"
+                renderIcon={Scalpel}
+                className={styles.actionMenuItem}
+                onClick={launchWaiveBillWorkspace}>
+                {t('waiveBill', 'Waive Bill')}
+              </Button>
+            )}
           </UserHasAccess>
           <UserHasAccess privilege="Force Delete Cashier Bills">
             <Button

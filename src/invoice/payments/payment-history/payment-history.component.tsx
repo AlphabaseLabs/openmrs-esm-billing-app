@@ -11,20 +11,24 @@ import {
   Tooltip,
 } from '@carbon/react';
 import { type MappedBill, type Payment } from '../../../types';
-import { formatDate, getCoreTranslation, UserHasAccess } from '@openmrs/esm-framework';
+import { formatDate, getCoreTranslation, showSnackbar, UserHasAccess } from '@openmrs/esm-framework';
 import { convertToCurrency } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { TrashCan } from '@carbon/react/icons';
 import styles from './payment-history.scss';
 import { launchBillingWorkspace } from '../../../workspaces';
+import { updatePaymentDate } from '../../../billing.resource';
+import { EditableDatePicker, getDateWithCurrentTime } from '../../editable-date-picker.component';
 
 type PaymentHistoryProps = {
   bill: MappedBill;
+  onRefreshBill?: () => unknown;
 };
 
-const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
+const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) => {
   const { t } = useTranslation();
   const [hoveredVoidedPaymentUuid, setHoveredVoidedPaymentUuid] = useState<string | null>(null);
+  const [updatingPaymentUuid, setUpdatingPaymentUuid] = useState<string | null>(null);
   const billIsOpen = !bill.closed;
   const voidedPaymentTooltip = t(
     'deletedPaymentsAreRetainedForRecordKeeping',
@@ -48,6 +52,59 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     },
     [bill],
   );
+
+  const handlePaymentDateChange = async (payment: Payment, [selectedDate]: Array<Date | string>) => {
+    if (!selectedDate || !bill?.uuid || !payment?.uuid || bill.closed) {
+      return;
+    }
+
+    const dateCreated = getDateWithCurrentTime(selectedDate, payment.dateCreated);
+    setUpdatingPaymentUuid(payment.uuid);
+
+    try {
+      const response = await updatePaymentDate(bill.uuid, payment.uuid, dateCreated);
+      if (!response.ok) {
+        throw new Error('Payment date update failed');
+      }
+
+      await onRefreshBill?.();
+      showSnackbar({
+        title: t('paymentDateUpdated', 'Payment date updated'),
+        kind: 'success',
+        subtitle: t('paymentDateUpdatedSuccessfully', 'Payment date updated successfully'),
+      });
+    } catch (error) {
+      showSnackbar({
+        title: t('paymentDateUpdateFailed', 'Payment date update failed'),
+        kind: 'error',
+        subtitle:
+          error instanceof Error
+            ? error.message
+            : t('paymentDateUpdateFailedFallback', 'Unable to update payment date'),
+      });
+    } finally {
+      setUpdatingPaymentUuid(null);
+    }
+  };
+
+  const renderPaymentDate = (payment: Payment) => {
+    const paymentDate = formatDate(new Date(payment.dateCreated));
+
+    if (!billIsOpen || payment.voided) {
+      return paymentDate;
+    }
+
+    return (
+      <EditableDatePicker
+        ariaLabel={t('editPaymentDate', 'Edit payment date')}
+        disabled={updatingPaymentUuid === payment.uuid}
+        displayValue={paymentDate}
+        id={`payment-date-${payment.uuid}`}
+        onChange={(selectedDates) => handlePaymentDateChange(payment, selectedDates)}
+        value={payment.dateCreated}
+      />
+    );
+  };
 
   const headers = [
     {
@@ -91,7 +148,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill }) => {
     })
     .map((payment) => ({
       id: `${payment.uuid}`,
-      dateCreated: formatDate(new Date(payment.dateCreated)),
+      dateCreated: renderPaymentDate(payment),
       amountTendered: convertToCurrency(payment.amountTendered),
       amount: convertToCurrency(payment.amount),
       paymentMethod: payment.instanceType.name,

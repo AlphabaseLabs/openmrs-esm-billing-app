@@ -1,20 +1,35 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { showSnackbar } from '@openmrs/esm-framework';
 import React from 'react';
 import { PaymentStatus, type MappedBill } from '../../../types';
+import { updatePaymentDate } from '../../../billing.resource';
 import { launchBillingWorkspace } from '../../../workspaces';
 import PaymentHistory from './payment-history.component';
 
 jest.mock('@openmrs/esm-framework', () => ({
   formatDate: jest.fn(() => '01-Jan-2026'),
   getCoreTranslation: jest.fn((_key: string, fallback: string) => fallback),
+  showSnackbar: jest.fn(),
   UserHasAccess: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (_key: string, fallback: string) => fallback,
+  }),
+}));
+
+jest.mock('../../../billing.resource', () => ({
+  updatePaymentDate: jest.fn(),
 }));
 
 jest.mock('../../../workspaces', () => ({
   launchBillingWorkspace: jest.fn(),
 }));
 
+const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
+const mockUpdatePaymentDate = updatePaymentDate as jest.MockedFunction<typeof updatePaymentDate>;
 const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
 
 const payment = {
@@ -57,6 +72,30 @@ describe('PaymentHistory', () => {
     jest.clearAllMocks();
   });
 
+  it('updates an active payment date and refreshes the bill', async () => {
+    const user = userEvent.setup();
+    const onRefreshBill = jest.fn();
+    mockUpdatePaymentDate.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof updatePaymentDate>>);
+
+    render(<PaymentHistory bill={bill} onRefreshBill={onRefreshBill} />);
+
+    fireEvent.change(screen.getByLabelText(/edit payment date input/i), { target: { value: '2026-01-05' } });
+
+    await waitFor(() => {
+      expect(mockUpdatePaymentDate).toHaveBeenCalledWith(
+        'bill-1',
+        'payment-1',
+        new Date('2026-01-05T00:00:00.000Z').getTime(),
+      );
+    });
+    expect(onRefreshBill).toHaveBeenCalled();
+    expect(mockShowSnackbar).toHaveBeenCalledWith({
+      title: 'Payment date updated',
+      kind: 'success',
+      subtitle: 'Payment date updated successfully',
+    });
+  });
+
   it('shows the delete payment action for a paid bill that is still open', async () => {
     const user = userEvent.setup();
     render(<PaymentHistory bill={bill} />);
@@ -77,6 +116,7 @@ describe('PaymentHistory', () => {
 
     expect(screen.queryByTestId('delete-payment-button-payment-1')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/edit payment date input/i)).not.toBeInTheDocument();
   });
 
   it('shows voided payments as read-only muted rows at the bottom', async () => {
