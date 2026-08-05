@@ -74,7 +74,7 @@ const Payments: React.FC<PaymentProps> = ({
   const hasEnteredPaymentAmount = formValues?.some((item) => Number(item.amount ?? 0) > 0) ?? false;
   const totalNewPayments = formValues?.reduce((curr: number, prev) => Number(prev.amount ?? 0) + curr, 0) ?? 0;
   const amountDue = bill.balance ?? 0;
-  const summaryTotalAmount = bill.totalAmountWithoutTaxAndDiscount ?? bill.totalAmount ?? 0;
+  const summaryTotalAmount = bill.totalAmount ?? 0;
 
   const selectedLineItemsAmountDue = useMemo(
     () =>

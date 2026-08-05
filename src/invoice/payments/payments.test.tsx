@@ -309,7 +309,7 @@ describe('Payment', () => {
     );
 
     expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
-    expectCurrencyValue(320);
+    expectCurrencyValue(300);
     expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
     expectCurrencyValue(20);
     expect(screen.getByText(/Tax:/i)).toBeInTheDocument();
@@ -347,7 +347,7 @@ describe('Payment', () => {
     );
 
     expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
-    expectCurrencyValue(320);
+    expectCurrencyValue(300);
     expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
     expectCurrencyValue(20);
     expect(screen.queryByText(/Tax:/i)).not.toBeInTheDocument();
