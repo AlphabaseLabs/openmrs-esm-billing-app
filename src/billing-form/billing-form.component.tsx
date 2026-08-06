@@ -105,9 +105,9 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
     try {
       const payload = { ...values };
       const response = await processBillItems(payload);
-      mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill`), undefined, {
-        revalidate: true,
-      });
+      void mutate(
+        (key) => typeof key === 'string' && key.startsWith('/ws/rest/v1/cashier/bill'),
+      );
       showSnackbar({
         title: t('billItems', 'Save Bill'),
         subtitle: 'Bill processing has been successful',
