@@ -242,7 +242,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
 
   const invoiceDetails = {
-    [t('totalAmount', 'Total amount')]: convertToCurrency(billToRender?.totalAmount ?? 0),
+    [t('netAmount', 'Net amount')]: convertToCurrency(billToRender?.totalAmount ?? 0),
     [t('amountTendered', 'Amount tendered')]: convertToCurrency(billToRender?.tenderedAmount ?? 0),
     [t('invoiceNumber', 'Invoice #')]: billToRender?.receiptNumber,
     [t('dateAndTime', 'Date and time')]: formatInvoiceDate(billToRender?.dateCreatedUnformatted),
