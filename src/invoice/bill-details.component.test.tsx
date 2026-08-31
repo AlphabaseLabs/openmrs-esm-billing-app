@@ -1,17 +1,17 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
-import { syncBillStatus, updateBillDate, updateBillLineItem } from '../billing.resource';
+import { syncBillStatus, updateBillDate, updateBillLineItem, updateBillNote } from '../billing.resource';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import BillDetails from './bill-details.component';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, type LineItemColumnKey } from './line-item-column-visibility';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_key: string, fallback: string, values?: Record<string, string>) =>
-      fallback.replace(/\{\{(\w+)\}\}/g, (_match, key) => values?.[key] ?? `{{${key}}}`),
+    t: (_key: string, fallback: string, values?: Record<string, string | number>) =>
+      fallback.replace(/\{\{(\w+)\}\}/g, (_match, key) => String(values?.[key] ?? `{{${key}}}`)),
   }),
 }));
 
@@ -24,6 +24,15 @@ jest.mock('@openmrs/esm-framework', () => ({
   useSession: jest.fn(),
 }));
 
+jest.mock('@openmrs/esm-patient-common-lib', () => ({
+  CardHeader: ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div>
+      <h4>{title}</h4>
+      {children}
+    </div>
+  ),
+}));
+
 jest.mock('./invoice-actions.component', () => ({
   InvoiceActions: () => null,
 }));
@@ -32,6 +41,7 @@ jest.mock('../billing.resource', () => ({
   syncBillStatus: jest.fn(),
   updateBillDate: jest.fn(),
   updateBillLineItem: jest.fn(),
+  updateBillNote: jest.fn(),
 }));
 
 jest.mock('../payment-points/payment-points.resource', () => ({
@@ -78,11 +88,20 @@ jest.mock('./invoice-table.component', () => ({
 type MockPaymentsProps = {
   bill: any;
   showTaxSummary?: boolean;
+  paymentContentHeader?: React.ReactNode;
+  summaryContentHeader?: React.ReactNode;
 };
 
-function mockPaymentsComponent({ bill, showTaxSummary }: MockPaymentsProps) {
+function mockPaymentsComponent({
+  bill,
+  showTaxSummary,
+  paymentContentHeader,
+  summaryContentHeader,
+}: MockPaymentsProps) {
   return (
     <div data-testid="payments">
+      <div data-testid="payments-left-slot">{paymentContentHeader}</div>
+      <div data-testid="payments-right-slot">{summaryContentHeader}</div>
       <span>Discount total: {bill.totalDiscounts ?? 0}</span>
       <span>Amount due: {bill.balance ?? 0}</span>
       <span>Tax summary visible: {String(showTaxSummary)}</span>
@@ -102,6 +121,7 @@ const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 const mockSyncBillStatus = syncBillStatus as jest.MockedFunction<typeof syncBillStatus>;
 const mockUpdateBillDate = updateBillDate as jest.MockedFunction<typeof updateBillDate>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
+const mockUpdateBillNote = updateBillNote as jest.MockedFunction<typeof updateBillNote>;
 
 const billWithBulkDiscountBase = {
   ...mockBillData[0],
@@ -184,6 +204,7 @@ describe('BillDetails', () => {
       currentProvider: { uuid: 'provider-uuid', display: 'Dr Sponsor' },
     } as unknown as ReturnType<typeof useSession>);
     mockSyncBillStatus.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof syncBillStatus>>);
+    mockUpdateBillNote.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof updateBillNote>>);
   });
 
   it('shows a start snackbar immediately and a success snackbar when sending invoice succeeds', async () => {
@@ -213,16 +234,135 @@ describe('BillDetails', () => {
     });
   });
 
-  it('renders Bulk discount between line items and payments with a zero fallback', () => {
+  it('renders bill note in the left payment slot and Bulk discount in the right payment slot', () => {
     render(<BillDetails bill={billWithBulkDiscountBase} />);
 
     const invoiceTable = screen.getByTestId('invoice-table');
-    const discountsLabel = screen.getByText('Bulk discount:');
-    const payments = screen.getByTestId('payments');
+    const paymentsLeftSlot = screen.getByTestId('payments-left-slot');
+    const paymentsRightSlot = screen.getByTestId('payments-right-slot');
 
-    expect(invoiceTable.compareDocumentPosition(discountsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(discountsLabel.compareDocumentPosition(payments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
+    expect(invoiceTable.compareDocumentPosition(paymentsLeftSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(paymentsLeftSlot).getByRole('region', { name: /bill note/i })).toBeInTheDocument();
+    expect(within(paymentsRightSlot).getByText('Bulk discount:')).toBeInTheDocument();
+    expect(within(paymentsRightSlot).getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
+  });
+
+  it('edits the bill note inline', async () => {
+    const user = userEvent.setup();
+    const onRefreshBill = jest.fn();
+
+    render(
+      <BillDetails
+        bill={{ ...billWithBulkDiscountBase, note: 'Patient requested printed invoice note.' }}
+        onRefreshBill={onRefreshBill}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: /bill note/i })).toBeInTheDocument();
+    expect(screen.getByText('Patient requested printed invoice note.')).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole('region', { name: /bill note/i })).getByRole('button', { name: 'Edit' }));
+    const noteField = screen.getByRole('textbox', { name: /bill note/i });
+
+    expect(noteField).toHaveValue('Patient requested printed invoice note.');
+
+    await user.clear(noteField);
+    await user.type(noteField, 'Updated inline note');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() =>
+      expect(mockUpdateBillNote).toHaveBeenCalledWith(billWithBulkDiscountBase.uuid, 'Updated inline note'),
+    );
+    expect(screen.getByText('Updated inline note')).toBeInTheDocument();
+    expect(onRefreshBill).toHaveBeenCalled();
+    expect(mockShowSnackbar).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
+  });
+
+  it('shows an empty state and clears an existing bill note', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: null }} />);
+
+    expect(screen.getByText('No bill note added')).toBeInTheDocument();
+
+    rerender(<BillDetails bill={{ ...billWithBulkDiscountBase, note: 'Remove this note' }} />);
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.clear(screen.getByRole('textbox', { name: /bill note/i }));
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(mockUpdateBillNote).toHaveBeenCalledWith(billWithBulkDiscountBase.uuid, null));
+    expect(screen.getByText('No bill note added')).toBeInTheDocument();
+  });
+
+  it('cancels an unsaved bill note edit', async () => {
+    const user = userEvent.setup();
+    render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: 'Saved note' }} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const noteField = screen.getByRole('textbox', { name: /bill note/i });
+    await user.clear(noteField);
+    await user.type(noteField, 'Unsaved note');
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(screen.getByText('Saved note')).toBeInTheDocument();
+    expect(mockUpdateBillNote).not.toHaveBeenCalled();
+  });
+
+  it('keeps the editor open and reports an unsuccessful bill note response', async () => {
+    const user = userEvent.setup();
+    mockUpdateBillNote.mockResolvedValueOnce({ ok: false } as Awaited<ReturnType<typeof updateBillNote>>);
+    render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: 'Saved note' }} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const noteField = screen.getByRole('textbox', { name: /bill note/i });
+    await user.clear(noteField);
+    await user.type(noteField, 'Retry this note');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(noteField).toBeEnabled());
+    expect(noteField).toHaveValue('Retry this note');
+    expect(mockShowSnackbar).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
+  });
+
+  it('locks bill note controls while saving to prevent stale edits', async () => {
+    const user = userEvent.setup();
+    let resolveUpdate: (response: Awaited<ReturnType<typeof updateBillNote>>) => void;
+    mockUpdateBillNote.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: 'Saved note' }} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const noteField = screen.getByRole('textbox', { name: /bill note/i });
+    await user.clear(noteField);
+    await user.type(noteField, 'Pending note');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(noteField).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+
+    resolveUpdate!({ ok: true } as Awaited<ReturnType<typeof updateBillNote>>);
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: /bill note/i })).not.toBeInTheDocument());
+    expect(screen.getByText('Pending note')).toBeInTheDocument();
+  });
+
+  it('uses the Carbon counter and blocks unchanged or oversized bill notes', async () => {
+    const user = userEvent.setup();
+    const oversizedNote = 'a'.repeat(1025);
+    const { unmount } = render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: 'Saved note' }} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('textbox', { name: /bill note/i })).toHaveAttribute('maxlength', '1024');
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+
+    unmount();
+    render(<BillDetails bill={{ ...billWithBulkDiscountBase, note: oversizedNote }} />);
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByText('Bill note must be 1024 characters or fewer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
   });
 
   it('passes tax summary visibility from line-item column visibility to payments', async () => {

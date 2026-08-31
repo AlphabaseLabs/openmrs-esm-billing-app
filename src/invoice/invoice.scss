@@ -68,21 +68,43 @@
   margin: 0 layout.$spacing-05 layout.$spacing-05;
 }
 
+.billNote {
+  background-color: colors.$white;
+  border: 1px solid colors.$gray-20;
+  margin-bottom: layout.$spacing-05;
+  padding: 0;
+}
+
+.billNoteContent {
+  overflow-wrap: anywhere;
+  padding: layout.$spacing-05;
+}
+
+.billNoteActions {
+  justify-content: flex-end;
+}
+
+.billNoteEditButton {
+  margin-inline-end: layout.$spacing-05;
+}
+
+.billNoteText {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .bulkDiscountRow {
-  align-items: center;
-  column-gap: layout.$spacing-03;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 1px 22rem;
-  padding: layout.$spacing-03 0;
+  width: 100%;
 }
 
 .bulkDiscountControl {
   align-items: center;
   display: grid;
-  grid-column: 3;
   grid-template-columns: 1fr 1fr;
   min-width: 0;
-  padding-right: layout.$spacing-06;
+  width: 100%;
 }
 
 .bulkDiscountLabel {
@@ -147,15 +169,6 @@
 
   .details,
   .actionsContainer {
-    width: 100%;
-  }
-
-  .bulkDiscountRow {
-    display: block;
-  }
-
-  .bulkDiscountControl {
-    grid-column: auto;
     width: 100%;
   }
 

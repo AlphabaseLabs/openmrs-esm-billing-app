@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
-import { mapBillProperties, useBill } from './billing.resource';
+import { mapBillProperties, updateBillNote, useBill } from './billing.resource';
 import { PaymentStatus } from './types';
 
 jest.mock('swr', () => jest.fn());
@@ -34,6 +34,7 @@ const baseInvoice = {
   receiptNumber: 'BILL-1',
   status: PaymentStatus.POSTED,
   adjustmentReason: null,
+  note: 'Patient requested invoice note',
   resourceVersion: '1.8',
 };
 
@@ -85,6 +86,7 @@ describe('mapBillProperties', () => {
     expect(mappedBill.tenderedAmount).toBe(100);
     expect(mappedBill.balance).toBe(115);
     expect(mappedBill.totalAmountWithoutTaxAndDiscount).toBe(300);
+    expect(mappedBill.note).toBe('Patient requested invoice note');
   });
 
   it('defaults older bill responses to zero Discounts without requiring payments', () => {
@@ -154,6 +156,23 @@ describe('mapBillProperties', () => {
     expect(mappedBill.totalPayments).toBe(100);
     expect(mappedBill.tenderedAmount).toBe(100);
     expect(mappedBill.referenceCodes).toBe('Cash: ACTIVE-REF');
+  });
+});
+
+describe('updateBillNote', () => {
+  it.each([
+    ['a note', 'a note'],
+    ['a cleared note', null],
+  ])('updates %s using the bill REST resource', async (_scenario, note) => {
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await updateBillNote('bill-uuid', note);
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/bill/bill-uuid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { note },
+    });
   });
 });
 

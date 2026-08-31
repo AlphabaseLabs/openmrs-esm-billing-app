@@ -320,6 +320,35 @@ describe('Payment', () => {
     expectCurrencyValue(150);
   });
 
+  test('renders payment and summary header content in their respective columns', () => {
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(
+      <Payments
+        bill={paymentBill as any}
+        selectedLineItems={[]}
+        paymentContentHeader={<div>Bill note content</div>}
+        summaryContentHeader={<div>Bulk discount content</div>}
+      />,
+    );
+
+    expect(screen.getByText('Bill note content')).toBeInTheDocument();
+    expect(screen.getByText('Bulk discount content')).toBeInTheDocument();
+    expect(
+      screen.getByText('Bill note content').compareDocumentPosition(screen.getByText('Payments')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Bulk discount content').compareDocumentPosition(screen.getByText(/Total amount:/i)) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   test('should hide the payment summary tax row when tax column visibility is off', () => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,

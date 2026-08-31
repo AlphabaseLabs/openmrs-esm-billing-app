@@ -383,6 +383,53 @@ describe('InvoiceTable', () => {
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
 
+  it('selects all eligible line items from the table header', async () => {
+    const user = userEvent.setup();
+    const onSelectItem = jest.fn();
+    const paidLineItems = openPendingBill.lineItems.filter((item) => item.paymentStatus === PaymentStatus.PAID);
+    const pendingLineItems = openPendingBill.lineItems.filter((item) => item.paymentStatus === PaymentStatus.PENDING);
+
+    render(<InvoiceTable bill={openPendingBill} onSelectItem={onSelectItem} selectedLineItems={paidLineItems} />);
+
+    await user.click(screen.getByRole('checkbox', { name: /select all line items/i }));
+
+    expect(onSelectItem).toHaveBeenCalledWith([...paidLineItems, ...pendingLineItems]);
+  });
+
+  it('unselects eligible line items while preserving paid line items', async () => {
+    const user = userEvent.setup();
+    const onSelectItem = jest.fn();
+    const paidLineItems = openPendingBill.lineItems.filter((item) => item.paymentStatus === PaymentStatus.PAID);
+    const { rerender } = render(
+      <InvoiceTable bill={openPendingBill} onSelectItem={onSelectItem} selectedLineItems={openPendingBill.lineItems} />,
+    );
+
+    const selectAll = screen.getByRole('checkbox', { name: /unselect all line items/i });
+    expect(selectAll).toBeChecked();
+    await user.click(selectAll);
+
+    expect(onSelectItem).toHaveBeenCalledWith(paidLineItems);
+
+    rerender(<InvoiceTable bill={openPendingBill} onSelectItem={onSelectItem} selectedLineItems={paidLineItems} />);
+    expect(screen.getByRole('checkbox', { name: /select all line items/i })).not.toBeChecked();
+  });
+
+  it('shows partial and disabled select-all states for eligible line items', () => {
+    const firstPendingLineItem = discountedPendingBill.lineItems.find(
+      (item) => item.paymentStatus === PaymentStatus.PENDING,
+    );
+    const paidLineItems = discountedPendingBill.lineItems.filter((item) => item.paymentStatus === PaymentStatus.PAID);
+    const { rerender } = render(
+      <InvoiceTable bill={discountedPendingBill} selectedLineItems={[...paidLineItems, firstPendingLineItem!]} />,
+    );
+
+    const partialSelectAll = screen.getByRole('checkbox', { name: /select all line items/i }) as HTMLInputElement;
+    expect(partialSelectAll.indeterminate).toBe(true);
+
+    rerender(<InvoiceTable bill={paidBill} selectedLineItems={paidBill.lineItems} />);
+    expect(screen.getByRole('checkbox', { name: /select all line items/i })).toBeDisabled();
+  });
+
   it('spans the final add item row across rendered columns when selection is present', () => {
     render(<InvoiceTable bill={openPendingBill} />);
 
@@ -450,7 +497,7 @@ describe('InvoiceTable', () => {
     expect(within(addItemRow).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(addItemRow).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
     expect(within(addItemRow).queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
-    expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length);
+    expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length + 1);
     expect(bodyRows[0].children[1]).toHaveTextContent(/^1$/);
     expect(bodyRows[1].children[1]).toHaveTextContent(/^2$/);
     expect(addItemRow).not.toHaveTextContent(/^3$/);

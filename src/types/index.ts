@@ -23,6 +23,7 @@ export interface MappedBill {
   display?: string;
   referenceCodes?: string;
   adjustmentReason?: string;
+  note?: string | null;
   totalPayments?: number;
   totalDeposits?: number;
   totalExempted?: number;
@@ -321,6 +322,7 @@ export interface PatientInvoice {
   receiptNumber: string;
   status: PaymentStatus;
   adjustmentReason: any;
+  note?: string | null;
   id: number;
   resourceVersion: string;
   totalPayments?: number;

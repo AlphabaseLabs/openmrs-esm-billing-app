@@ -21,7 +21,6 @@
 
 .paymentTotals {
   flex: 0 0 20rem;
-  padding-top: layout.$spacing-07;
 }
 
 .paymentHeader {
@@ -85,6 +84,21 @@
   display: inline-flex;
   align-items: center;
   column-gap: layout.$spacing-03;
+}
+
+:global(.omrs-breakpoint-lt-desktop) {
+  .wrapper {
+    display: block;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .paymentTotals {
+    margin-top: layout.$spacing-05;
+    width: 100%;
+  }
 }
 
 @keyframes billingSmoothBlueFillGlow {

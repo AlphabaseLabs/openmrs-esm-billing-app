@@ -1,12 +1,14 @@
-import { Button, Tooltip } from '@carbon/react';
-import { Printer } from '@carbon/react/icons';
+import { Button, ButtonSet, Stack, TextArea, Tile, Tooltip } from '@carbon/react';
+import { Edit, Printer } from '@carbon/react/icons';
 import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { type BillingConfig } from '../config-schema';
+import { MAX_BILL_NOTE_LENGTH } from '../constants';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { type LineItem, type MappedBill } from '../types';
-import { syncBillStatus, updateBillDate } from '../billing.resource';
+import { syncBillStatus, updateBillDate, updateBillNote } from '../billing.resource';
 import BulkDiscountControl from './bulk-discount-control.component';
 import { EditableDatePicker, getDateWithCurrentTime } from './editable-date-picker.component';
 import { InvoiceActions } from './invoice-actions.component';
@@ -128,6 +130,19 @@ const BillDetails: React.FC<BillDetailsProps> = ({
     }
 
     await onRefreshBill?.();
+  };
+
+  const handleBillNoteUpdated = async (note: string | null) => {
+    setEditableBill((currentBill) => ({
+      ...(currentBill ?? billToRender),
+      note,
+    }));
+
+    try {
+      await onRefreshBill?.();
+    } catch {
+      // The note is already saved and reflected locally; a failed refresh must not roll it back.
+    }
   };
 
   const handleBillDateChange = async ([selectedDate]: Array<Date | string>) => {
@@ -297,7 +312,6 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           onRefreshBill={syncBillStatusAndRefresh}
           onVisibleColumnsChange={setVisibleLineItemColumnKeys}
         />
-        <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
         <Payments
           bill={billToRender}
           selectedLineItems={selectedLineItems}
@@ -306,6 +320,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           discardDestination={discardDestination}
           onDiscard={onDiscard}
           onRefreshBill={onRefreshBill}
+          paymentContentHeader={<BillNote bill={billToRender} onBillNoteUpdated={handleBillNoteUpdated} />}
+          summaryContentHeader={
+            <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
+          }
         />
       </div>
     </>
@@ -358,6 +376,133 @@ function InvoiceDetails({
         valueContent
       )}
     </div>
+  );
+}
+
+const normalizeBillNote = (note?: string | null) => note?.trim() || null;
+
+function BillNote({
+  bill,
+  onBillNoteUpdated,
+}: {
+  readonly bill: MappedBill;
+  readonly onBillNoteUpdated: (note: string | null) => void | Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const note = normalizeBillNote(bill.note);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftNote, setDraftNote] = useState(bill.note ?? '');
+  const [isSaving, setIsSaving] = useState(false);
+  const noteExceedsLimit = draftNote.length > MAX_BILL_NOTE_LENGTH;
+  const noteIsUnchanged = normalizeBillNote(draftNote) === note;
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftNote(bill.note ?? '');
+    }
+  }, [bill.note, isEditing]);
+
+  const handleStartEditing = () => {
+    setDraftNote(bill.note ?? '');
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setDraftNote(bill.note ?? '');
+    setIsEditing(false);
+  };
+
+  const handleSaveNote = async () => {
+    if (!bill?.uuid || noteExceedsLimit) {
+      return;
+    }
+
+    const nextNote = normalizeBillNote(draftNote);
+    setIsSaving(true);
+
+    try {
+      const response = await updateBillNote(bill.uuid, nextNote);
+
+      if (!response.ok) {
+        throw new Error('Bill note update failed');
+      }
+
+      await onBillNoteUpdated(nextNote);
+      setIsEditing(false);
+      showSnackbar({
+        title: t('billNoteUpdated', 'Bill note updated'),
+        subtitle: t('billNoteUpdatedSuccessfully', 'Bill note updated successfully'),
+        kind: 'success',
+        timeoutInMs: 5000,
+      });
+    } catch {
+      showSnackbar({
+        title: t('billNoteUpdateFailed', 'Bill note update failed'),
+        subtitle: t('billNoteUpdateFailedMessage', 'An error occurred while updating the bill note'),
+        kind: 'error',
+        timeoutInMs: 5000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <section aria-label={t('billNote', 'Bill note')}>
+      <Tile className={styles.billNote}>
+        <CardHeader title={t('billNote', 'Bill note')}>
+          <Button
+            className={styles.billNoteEditButton}
+            kind="ghost"
+            size="sm"
+            renderIcon={Edit}
+            disabled={!bill.uuid || isEditing || isSaving}
+            onClick={handleStartEditing}>
+            {t('edit', 'Edit')}
+          </Button>
+        </CardHeader>
+        <div className={styles.billNoteContent}>
+          {isEditing ? (
+            <Stack gap={4}>
+              <TextArea
+                autoFocus
+                disabled={isSaving}
+                enableCounter
+                id="bill-note"
+                invalid={noteExceedsLimit}
+                invalidText={t('billNoteMaximumLength', 'Bill note must be {{count}} characters or fewer', {
+                  count: MAX_BILL_NOTE_LENGTH,
+                })}
+                labelText={t('billNote', 'Bill note')}
+                hideLabel
+                maxCount={MAX_BILL_NOTE_LENGTH}
+                onChange={(event) => setDraftNote(event.target.value)}
+                placeholder={t('enterBillNote', 'Enter bill note')}
+                rows={4}
+                value={draftNote}
+              />
+              <ButtonSet className={styles.billNoteActions}>
+                <Button disabled={isSaving} kind="secondary" size="sm" onClick={handleCancelEditing} type="button">
+                  {t('cancel', 'Cancel')}
+                </Button>
+                <Button
+                  disabled={isSaving || noteExceedsLimit || noteIsUnchanged}
+                  kind="primary"
+                  size="sm"
+                  onClick={handleSaveNote}
+                  type="button">
+                  {isSaving ? t('saving', 'Saving...') : t('save', 'Save')}
+                </Button>
+              </ButtonSet>
+            </Stack>
+          ) : (
+            <p aria-live="polite" className={styles.billNoteText}>
+              {note ?? t('noBillNoteAdded', 'No bill note added')}
+            </p>
+          )}
+        </div>
+      </Tile>
+    </section>
   );
 }
 

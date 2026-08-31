@@ -79,6 +79,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
       .map((ref) => `${ref.paymentMode}: ${ref.value}`)
       .join(', '),
     adjustmentReason: bill?.adjustmentReason,
+    note: bill?.note,
     balance: bill?.balance,
     totalPayments: activePaymentTotal,
     totalDeposits: bill?.totalDeposits ?? 0,
@@ -387,6 +388,14 @@ const updateDateCreated = (url: string, dateCreated: number) =>
 
 export const updateBillDate = (billUuid: string, dateCreated: number) => {
   return updateDateCreated(`${restBaseUrl}/cashier/bill/${billUuid}`, dateCreated);
+};
+
+export const updateBillNote = (billUuid: string, note: string | null) => {
+  return openmrsFetch(`${restBaseUrl}/cashier/bill/${billUuid}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { note },
+  });
 };
 
 export const updatePaymentDate = (billUuid: string, paymentUuid: string, dateCreated: number) => {

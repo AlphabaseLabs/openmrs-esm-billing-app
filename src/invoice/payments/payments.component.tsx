@@ -30,6 +30,8 @@ type PaymentProps = {
   discardDestination?: string;
   onDiscard?: () => void | Promise<void>;
   onRefreshBill?: () => unknown;
+  paymentContentHeader?: React.ReactNode;
+  summaryContentHeader?: React.ReactNode;
 };
 
 const Payments: React.FC<PaymentProps> = ({
@@ -40,6 +42,8 @@ const Payments: React.FC<PaymentProps> = ({
   discardDestination,
   onDiscard,
   onRefreshBill,
+  paymentContentHeader,
+  summaryContentHeader,
 }) => {
   const { t } = useTranslation();
   const paymentSchema = usePaymentSchema(bill);
@@ -104,6 +108,7 @@ const Payments: React.FC<PaymentProps> = ({
     <FormProvider {...methods}>
       <div className={styles.wrapper}>
         <div className={styles.paymentContainer}>
+          {paymentContentHeader}
           <div className={styles.paymentHeader}>
             <CardHeader title={t('payments', 'Payments')}>
               {showAiPaymentsAction ? (
@@ -156,36 +161,39 @@ const Payments: React.FC<PaymentProps> = ({
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
-          <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={convertToCurrency(summaryTotalAmount)} />
-          <InvoiceBreakDown label={t('discounts', 'Discounts')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
-          {showTaxSummary ? (
-            <InvoiceBreakDown label={t('tax', 'Tax')} value={convertToCurrency(bill.totalTax ?? 0)} />
-          ) : null}
-          <InvoiceBreakDown
-            label={t('totalTendered', 'Total tendered')}
-            value={convertToCurrency(bill.totalActualPayments ?? 0)}
-          />
-          <InvoiceBreakDown
-            hasBalance={amountDue < 0}
-            label={amountDueDisplay(amountDue)}
-            value={convertToCurrency(amountDue ?? 0)}
-          />
-          <div className={styles.processPayments}>
-            {showDiscardButton ? (
-              <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
-                {t('discard', 'Discard')}
-              </Button>
+          {summaryContentHeader}
+          <div>
+            <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={convertToCurrency(summaryTotalAmount)} />
+            <InvoiceBreakDown label={t('discounts', 'Discounts')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
+            {showTaxSummary ? (
+              <InvoiceBreakDown label={t('tax', 'Tax')} value={convertToCurrency(bill.totalTax ?? 0)} />
             ) : null}
-            <Button type="button" onClick={() => void processPayments(t)} disabled={isProcessPaymentDisabled}>
-              {isSubmittingPayments ? (
-                <span className={styles.processButtonContent}>
-                  {t('processingPayments', 'Processing...')}
-                  <InlineLoading status="active" iconDescription={t('loading', 'Loading')} />
-                </span>
-              ) : (
-                t('processPayment', 'Process Payment')
-              )}
-            </Button>
+            <InvoiceBreakDown
+              label={t('totalTendered', 'Total tendered')}
+              value={convertToCurrency(bill.totalActualPayments ?? 0)}
+            />
+            <InvoiceBreakDown
+              hasBalance={amountDue < 0}
+              label={amountDueDisplay(amountDue)}
+              value={convertToCurrency(amountDue ?? 0)}
+            />
+            <div className={styles.processPayments}>
+              {showDiscardButton ? (
+                <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
+                  {t('discard', 'Discard')}
+                </Button>
+              ) : null}
+              <Button type="button" onClick={() => void processPayments(t)} disabled={isProcessPaymentDisabled}>
+                {isSubmittingPayments ? (
+                  <span className={styles.processButtonContent}>
+                    {t('processingPayments', 'Processing...')}
+                    <InlineLoading status="active" iconDescription={t('loading', 'Loading')} />
+                  </span>
+                ) : (
+                  t('processPayment', 'Process Payment')
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

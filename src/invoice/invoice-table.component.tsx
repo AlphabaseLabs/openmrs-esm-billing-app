@@ -17,6 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableSelectAll,
   TableToolbar,
   TableToolbarContent,
   TableToolbarSearch,
@@ -125,6 +126,19 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       .map((result) => result.original);
   }, [debouncedSearchTerm, lineItems, shortNamesByServiceUuid]);
   const shouldRenderSelectionColumn = filteredLineItems.length > 1 && isSelectable;
+  const selectableLineItems = useMemo(
+    () =>
+      filteredLineItems.filter(
+        (item) => item.paymentStatus !== PaymentStatus.PAID && item.paymentStatus !== PaymentStatus.EXEMPTED,
+      ),
+    [filteredLineItems],
+  );
+  const selectedSelectableLineItemCount = selectableLineItems.filter((item) =>
+    selectedLineItemUuids.has(item.uuid),
+  ).length;
+  const areAllSelectableLineItemsSelected =
+    selectableLineItems.length > 0 && selectedSelectableLineItemCount === selectableLineItems.length;
+  const areSomeSelectableLineItemsSelected = selectedSelectableLineItemCount > 0 && !areAllSelectableLineItemsSelected;
   const renderedLayoutColumns = useMemo(
     () => getLineItemTableLayoutColumns(visibleColumnDefinitions, shouldRenderSelectionColumn),
     [shouldRenderSelectionColumn, visibleColumnDefinitions],
@@ -337,14 +351,25 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const handleRowSelection = (row, checkedOrEvent: boolean | React.ChangeEvent<HTMLInputElement>) => {
     const checked = typeof checkedOrEvent === 'boolean' ? checkedOrEvent : checkedOrEvent.target.checked;
     const matchingRow = filteredLineItems.find((item) => item.uuid === row.id);
-    let newSelectedLineItems;
+    let newSelectedLineItems = selectedLineItems;
 
-    if (checked && matchingRow) {
+    if (checked && matchingRow && !selectedLineItemUuids.has(matchingRow.uuid)) {
       newSelectedLineItems = [...selectedLineItems, matchingRow];
-    } else {
+    } else if (!checked) {
       newSelectedLineItems = selectedLineItems.filter((item) => item.uuid !== row.id);
     }
     onSelectItem?.(newSelectedLineItems);
+  };
+
+  const handleSelectAll = () => {
+    const selectableLineItemUuids = new Set(selectableLineItems.map((item) => item.uuid));
+    const nextSelectedLineItems = areAllSelectableLineItemsSelected
+      ? selectedLineItems.filter((item) => !selectableLineItemUuids.has(item.uuid))
+      : Array.from(
+          new Map([...selectedLineItems, ...selectableLineItems].map((lineItem) => [lineItem.uuid, lineItem])).values(),
+        );
+
+    onSelectItem?.(nextSelectedLineItems);
   };
 
   const renderCellContent = (cell, matchingItem?: LineItem) => {
@@ -556,7 +581,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
               </colgroup>
               <TableHead>
                 <TableRow>
-                  {shouldRenderSelectionColumn ? <TableHeader /> : null}
+                  {shouldRenderSelectionColumn ? (
+                    <TableSelectAll
+                      {...getSelectionProps()}
+                      aria-label={
+                        areAllSelectableLineItemsSelected
+                          ? t('unselectAllLineItems', 'Unselect all line items')
+                          : t('selectAllLineItems', 'Select all line items')
+                      }
+                      checked={areAllSelectableLineItemsSelected}
+                      disabled={selectableLineItems.length === 0}
+                      indeterminate={areSomeSelectableLineItemsSelected}
+                      onSelect={handleSelectAll}
+                    />
+                  ) : null}
                   {headers.map((header) => (
                     <TableHeader key={header.key} className={getHeaderClassName(header)}>
                       {header.header}
