@@ -88,23 +88,23 @@ jest.mock('./invoice-table.component', () => ({
 type MockPaymentsProps = {
   bill: any;
   showTaxSummary?: boolean;
-  paymentContentHeader?: React.ReactNode;
+  paymentFooterContent?: React.ReactNode;
   summaryContentHeader?: React.ReactNode;
 };
 
 function mockPaymentsComponent({
   bill,
   showTaxSummary,
-  paymentContentHeader,
+  paymentFooterContent,
   summaryContentHeader,
 }: MockPaymentsProps) {
   return (
     <div data-testid="payments">
-      <div data-testid="payments-left-slot">{paymentContentHeader}</div>
       <div data-testid="payments-right-slot">{summaryContentHeader}</div>
       <span>Discount total: {bill.totalDiscounts ?? 0}</span>
       <span>Amount due: {bill.balance ?? 0}</span>
       <span>Tax summary visible: {String(showTaxSummary)}</span>
+      <div data-testid="payments-footer-slot">{paymentFooterContent}</div>
     </div>
   );
 }
@@ -234,15 +234,17 @@ describe('BillDetails', () => {
     });
   });
 
-  it('renders bill note in the left payment slot and Bulk discount in the right payment slot', () => {
+  it('renders bill note after payments and Bulk discount in the right payment slot', () => {
     render(<BillDetails bill={billWithBulkDiscountBase} />);
 
     const invoiceTable = screen.getByTestId('invoice-table');
-    const paymentsLeftSlot = screen.getByTestId('payments-left-slot');
+    const payments = screen.getByTestId('payments');
+    const paymentsFooterSlot = screen.getByTestId('payments-footer-slot');
     const paymentsRightSlot = screen.getByTestId('payments-right-slot');
+    const billNote = screen.getByRole('region', { name: /bill note/i });
 
-    expect(invoiceTable.compareDocumentPosition(paymentsLeftSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(paymentsLeftSlot).getByRole('region', { name: /bill note/i })).toBeInTheDocument();
+    expect(invoiceTable.compareDocumentPosition(payments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(paymentsFooterSlot).toContainElement(billNote);
     expect(within(paymentsRightSlot).getByText('Bulk discount:')).toBeInTheDocument();
     expect(within(paymentsRightSlot).getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
   });

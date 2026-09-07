@@ -320,7 +320,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           discardDestination={discardDestination}
           onDiscard={onDiscard}
           onRefreshBill={onRefreshBill}
-          paymentContentHeader={<BillNote bill={billToRender} onBillNoteUpdated={handleBillNoteUpdated} />}
+          paymentFooterContent={<BillNote bill={billToRender} onBillNoteUpdated={handleBillNoteUpdated} />}
           summaryContentHeader={
             <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
           }

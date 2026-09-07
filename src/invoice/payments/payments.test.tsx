@@ -320,7 +320,7 @@ describe('Payment', () => {
     expectCurrencyValue(150);
   });
 
-  test('renders payment and summary header content in their respective columns', () => {
+  test('renders payment footer content after the payment form and summary content in the totals column', () => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
       isLoading: false,
@@ -332,19 +332,19 @@ describe('Payment', () => {
       <Payments
         bill={paymentBill as any}
         selectedLineItems={[]}
-        paymentContentHeader={<div>Bill note content</div>}
+        paymentFooterContent={<div>Bill note content</div>}
         summaryContentHeader={<div>Bulk discount content</div>}
       />,
     );
 
-    expect(screen.getByText('Bill note content')).toBeInTheDocument();
     expect(screen.getByText('Bulk discount content')).toBeInTheDocument();
+    expect(screen.getByText('Bill note content')).toBeInTheDocument();
     expect(
-      screen.getByText('Bill note content').compareDocumentPosition(screen.getByText('Payments')) &
+      screen.getByText('Payments').compareDocumentPosition(screen.getByText('Bill note content')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      screen.getByText('Bulk discount content').compareDocumentPosition(screen.getByText(/Total amount:/i)) &
+      screen.getByText('Bill note content').compareDocumentPosition(screen.getByText('Bulk discount content')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });

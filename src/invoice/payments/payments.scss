@@ -23,6 +23,10 @@
   flex: 0 0 20rem;
 }
 
+.paymentFooter {
+  margin-top: layout.$spacing-05;
+}
+
 .paymentHeader {
   > div {
     align-items: center;

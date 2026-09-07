@@ -30,7 +30,7 @@ type PaymentProps = {
   discardDestination?: string;
   onDiscard?: () => void | Promise<void>;
   onRefreshBill?: () => unknown;
-  paymentContentHeader?: React.ReactNode;
+  paymentFooterContent?: React.ReactNode;
   summaryContentHeader?: React.ReactNode;
 };
 
@@ -42,7 +42,7 @@ const Payments: React.FC<PaymentProps> = ({
   discardDestination,
   onDiscard,
   onRefreshBill,
-  paymentContentHeader,
+  paymentFooterContent,
   summaryContentHeader,
 }) => {
   const { t } = useTranslation();
@@ -108,7 +108,6 @@ const Payments: React.FC<PaymentProps> = ({
     <FormProvider {...methods}>
       <div className={styles.wrapper}>
         <div className={styles.paymentContainer}>
-          {paymentContentHeader}
           <div className={styles.paymentHeader}>
             <CardHeader title={t('payments', 'Payments')}>
               {showAiPaymentsAction ? (
@@ -158,6 +157,7 @@ const Payments: React.FC<PaymentProps> = ({
               paymentModes={paymentModes}
             />
           </div>
+          {paymentFooterContent ? <div className={styles.paymentFooter}>{paymentFooterContent}</div> : null}
         </div>
         <div className={styles.divider} />
         <div className={styles.paymentTotals}>
