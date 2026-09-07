@@ -33,6 +33,15 @@ jest.mock('@openmrs/esm-framework', () => ({
   })),
 }));
 
+jest.mock('@openmrs/esm-patient-common-lib', () => ({
+  CardHeader: ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div>
+      <h4>{title}</h4>
+      {children}
+    </div>
+  ),
+}));
+
 jest.mock('../hooks/useBillableServices');
 
 jest.mock('../workspaces', () => ({

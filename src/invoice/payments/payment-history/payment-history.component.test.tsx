@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { showSnackbar } from '@openmrs/esm-framework';
 import React from 'react';
 import { PaymentStatus, type MappedBill } from '../../../types';
-import { updatePaymentDate } from '../../../billing.resource';
+import { updatePaymentAttributes, updatePaymentDate } from '../../../billing.resource';
+import { editableCellStyles } from '../../../editable-carbon-table-cell-kit';
 import { launchBillingWorkspace } from '../../../workspaces';
 import PaymentHistory from './payment-history.component';
 
@@ -21,6 +22,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('../../../billing.resource', () => ({
+  updatePaymentAttributes: jest.fn(),
   updatePaymentDate: jest.fn(),
 }));
 
@@ -29,6 +31,7 @@ jest.mock('../../../workspaces', () => ({
 }));
 
 const mockShowSnackbar = showSnackbar as jest.MockedFunction<typeof showSnackbar>;
+const mockUpdatePaymentAttributes = updatePaymentAttributes as jest.MockedFunction<typeof updatePaymentAttributes>;
 const mockUpdatePaymentDate = updatePaymentDate as jest.MockedFunction<typeof updatePaymentDate>;
 const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
 
@@ -96,6 +99,53 @@ describe('PaymentHistory', () => {
     });
   });
 
+  it('updates an active payment reference and refreshes the bill', async () => {
+    const user = userEvent.setup();
+    const onRefreshBill = jest.fn();
+    const paymentWithReferences = {
+      ...payment,
+      attributes: [
+        {
+          uuid: 'reference-attribute-1',
+          value: '6640',
+          attributeType: { uuid: 'transaction-id', name: 'Transaction Id' },
+        },
+        {
+          uuid: 'reference-attribute-2',
+          value: 'BANK-1',
+          attributeType: { uuid: 'bank-id', name: 'Bank Id' },
+        },
+      ],
+    };
+    mockUpdatePaymentAttributes.mockResolvedValueOnce({
+      ok: true,
+    } as Awaited<ReturnType<typeof updatePaymentAttributes>>);
+
+    render(
+      <PaymentHistory bill={{ ...bill, payments: [paymentWithReferences as any] }} onRefreshBill={onRefreshBill} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '6640' }));
+    const input = screen.getByRole('textbox', { name: /edit payment reference number/i });
+    expect(input).toHaveClass(editableCellStyles.inlineTextEditor);
+    expect(input.closest('[data-testid="editable-text-cell"]')).not.toHaveClass(editableCellStyles.activeEditableCell);
+    await user.clear(input);
+    await user.type(input, '6641{Enter}');
+
+    await waitFor(() => {
+      expect(mockUpdatePaymentAttributes).toHaveBeenCalledWith('bill-1', 'payment-1', [
+        { uuid: 'reference-attribute-1', attributeType: 'transaction-id', value: '6641' },
+        { uuid: 'reference-attribute-2', attributeType: 'bank-id', value: 'BANK-1' },
+      ]);
+    });
+    expect(onRefreshBill).toHaveBeenCalled();
+    expect(mockShowSnackbar).toHaveBeenCalledWith({
+      title: 'Payment reference updated',
+      kind: 'success',
+      subtitle: 'Payment reference updated successfully',
+    });
+  });
+
   it('shows the delete payment action for a paid bill that is still open', async () => {
     const user = userEvent.setup();
     render(<PaymentHistory bill={bill} />);
@@ -117,6 +167,32 @@ describe('PaymentHistory', () => {
     expect(screen.queryByTestId('delete-payment-button-payment-1')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/edit payment date input/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps payment references read-only for closed bills', () => {
+    render(
+      <PaymentHistory
+        bill={{
+          ...bill,
+          closed: true,
+          payments: [
+            {
+              ...payment,
+              attributes: [
+                {
+                  uuid: 'reference-attribute-1',
+                  value: '6640',
+                  attributeType: { uuid: 'transaction-id', name: 'Transaction Id' },
+                },
+              ],
+            } as any,
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: '6640' })).not.toBeInTheDocument();
+    expect(screen.getByText('6640')).toBeInTheDocument();
   });
 
   it('shows voided payments as read-only muted rows at the bottom', async () => {

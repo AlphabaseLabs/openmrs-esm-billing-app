@@ -4,6 +4,11 @@
   align-items: center;
 }
 
+.referenceCodes {
+  display: grid;
+  gap: 0.125rem;
+}
+
 .voidedPaymentRow {
   position: relative;
   color: var(--cds-text-secondary);

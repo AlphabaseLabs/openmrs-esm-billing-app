@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
-import { mapBillProperties, updateBillNote, useBill } from './billing.resource';
+import { mapBillProperties, updateBillNote, updatePaymentAttributes, useBill } from './billing.resource';
 import { PaymentStatus } from './types';
 
 jest.mock('swr', () => jest.fn());
@@ -172,6 +172,21 @@ describe('updateBillNote', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: { note },
+    });
+  });
+});
+
+describe('updatePaymentAttributes', () => {
+  it('updates attributes using the nested payment REST resource', async () => {
+    const attributes = [{ uuid: 'attribute-uuid', attributeType: 'attribute-type-uuid', value: '6641' }];
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await updatePaymentAttributes('bill-uuid', 'payment-uuid', attributes);
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/bill/bill-uuid/payment/payment-uuid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { attributes },
     });
   });
 });

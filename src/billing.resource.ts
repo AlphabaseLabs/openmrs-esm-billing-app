@@ -402,6 +402,18 @@ export const updatePaymentDate = (billUuid: string, paymentUuid: string, dateCre
   return updateDateCreated(`${restBaseUrl}/cashier/bill/${billUuid}/payment/${paymentUuid}`, dateCreated);
 };
 
+export const updatePaymentAttributes = (
+  billUuid: string,
+  paymentUuid: string,
+  attributes: Array<{ uuid: string; attributeType: string; value: string }>,
+) => {
+  return openmrsFetch(`${restBaseUrl}/cashier/bill/${billUuid}/payment/${paymentUuid}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { attributes },
+  });
+};
+
 export const updateBillItems = (payload) => {
   const url = `${restBaseUrl}/cashier/bill/${payload.uuid}`;
   return openmrsFetch(url, {

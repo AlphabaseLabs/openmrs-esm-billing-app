@@ -17,18 +17,26 @@ import { useTranslation } from 'react-i18next';
 import { TrashCan } from '@carbon/react/icons';
 import styles from './payment-history.scss';
 import { launchBillingWorkspace } from '../../../workspaces';
-import { updatePaymentDate } from '../../../billing.resource';
+import { updatePaymentAttributes, updatePaymentDate } from '../../../billing.resource';
 import { EditableDatePicker, getDateWithCurrentTime } from '../../editable-date-picker.component';
+import { EditableTextCell, editableCellStyles } from '../../../editable-carbon-table-cell-kit';
 
 type PaymentHistoryProps = {
   bill: MappedBill;
   onRefreshBill?: () => unknown;
 };
 
+type EditingPaymentReference = {
+  attributeUuid: string;
+  paymentUuid: string;
+  value: string;
+};
+
 const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) => {
   const { t } = useTranslation();
   const [hoveredVoidedPaymentUuid, setHoveredVoidedPaymentUuid] = useState<string | null>(null);
   const [updatingPaymentUuid, setUpdatingPaymentUuid] = useState<string | null>(null);
+  const [editingPaymentReference, setEditingPaymentReference] = useState<EditingPaymentReference | null>(null);
   const billIsOpen = !bill.closed;
   const voidedPaymentTooltip = t(
     'deletedPaymentsAreRetainedForRecordKeeping',
@@ -106,6 +114,113 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
     );
   };
 
+  const handlePaymentReferenceChange = async (payment: Payment, attributeUuid: string, value: string) => {
+    if (!bill?.uuid || !payment?.uuid || bill.closed || payment.voided) {
+      return false;
+    }
+
+    const attributes = payment.attributes.map((attribute) => ({
+      uuid: attribute.uuid,
+      attributeType: attribute.attributeType.uuid,
+      value: attribute.uuid === attributeUuid ? value : attribute.value,
+    }));
+
+    if (attributes.some((attribute) => !attribute.uuid || !attribute.attributeType)) {
+      return false;
+    }
+
+    setUpdatingPaymentUuid(payment.uuid);
+
+    try {
+      const response = await updatePaymentAttributes(bill.uuid, payment.uuid, attributes);
+      if (!response.ok) {
+        throw new Error('Payment reference update failed');
+      }
+
+      await onRefreshBill?.();
+      showSnackbar({
+        title: t('paymentReferenceUpdated', 'Payment reference updated'),
+        kind: 'success',
+        subtitle: t('paymentReferenceUpdatedSuccessfully', 'Payment reference updated successfully'),
+      });
+      setEditingPaymentReference(null);
+    } catch (error) {
+      showSnackbar({
+        title: t('paymentReferenceUpdateFailed', 'Payment reference update failed'),
+        kind: 'error',
+        subtitle:
+          error instanceof Error
+            ? error.message
+            : t('paymentReferenceUpdateFailedFallback', 'Unable to update payment reference'),
+      });
+    } finally {
+      setUpdatingPaymentUuid(null);
+    }
+  };
+
+  const renderPaymentReferences = (payment: Payment) => (
+    <span className={styles.referenceCodes}>
+      {payment.attributes.map((attribute) => {
+        const disabled =
+          !billIsOpen ||
+          payment.voided ||
+          updatingPaymentUuid === payment.uuid ||
+          !attribute.uuid ||
+          !attribute.attributeType?.uuid;
+        const isEditing =
+          editingPaymentReference?.paymentUuid === payment.uuid &&
+          editingPaymentReference.attributeUuid === attribute.uuid;
+
+        return (
+          <EditableTextCell
+            activeContent={
+              <input
+                aria-label={t('editPaymentReferenceNumber', 'Edit payment reference number')}
+                autoFocus
+                className={`${editableCellStyles.editableCellContent} ${editableCellStyles.textContent} ${editableCellStyles.cellSearchInput} ${editableCellStyles.inlineTextEditor}`}
+                disabled={disabled}
+                onBlur={() => {
+                  if (editingPaymentReference?.value === attribute.value) {
+                    setEditingPaymentReference(null);
+                  } else if (editingPaymentReference) {
+                    void handlePaymentReferenceChange(payment, attribute.uuid, editingPaymentReference.value);
+                  }
+                }}
+                onChange={(event) =>
+                  setEditingPaymentReference((current) => (current ? { ...current, value: event.target.value } : null))
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
+
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setEditingPaymentReference(null);
+                  }
+                }}
+                value={editingPaymentReference?.value ?? attribute.value}
+              />
+            }
+            isActive={isEditing}
+            isEditable={!disabled}
+            isOpen={isEditing}
+            key={attribute.uuid}
+            onActivate={() =>
+              setEditingPaymentReference({
+                attributeUuid: attribute.uuid,
+                paymentUuid: payment.uuid,
+                value: attribute.value,
+              })
+            }
+            value={attribute.value}
+          />
+        );
+      })}
+    </span>
+  );
+
   const headers = [
     {
       key: 'dateCreated',
@@ -153,7 +268,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
       amount: convertToCurrency(payment.amount),
       paymentMethod: payment.instanceType.name,
       ...(hasReferenceCodes && {
-        referenceCodes: payment.attributes.map((attribute) => attribute.value).join(', '),
+        referenceCodes: renderPaymentReferences(payment),
       }),
       ...(billIsOpen && {
         actions: (
