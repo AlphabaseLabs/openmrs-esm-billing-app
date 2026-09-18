@@ -112,7 +112,7 @@ xdescribe('Invoice', () => {
     expect(printButton).toBeInTheDocument();
 
     // Should show the line items table with the correct headers
-    const expectedColumnHeaders = [/No/i, /Bill item/i, /Bill code/i, /Status/i, /Quantity/i, /Price/i, /Total/i];
+    const expectedColumnHeaders = [/Bill item/i, /Bill code/i, /Status/i, /Price/i, /Total/i];
 
     expectedColumnHeaders.forEach((columnHeader) => {
       expect(screen.getByRole('columnheader', { name: columnHeader })).toBeInTheDocument();

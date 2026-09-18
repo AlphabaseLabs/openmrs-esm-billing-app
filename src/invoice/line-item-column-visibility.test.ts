@@ -22,12 +22,10 @@ describe('line-item-column-visibility', () => {
 
   it('defaults all configured default columns when persisted data is absent or malformed', () => {
     expect(getDefaultVisibleLineItemColumnKeys()).toEqual([
-      'no',
       'date',
       'billItem',
       'provider',
       'status',
-      'quantity',
       'price',
       'discount',
       'total',

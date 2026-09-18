@@ -53,13 +53,13 @@
 }
 
 .label {
-  @include type.type-style('body-compact-02');
+  @include type.type-style('body-compact-01');
   color: colors.$gray-70;
   margin: layout.$spacing-01;
 }
 
 .value {
-  @include type.type-style('heading-03');
+  @include type.type-style('body-compact-02');
   display: inline-block;
   margin-top: layout.$spacing-04;
 }
@@ -108,7 +108,7 @@
 }
 
 .bulkDiscountLabel {
-  @include type.type-style('legal-02');
+  @include type.type-style('body-compact-01');
   color: colors.$gray-100;
   white-space: nowrap;
 }

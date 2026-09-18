@@ -10,7 +10,7 @@
 }
 
 .label {
-  @include type.type-style('legal-02');
+  @include type.type-style('body-compact-01');
   color: colors.$gray-100;
   text-align: start;
 }

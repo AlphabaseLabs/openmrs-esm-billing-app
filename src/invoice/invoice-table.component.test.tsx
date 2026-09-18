@@ -512,7 +512,7 @@ describe('InvoiceTable', () => {
     const table = getInvoiceTable();
     const columnWidths = getColumnWidths(table);
 
-    expect(columnWidths[0]).toBe('80px');
+    expect(columnWidths[0]).toBe('144px');
     expect(columnWidths).not.toContain('48px');
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
@@ -552,6 +552,8 @@ describe('InvoiceTable', () => {
   });
 
   it('keeps the final add item row non-selectable and outside line item numbering', () => {
+    window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(['no']));
+
     render(<InvoiceTable bill={openPendingBill} />);
 
     const table = getInvoiceTable();

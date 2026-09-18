@@ -98,6 +98,15 @@
 
   td {
     border-bottom: none !important;
+    padding-inline: layout.$spacing-04;
+  }
+
+  &:global(.cds--data-table--sort) th > :global(.cds--table-header-label) {
+    padding-inline: layout.$spacing-04;
+  }
+
+  :global(.cds--table-sort) {
+    padding-inline-start: layout.$spacing-04;
   }
 }
 
