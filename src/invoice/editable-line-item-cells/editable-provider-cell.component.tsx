@@ -2,48 +2,54 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from '@carbon/react/icons';
 import { useCombobox } from 'downshift';
 import { useTranslation } from 'react-i18next';
-import { type BillableService, type LineItem } from '../../types';
 import { EditableTextCell, editableCellStyles as styles } from '../../editable-carbon-table-cell-kit';
+import { type ProviderOption } from '../../payment-points/payment-points.resource';
+import { type LineItem } from '../../types';
 import { type ActiveEditorKey, type EditableLineItemCommit, getEditorKey } from './types';
-import { findSelectedServicePrice, findServiceForLineItem, getLineItemLabel, recalculateLineItem } from './utils';
 
-type EditableBillItemCellProps = {
+type EditableProviderCellProps = {
   lineItem: LineItem;
-  billableServices: Array<BillableService>;
+  providerName: string;
+  providerOptions: Array<ProviderOption>;
+  isLoadingProviders: boolean;
   isEditable: boolean;
   activeEditorKey: ActiveEditorKey;
   setActiveEditorKey: (key: ActiveEditorKey) => void;
   onCommit: EditableLineItemCommit;
 };
 
-const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
+const EditableProviderCell: React.FC<EditableProviderCellProps> = ({
   lineItem,
-  billableServices,
+  providerName,
+  providerOptions,
+  isLoadingProviders,
   isEditable,
   activeEditorKey,
   setActiveEditorKey,
   onCommit,
 }) => {
   const { t } = useTranslation();
-  const editorKey = getEditorKey(lineItem.uuid, 'billItem');
+  const editorKey = getEditorKey(lineItem.uuid, 'provider');
   const isActive = activeEditorKey === editorKey;
-  const selectedService = useMemo(
-    () => findServiceForLineItem(lineItem, billableServices),
-    [billableServices, lineItem],
+  const currentProvider = lineItem.provider;
+  const currentProviderOption = useMemo(
+    () => providerOptions.find((provider) => provider.uuid === currentProvider?.uuid) ?? null,
+    [currentProvider?.uuid, providerOptions],
   );
-  const selectedPrice = useMemo(() => findSelectedServicePrice(lineItem, selectedService), [lineItem, selectedService]);
-  const lineItemLabel = getLineItemLabel(lineItem);
-  const selectedServiceName = selectedService?.name ?? lineItemLabel;
+  const noProviderOption = useMemo<ProviderOption>(
+    () => ({ id: '__no_provider__', uuid: '', label: t('noProvider', 'No provider') }),
+    [t],
+  );
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(selectedServiceName);
+  const [inputValue, setInputValue] = useState(providerName);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isActive) {
       setIsOpen(false);
-      setInputValue(selectedServiceName);
+      setInputValue(providerName);
     }
-  }, [isActive, selectedServiceName]);
+  }, [isActive, providerName]);
 
   useEffect(() => {
     if (isActive && isOpen) {
@@ -55,82 +61,58 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
   }, [isActive, isOpen]);
 
   const close = () => {
-    setInputValue(selectedServiceName);
+    setInputValue(providerName);
     setIsOpen(false);
     setActiveEditorKey(null);
   };
 
-  const activateInlineSurface = () => {
-    if (!isEditable) {
+  const open = () => {
+    if (!isEditable || isLoadingProviders) {
       return;
     }
 
-    setInputValue(selectedServiceName);
-    setIsOpen(true);
+    setInputValue(providerName);
     setActiveEditorKey(editorKey);
+    setIsOpen(true);
   };
 
-  const commitBillableService = async (service: BillableService) => {
-    const firstPrice = service.servicePrices?.[0];
-    const shouldUseDefaultPrice = Boolean(selectedPrice);
-    const nextLineItem = recalculateLineItem({
-      ...lineItem,
-      billableService: `${service.uuid}:${service.name}`,
-      item: `${service.uuid}:${service.name}`,
-      ...(shouldUseDefaultPrice
-        ? {
-            price: Number(firstPrice?.price ?? lineItem.price ?? 0),
-            priceName: firstPrice?.name ?? lineItem.priceName,
-            priceUuid: firstPrice?.uuid ?? lineItem.priceUuid,
-          }
-        : {}),
-    });
-
+  const commit = async (provider: ProviderOption | null) => {
     await onCommit(
       lineItem,
+      { provider: provider?.uuid ?? null },
       {
-        billableService: nextLineItem.billableService,
-        item: nextLineItem.item,
-        ...(shouldUseDefaultPrice
-          ? {
-              price: nextLineItem.price,
-              priceName: nextLineItem.priceName,
-              priceUuid: nextLineItem.priceUuid,
-            }
-          : {}),
+        ...lineItem,
+        provider: provider ? { uuid: provider.uuid, display: provider.label } : null,
       },
-      nextLineItem,
     );
     close();
   };
 
-  const filteredBillableServices = useMemo(() => {
+  const filteredProviderOptions = useMemo(() => {
+    const options = [noProviderOption, ...providerOptions];
     const query = inputValue.trim().toLowerCase();
-    const selectedName = selectedService?.name.toLowerCase();
 
-    if (!query || query === selectedName) {
-      return billableServices;
+    if (!query || query === providerName.toLowerCase()) {
+      return options;
     }
 
-    return billableServices.filter((service) => service.name.toLowerCase().includes(query));
-  }, [billableServices, inputValue, selectedService]);
+    return options.filter((provider) => provider.label.toLowerCase().includes(query));
+  }, [inputValue, noProviderOption, providerName, providerOptions]);
 
   const { getInputProps, getItemProps, getMenuProps, getToggleButtonProps, highlightedIndex } =
-    useCombobox<BillableService>({
+    useCombobox<ProviderOption>({
       inputValue,
       isOpen: isActive && isOpen,
-      itemToString: (item) => item?.name ?? '',
-      items: filteredBillableServices,
-      selectedItem: selectedService ?? null,
-      onInputValueChange: ({ inputValue: nextInputValue }) => {
-        setInputValue(nextInputValue ?? '');
-      },
+      itemToString: (item) => item?.label ?? '',
+      items: filteredProviderOptions,
+      selectedItem: currentProviderOption ?? (currentProvider ? null : noProviderOption),
+      onInputValueChange: ({ inputValue: nextInputValue }) => setInputValue(nextInputValue ?? ''),
       onSelectedItemChange: ({ selectedItem }) => {
         if (!selectedItem) {
           return;
         }
 
-        void commitBillableService(selectedItem);
+        void commit(selectedItem.uuid ? selectedItem : null);
       },
     });
 
@@ -145,9 +127,8 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
         isActive && isOpen ? (
           <input
             {...getInputProps({
-              'aria-label': t('selectBillItem', 'Select bill item'),
+              'aria-label': t('searchProviders', 'Search providers'),
               className: `${styles.editableCellContent} ${styles.textContent} ${styles.cellSearchInput}`,
-              'data-testid': 'editable-bill-item-search-input',
               onBlur: (event) => {
                 const nextTarget = event.relatedTarget as HTMLElement | null;
 
@@ -155,37 +136,32 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
                   return;
                 }
 
-                window.setTimeout(() => {
-                  close();
-                }, 0);
+                window.setTimeout(close, 0);
               },
-              onClick: (event) => {
-                event.stopPropagation();
-              },
+              onClick: (event) => event.stopPropagation(),
               ref: inputRef,
             })}
           />
         ) : null
       }
-      className={`${styles.billItemEditableCell} ${isActive && isOpen ? styles.activeEditableCell : ''}`}
+      className={isActive && isOpen ? styles.activeEditableCell : undefined}
       isActive={isActive}
       isEditable={isEditable}
       isOpen={isOpen}
-      onActivate={activateInlineSurface}
+      onActivate={open}
       popover={{
         align: 'bottom-left',
-        ariaLabel: t('billItemOptions', 'Bill item options'),
+        ariaLabel: t('providerOptions', 'Provider options'),
         buttonProps: getToggleButtonProps({
-          'aria-label': t('selectBillItem', 'Select bill item'),
+          'aria-label': t('selectProvider', 'Select provider'),
+          disabled: isLoadingProviders,
           onClick: (event) => {
             event.stopPropagation();
-
             if (isActive && isOpen) {
               close();
-              return;
+            } else {
+              open();
             }
-
-            activateInlineSurface();
           },
           type: 'button',
         }),
@@ -194,22 +170,22 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
           <ul
             className={`${styles.optionList} ${styles.scrollableOptionList}`}
             {...getMenuProps({}, { suppressRefError: true })}>
-            {filteredBillableServices.length ? (
-              filteredBillableServices.map((service, index) => {
-                const isSelected = selectedService?.uuid === service.uuid;
+            {filteredProviderOptions.length ? (
+              filteredProviderOptions.map((provider, index) => {
+                const isSelected = provider.uuid ? currentProvider?.uuid === provider.uuid : !currentProvider;
 
                 return (
                   <li
-                    key={service.uuid}
+                    key={provider.id}
                     className={`${styles.optionButton} ${styles.billItemOption} ${
                       isSelected ? styles.selectedOption : ''
                     } ${highlightedIndex === index ? styles.highlightedOption : ''}`}
                     {...getItemProps({
                       'aria-selected': isSelected,
                       index,
-                      item: service,
+                      item: provider,
                     })}>
-                    <span className={styles.billItemOptionLabel}>{service.name}</span>
+                    <span className={styles.billItemOptionLabel}>{provider.label}</span>
                     {isSelected ? (
                       <span className={styles.optionCheck} aria-hidden="true">
                         ✓
@@ -227,9 +203,9 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
         onClose: close,
         trigger: <ChevronDown size={16} />,
       }}
-      value={lineItemLabel}
+      value={providerName}
     />
   );
 };
 
-export default EditableBillItemCell;
+export default EditableProviderCell;

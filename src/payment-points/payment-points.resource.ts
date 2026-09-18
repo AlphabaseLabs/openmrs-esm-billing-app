@@ -108,9 +108,20 @@ interface PersonWithDisplay extends Person {
   display?: string;
 }
 
-interface ProviderResponse {
+export interface ProviderResponse {
   uuid: string;
-  person: PersonWithDisplay;
+  display?: string;
+  name?: string;
+  person?: PersonWithDisplay;
+  retired?: boolean;
+  attributes?: Array<{
+    display?: string;
+    value?: unknown;
+    attributeType?: {
+      name?: string;
+      display?: string;
+    };
+  }>;
 }
 
 export interface ProviderOption {
@@ -118,6 +129,12 @@ export interface ProviderOption {
   uuid: string;
   label: string;
 }
+
+const mapProviderToOption = (provider: ProviderResponse): ProviderOption => ({
+  id: provider.uuid,
+  uuid: provider.uuid,
+  label: provider.person?.display || provider.display || provider.name || provider.uuid,
+});
 
 interface UsersResponse {
   uuid: string;
@@ -146,16 +163,61 @@ export function useProviderOptions() {
   const options = useMemo<Array<ProviderOption>>(
     () =>
       (data?.data?.results ?? [])
-        .map((provider) => ({
-          id: provider.uuid,
-          uuid: provider.uuid,
-          label: provider.person?.display ?? provider.uuid,
-        }))
+        .map(mapProviderToOption)
         .sort((leftOption, rightOption) => leftOption.label.localeCompare(rightOption.label)),
     [data?.data?.results],
   );
 
   return { providerOptions: options, error, isLoading };
+}
+
+const AVAILABLE_FOR_APPOINTMENTS_ATTRIBUTE = 'available for appointments';
+
+export const isAvailableForAppointments = (provider: ProviderResponse) =>
+  provider.retired === false &&
+  (provider.attributes ?? []).some((attribute) => {
+    const attributeName = (attribute.attributeType?.name || attribute.attributeType?.display || '')
+      .trim()
+      .toLowerCase();
+    if (attributeName !== AVAILABLE_FOR_APPOINTMENTS_ATTRIBUTE) {
+      return false;
+    }
+
+    const value = attribute.value ?? attribute.display?.split(':').slice(1).join(':');
+    return (
+      value === true ||
+      ['true', '1', 'yes'].includes(
+        String(value ?? '')
+          .trim()
+          .toLowerCase(),
+      )
+    );
+  });
+
+export function useAppointmentProviderOptions() {
+  const url =
+    '/ws/rest/v1/provider?v=custom:(uuid,retired,person:(uuid,display),attributes:(display,value,attributeType:(name,display)))&limit=1000';
+  const { data, error, isLoading } = useSWR<FetchResponse<{ results: ProviderResponse[] }>>(
+    url,
+    openmrsFetch,
+    defaultRequestOptions,
+  );
+  const allProviderOptions = useMemo<Array<ProviderOption>>(
+    () =>
+      (data?.data?.results ?? [])
+        .map(mapProviderToOption)
+        .sort((leftOption, rightOption) => leftOption.label.localeCompare(rightOption.label)),
+    [data?.data?.results],
+  );
+  const providerOptions = useMemo(() => {
+    const eligibleProviderUuids = new Set(
+      (data?.data?.results ?? []).filter(isAvailableForAppointments).map((provider) => provider.uuid),
+    );
+
+    return allProviderOptions.filter((provider) => eligibleProviderUuids.has(provider.uuid));
+  }, [allProviderOptions, data?.data?.results]);
+
+  return { allProviderOptions, providerOptions, error, isLoading };
 }
 
 export function useUsers() {

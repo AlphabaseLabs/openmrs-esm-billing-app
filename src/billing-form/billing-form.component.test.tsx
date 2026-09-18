@@ -3,10 +3,19 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BillingForm from './billing-form.component';
 import useBillableServices from '../hooks/useBillableServices';
+import { processBillItems } from '../billing.resource';
+import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 
 jest.mock('../hooks/useBillableServices');
+jest.mock('../billing.resource', () => ({
+  ...jest.requireActual('../billing.resource'),
+  processBillItems: jest.fn(),
+}));
+jest.mock('../payment-points/payment-points.resource', () => ({
+  useAppointmentProviderOptions: jest.fn(),
+}));
 jest.mock('../autosuggest/autosuggest.component', () => ({
-  Autosuggest: ({ labelText, value, onClear, getSearchResults, getDisplayValue }: any) => {
+  Autosuggest: ({ labelText, value, onClear, getSearchResults, getDisplayValue, onSuggestionSelected }: any) => {
     const [suggestions, setSuggestions] = React.useState([]);
 
     return (
@@ -26,7 +35,11 @@ jest.mock('../autosuggest/autosuggest.component', () => ({
         </button>
         <ul>
           {suggestions.map((suggestion) => (
-            <li key={suggestion.uuid}>{getDisplayValue(suggestion)}</li>
+            <li key={suggestion.uuid}>
+              <button type="button" onClick={() => onSuggestionSelected('uuid', suggestion.uuid)}>
+                {getDisplayValue(suggestion)}
+              </button>
+            </li>
           ))}
         </ul>
       </div>
@@ -53,18 +66,28 @@ jest.mock('@openmrs/esm-framework', () => {
     navigate: jest.fn(),
     showSnackbar: jest.fn(),
     useConfig: jest.fn(() => ({
-      cashPointUuid: 'cash-point-uuid',
-      cashierUuid: 'cashier-uuid',
+      cashPointUuid: '54065383-b4d4-42d2-af4d-d250a1fd2590',
+      cashierUuid: '65065383-b4d4-42d2-af4d-d250a1fd2590',
       defaultPaymentMethodName: 'Cash',
     })),
     usePatient: jest.fn(() => ({
       patient: { id: 'patient-uuid' },
       isLoading: false,
     })),
+    useSession: jest.fn(() => ({
+      currentProvider: {
+        uuid: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+        display: 'Current Provider',
+      },
+    })),
   };
 });
 
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
+const mockProcessBillItems = processBillItems as jest.MockedFunction<typeof processBillItems>;
+const mockUseAppointmentProviderOptions = useAppointmentProviderOptions as jest.MockedFunction<
+  typeof useAppointmentProviderOptions
+>;
 
 const workspaceChromeProps = {
   closeWorkspace: jest.fn(),
@@ -90,6 +113,25 @@ describe('BillingForm', () => {
       error: null,
       isLoading: false,
     } as ReturnType<typeof useBillableServices>);
+    mockUseAppointmentProviderOptions.mockReturnValue({
+      allProviderOptions: [
+        {
+          id: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+          uuid: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+          label: 'Current Provider',
+        },
+      ],
+      providerOptions: [
+        {
+          id: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+          uuid: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+          label: 'Current Provider',
+        },
+      ],
+      error: null,
+      isLoading: false,
+    });
+    mockProcessBillItems.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof processBillItems>>);
   });
 
   it('does not render patient header slot by default', () => {
@@ -129,5 +171,50 @@ describe('BillingForm', () => {
     await user.type(screen.getByRole('searchbox', { name: /search/i }), 'GCON');
 
     expect(screen.getByText('General Consultation')).toBeInTheDocument();
+  });
+
+  it('assigns the current appointment-enabled provider to new line items', async () => {
+    const user = userEvent.setup();
+
+    mockUseBillableServices.mockReturnValue({
+      billableServices: [
+        {
+          uuid: '85065383-b4d4-42d2-af4d-d250a1fd2590',
+          name: 'General Consultation',
+          shortName: 'GCON',
+          serviceStatus: 'ENABLED',
+          serviceType: { display: 'Consultation' },
+          servicePrices: [
+            {
+              uuid: '95065383-b4d4-42d2-af4d-d250a1fd2590',
+              name: 'Cash',
+              price: 100,
+              paymentMode: { name: 'Cash' },
+            },
+          ],
+        },
+      ],
+      error: null,
+      isLoading: false,
+    } as ReturnType<typeof useBillableServices>);
+
+    renderBillingForm({
+      patientUuid: 'a5065383-b4d4-42d2-af4d-d250a1fd2590',
+      workspaceTitle: 'Create Bill',
+    });
+
+    await user.type(screen.getByRole('searchbox', { name: /search/i }), 'GCON');
+    await user.click(screen.getByRole('button', { name: 'General Consultation' }));
+    await user.click(screen.getByRole('button', { name: /save & close/i }));
+
+    expect(mockProcessBillItems).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lineItems: [
+          expect.objectContaining({
+            provider: '75065383-b4d4-42d2-af4d-d250a1fd2590',
+          }),
+        ],
+      }),
+    );
   });
 });

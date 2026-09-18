@@ -436,6 +436,13 @@
   padding: 0;
 }
 
+.scrollableOptionList {
+  max-block-size: min(20rem, calc(100vh - 4rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .optionButton {
   @include type.type-style('body-compact-01');
   align-items: center;

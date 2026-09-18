@@ -220,6 +220,7 @@ export type BillLineItemUpdate = {
   priceName?: string;
   priceUuid?: string;
   paymentStatus?: 'PENDING' | 'POSTED' | 'PAID' | 'CANCELLED' | 'ADJUSTED' | 'EXEMPTED';
+  provider?: string | null;
   discounts?: Array<Pick<BillLineItemDiscount, 'amount' | 'baseAmount' | 'rate' | 'description' | 'sponsor'>>;
 };
 
@@ -368,6 +369,7 @@ export const billingFormSchema = z.object({
         priceUuid: z.string().uuid(),
         lineItemOrder: z.number().optional().default(0),
         order: z.string().optional().default(''),
+        provider: z.string().uuid().optional(),
         paymentStatus: z.enum(['PENDING']),
       }),
     )

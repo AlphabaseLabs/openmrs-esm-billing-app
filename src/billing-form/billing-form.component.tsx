@@ -8,6 +8,7 @@ import {
   showSnackbar,
   useConfig,
   usePatient,
+  useSession,
 } from '@openmrs/esm-framework';
 import {
   Button,
@@ -35,6 +36,7 @@ import useBillableServices from '../hooks/useBillableServices';
 import { billingFormSchema, processBillItems } from '../billing.resource';
 import { type BillingService } from '../types';
 import { type BillingConfig } from '../config-schema';
+import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 
 import styles from './billing-form.scss';
 
@@ -86,6 +88,9 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
   const patientUuid = patientUuidProp;
   const { patient } = usePatient(patientUuid);
   const { billableServices, error, isLoading } = useBillableServices();
+  const { currentProvider } = useSession();
+  const { providerOptions, isLoading: isLoadingProviders } = useAppointmentProviderOptions();
+  const isResolvingDefaultProvider = Boolean(currentProvider?.uuid) && isLoadingProviders;
   const [searchTermValue, setSearchTermValue] = useState('');
   const { cashPointUuid, cashierUuid, defaultPaymentMethodName } = useConfig<BillingConfig>();
 
@@ -103,11 +108,20 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
 
   const onSubmit = async (values: FormType) => {
     try {
-      const payload = { ...values };
+      const defaultProviderUuid = providerOptions.some((provider) => provider.uuid === currentProvider?.uuid)
+        ? currentProvider?.uuid
+        : undefined;
+      const payload = {
+        ...values,
+        lineItems: defaultProviderUuid
+          ? values.lineItems.map((lineItem) => ({
+              ...lineItem,
+              provider: lineItem.provider ?? defaultProviderUuid,
+            }))
+          : values.lineItems,
+      };
       const response = await processBillItems(payload);
-      void mutate(
-        (key) => typeof key === 'string' && key.startsWith('/ws/rest/v1/cashier/bill'),
-      );
+      void mutate((key) => typeof key === 'string' && key.startsWith('/ws/rest/v1/cashier/bill'));
       showSnackbar({
         title: t('billItems', 'Save Bill'),
         subtitle: 'Bill processing has been successful',
@@ -302,7 +316,11 @@ const BillingForm: React.FC<Workspace2DefinitionProps<BillingFormProps>> = ({ cl
           <Button className={styles.button} kind="secondary" type="button" onClick={handleDiscard}>
             {t('discard', 'Discard')}
           </Button>
-          <Button className={styles.button} kind="primary" type="submit" disabled={form.formState.isSubmitting}>
+          <Button
+            className={styles.button}
+            kind="primary"
+            type="submit"
+            disabled={form.formState.isSubmitting || isResolvingDefaultProvider}>
             {t('saveAndClose', 'Save & Close')}
           </Button>
         </ButtonSet>

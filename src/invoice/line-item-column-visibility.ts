@@ -1,6 +1,8 @@
 export type LineItemColumnKey =
   | 'no'
+  | 'date'
   | 'billItem'
+  | 'provider'
   | 'status'
   | 'quantity'
   | 'price'
@@ -43,7 +45,8 @@ export type LineItemTableColumnLayout = {
   layoutWidth: number;
 };
 
-export const LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY = 'openmrs-esm-billing-app.invoice-table.visible-optional-columns';
+export const LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY =
+  'openmrs-esm-billing-app.invoice-table.visible-optional-columns.v2';
 
 export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
   {
@@ -58,6 +61,17 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     isFixed: true,
   },
   {
+    key: 'date',
+    translationKey: 'date',
+    defaultLabel: 'Date',
+    required: false,
+    defaultVisible: true,
+    alignment: 'text',
+    minWidth: 144,
+    growWeight: 0.8,
+    isFixed: false,
+  },
+  {
     key: 'billItem',
     translationKey: 'billItem',
     defaultLabel: 'Bill item',
@@ -66,6 +80,17 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     alignment: 'text',
     minWidth: 224,
     growWeight: 2.5,
+    isFixed: false,
+  },
+  {
+    key: 'provider',
+    translationKey: 'provider',
+    defaultLabel: 'Provider',
+    required: false,
+    defaultVisible: true,
+    alignment: 'text',
+    minWidth: 176,
+    growWeight: 1.2,
     isFixed: false,
   },
   {

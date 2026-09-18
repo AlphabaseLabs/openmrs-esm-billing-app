@@ -7,7 +7,7 @@ import { mockBillData } from '../../__mocks__/bill.mock';
 import { discountedPendingBill, openPendingBill, paidBill } from './invoice-story.fixtures';
 import { launchBillingWorkspace } from '../workspaces';
 import useBillableServices from '../hooks/useBillableServices';
-import { useProviderOptions } from '../payment-points/payment-points.resource';
+import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 import { updateBillLineItem } from '../billing.resource';
 import { PaymentStatus } from '../types';
 import { LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY } from './line-item-column-visibility';
@@ -39,7 +39,7 @@ jest.mock('../workspaces', () => ({
 
 jest.mock('../hooks/useBillableServices');
 jest.mock('../payment-points/payment-points.resource', () => ({
-  useProviderOptions: jest.fn(),
+  useAppointmentProviderOptions: jest.fn(),
 }));
 jest.mock('../billing.resource', () => ({
   updateBillLineItem: jest.fn(),
@@ -47,7 +47,9 @@ jest.mock('../billing.resource', () => ({
 
 const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction<typeof launchBillingWorkspace>;
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
-const mockUseProviderOptions = useProviderOptions as jest.MockedFunction<typeof useProviderOptions>;
+const mockUseAppointmentProviderOptions = useAppointmentProviderOptions as jest.MockedFunction<
+  typeof useAppointmentProviderOptions
+>;
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
@@ -77,17 +79,39 @@ describe('InvoiceTable', () => {
         display: 'Current Provider',
       },
     } as unknown as ReturnType<typeof useSession>);
-    mockUseProviderOptions.mockReturnValue({
-      providerOptions: [
+    mockUseAppointmentProviderOptions.mockReturnValue({
+      allProviderOptions: [
         {
           id: 'provider-storybook',
           uuid: 'provider-storybook',
           label: 'Storybook Provider',
         },
+        {
+          id: 'provider-appointment',
+          uuid: 'provider-appointment',
+          label: 'Appointment Provider',
+        },
+        {
+          id: 'provider-other',
+          uuid: 'provider-other',
+          label: 'Other Provider',
+        },
+      ],
+      providerOptions: [
+        {
+          id: 'provider-appointment',
+          uuid: 'provider-appointment',
+          label: 'Appointment Provider',
+        },
+        {
+          id: 'provider-other',
+          uuid: 'provider-other',
+          label: 'Other Provider',
+        },
       ],
       error: null,
       isLoading: false,
-    } as ReturnType<typeof useProviderOptions>);
+    } as ReturnType<typeof useAppointmentProviderOptions>);
     mockUseBillableServices.mockReturnValue({
       billableServices: [],
       error: null,
@@ -223,11 +247,35 @@ describe('InvoiceTable', () => {
     expect(await screen.findByRole('textbox', { name: /price/i })).toHaveValue('249,999');
   });
 
-  it('loads provider options and the current provider for inline discount cells', () => {
+  it('loads provider options and the current provider for inline cells', () => {
     render(<InvoiceTable bill={discountedPendingBill} />);
 
-    expect(mockUseProviderOptions).toHaveBeenCalled();
+    expect(mockUseAppointmentProviderOptions).toHaveBeenCalled();
     expect(mockUseSession).toHaveBeenCalled();
+  });
+
+  it('shows line item date and persists a searched appointment-enabled provider selection', async () => {
+    const user = userEvent.setup();
+    const lineItem = {
+      ...openPendingBill.lineItems.find((item) => item.paymentStatus === PaymentStatus.PENDING)!,
+      dateCreated: '2026-09-16T08:30:00.000Z',
+      provider: null,
+    };
+
+    render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [lineItem] }} />);
+
+    expect(screen.getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Provider' })).toBeInTheDocument();
+    expect(screen.getByText(/16-Sep-2026/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Select provider' }));
+    await user.type(screen.getByRole('textbox', { name: 'Search providers' }), 'Appointment');
+
+    const providerOptions = within(screen.getByRole('dialog', { name: 'Provider options' }));
+    expect(providerOptions.queryByText('Other Provider')).not.toBeInTheDocument();
+    await user.click(providerOptions.getByText('Appointment Provider'));
+
+    expect(mockUpdateBillLineItem).toHaveBeenCalledWith(lineItem.uuid, { provider: 'provider-appointment' });
   });
 
   it('keeps direct line-item discount editing enabled when Discounts exist', async () => {
@@ -241,6 +289,24 @@ describe('InvoiceTable', () => {
     await user.click(discountEditorButtons[0]);
 
     expect(screen.getByRole('textbox', { name: /percent/i })).toBeInTheDocument();
+  });
+
+  it('toggles the Date column without activating the Discount editor behind the menu', async () => {
+    const user = userEvent.setup();
+
+    render(<InvoiceTable bill={{ ...discountedPendingBill, totalDiscounts: 50 }} />);
+
+    await user.click(screen.getAllByLabelText(/open discount editor/i)[0]);
+    expect(screen.getByRole('textbox', { name: /percent/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /columns/i }));
+    expect(screen.queryByRole('textbox', { name: /percent/i })).not.toBeInTheDocument();
+
+    const columnOptions = screen.getByRole('group', { name: /line item columns/i });
+    await user.click(within(columnOptions).getByRole('checkbox', { name: /date/i }));
+
+    expect(screen.queryByRole('columnheader', { name: /date/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /percent/i })).not.toBeInTheDocument();
   });
 
   it('shows guidance instead of launching delete for non-pending line items', async () => {

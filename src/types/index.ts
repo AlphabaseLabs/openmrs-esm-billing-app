@@ -110,6 +110,7 @@ export interface LineItem {
   voidReason: string | null;
   item: string;
   billableService: string;
+  provider?: OpenmrsResource | null;
   quantity: number;
   price: number;
   priceName: string;

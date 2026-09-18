@@ -29,15 +29,16 @@ import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
-import { useProviderOptions } from '../payment-points/payment-points.resource';
+import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 import { launchBillingWorkspace } from '../workspaces';
-import { formatBillAmount } from '../helpers';
+import { formatBillAmount, formatInvoiceDate } from '../helpers';
 import { updateBillLineItem } from '../billing.resource';
 import {
   canEditLineItem,
   EditableBillItemCell,
   EditableDiscountCell,
   EditablePriceCell,
+  EditableProviderCell,
   EditableQuantityCell,
   getLineItemDiscountAmount,
   getLineItemLabel,
@@ -47,7 +48,6 @@ import {
   type EditableLineItemCommit,
 } from './editable-line-item-cells';
 import {
-  getHideableLineItemColumnDefinitions,
   getLineItemColumnDefinitions,
   getLineItemTableLayoutColumns,
   getVisibleOptionalLineItemColumnKeys,
@@ -57,6 +57,7 @@ import {
   writeLineItemColumnVisibilityPreference,
   type LineItemColumnKey,
 } from './line-item-column-visibility';
+import LineItemColumnSelector from './line-item-column-selector.component';
 
 type InvoiceTableProps = {
   bill: MappedBill;
@@ -68,6 +69,9 @@ type InvoiceTableProps = {
   onRefreshBill?: () => unknown;
   onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
 };
+
+const getLineItemProviderName = (lineItem: LineItem, providerNamesByUuid: ReadonlyMap<string, string>) =>
+  (lineItem.provider?.uuid && providerNamesByUuid.get(lineItem.provider.uuid)) || lineItem.provider?.display || '';
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({
   bill,
@@ -82,19 +86,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const { t } = useTranslation();
   const { lineItems } = bill;
   const { billableServices } = useBillableServices();
-  const { providerOptions, isLoading: isLoadingProviders } = useProviderOptions();
+  const { allProviderOptions, providerOptions, isLoading: isLoadingProviders } = useAppointmentProviderOptions();
   const { currentProvider } = useSession();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchTerm, setSearchTerm] = useState('');
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
-  const [isColumnVisibilityOpen, setIsColumnVisibilityOpen] = useState(false);
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
   const [blockedDeleteLineItem, setBlockedDeleteLineItem] = useState<LineItem | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const columnVisibilityControlRef = useRef<HTMLDivElement>(null);
   const [tableContainerWidth, setTableContainerWidth] = useState(0);
   const debouncedSearchTerm = useDebounce(searchTerm);
   const selectedLineItemUuids = useMemo(() => new Set(selectedLineItems.map((item) => item.uuid)), [selectedLineItems]);
@@ -107,6 +109,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     () => new Map(billableServices.map((service) => [service.uuid, `${service.shortName ?? ''}`.trim()])),
     [billableServices],
   );
+  const providerNamesByUuid = useMemo(
+    () => new Map(allProviderOptions.map((provider) => [provider.uuid, provider.label])),
+    [allProviderOptions],
+  );
   const filteredLineItems = useMemo(() => {
     if (!debouncedSearchTerm) {
       return lineItems;
@@ -117,14 +123,15 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
         extract: (lineItem: LineItem) => {
           const serviceUuid = lineItem.billableService?.split(':')[0];
           const shortName = (serviceUuid && shortNamesByServiceUuid.get(serviceUuid)) || '';
-          return `${lineItem.billableService || ''} ${lineItem.item || ''} ${shortName} ${
+          const providerName = getLineItemProviderName(lineItem, providerNamesByUuid);
+          return `${lineItem.billableService || ''} ${lineItem.item || ''} ${providerName} ${shortName} ${
             lineItem.dateCreated || lineItem.auditInfo?.dateCreated || ''
           }`;
         },
       })
       .sort((r1, r2) => r1.score - r2.score)
       .map((result) => result.original);
-  }, [debouncedSearchTerm, lineItems, shortNamesByServiceUuid]);
+  }, [debouncedSearchTerm, lineItems, providerNamesByUuid, shortNamesByServiceUuid]);
   const shouldRenderSelectionColumn = filteredLineItems.length > 1 && isSelectable;
   const selectableLineItems = useMemo(
     () =>
@@ -190,38 +197,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!isColumnVisibilityOpen) {
-      return;
-    }
-
-    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
-      const target = event.target;
-
-      if (!(target instanceof Node) || columnVisibilityControlRef.current?.contains(target)) {
-        return;
-      }
-
-      setIsColumnVisibilityOpen(false);
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsColumnVisibilityOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isColumnVisibilityOpen]);
-
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
       if (row.paymentStatus !== PaymentStatus.PENDING) {
@@ -282,8 +257,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
         const lineItemTotal = getLineItemTotal(item);
         return {
           no: `${index + 1}`,
+          date: formatInvoiceDate(item.dateCreated || item.auditInfo?.dateCreated),
           id: `${item.uuid}`,
           billItem: getLineItemLabel(item),
+          provider: getLineItemProviderName(item, providerNamesByUuid),
           status: item.paymentStatus,
           quantity: item.quantity,
           price: formatBillAmount(item.price),
@@ -316,7 +293,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
         };
       }) ?? []
     );
-  }, [bill, filteredLineItems, t, handleCancelLineItem, handleCostsWorkspaceLaunch]);
+  }, [bill, filteredLineItems, providerNamesByUuid, t, handleCancelLineItem, handleCostsWorkspaceLaunch]);
 
   const handleLineItemCommit: EditableLineItemCommit = useCallback(
     async (lineItem, updates, optimisticLineItem) => {
@@ -402,6 +379,19 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
             onCommit={handleLineItemCommit}
           />
         );
+      case 'provider':
+        return (
+          <EditableProviderCell
+            lineItem={matchingItem}
+            providerName={getLineItemProviderName(matchingItem, providerNamesByUuid)}
+            providerOptions={providerOptions}
+            isLoadingProviders={isLoadingProviders}
+            isEditable={isEditable}
+            activeEditorKey={activeEditorKey}
+            setActiveEditorKey={setActiveEditorKey}
+            onCommit={handleLineItemCommit}
+          />
+        );
       case 'discount':
         return (
           <EditableDiscountCell
@@ -410,7 +400,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
             activeEditorKey={activeEditorKey}
             setActiveEditorKey={setActiveEditorKey}
             onCommit={handleLineItemCommit}
-            providerOptions={providerOptions}
+            providerOptions={allProviderOptions}
             isLoadingProviders={isLoadingProviders}
             currentProvider={currentProvider}
           />
@@ -537,35 +527,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                       {t('addBillItem', 'Add bill item')}
                     </Button>
                   ) : null}
-                  <div className={styles.columnVisibilityControl} ref={columnVisibilityControlRef}>
-                    <Button
-                      aria-controls="line-item-column-visibility-menu"
-                      aria-expanded={isColumnVisibilityOpen}
-                      className={styles.columnVisibilityButton}
-                      kind="ghost"
-                      onClick={() => setIsColumnVisibilityOpen((isOpen) => !isOpen)}
-                      size="sm">
-                      {t('columns', 'Columns')}
-                    </Button>
-                    {isColumnVisibilityOpen ? (
-                      <div
-                        aria-label={t('lineItemColumns', 'Line item columns')}
-                        className={styles.columnVisibilityMenu}
-                        id="line-item-column-visibility-menu"
-                        role="group">
-                        {getHideableLineItemColumnDefinitions().map((column) => (
-                          <label className={styles.columnVisibilityOption} key={column.key}>
-                            <input
-                              checked={visibleColumnKeySet.has(column.key)}
-                              onChange={(event) => handleColumnVisibilityChange(column.key, event.target.checked)}
-                              type="checkbox"
-                            />
-                            <span>{t(column.translationKey, column.defaultLabel)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
+                  <LineItemColumnSelector
+                    onOpen={() => setActiveEditorKey(null)}
+                    onVisibilityChange={handleColumnVisibilityChange}
+                    visibleColumnKeys={visibleColumnKeys}
+                  />
                 </TableToolbarContent>
               </TableToolbar>
             </div>

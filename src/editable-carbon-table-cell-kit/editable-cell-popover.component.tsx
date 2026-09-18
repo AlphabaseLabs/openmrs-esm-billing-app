@@ -68,6 +68,19 @@ const EditableCellPopover: React.FC<EditableCellPopoverProps> = ({
     }
   }, [isOpen, updatePosition]);
 
+  useLayoutEffect(() => {
+    const overlayElement = overlayRef.current;
+
+    if (!isOpen || !overlayElement || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => updatePosition());
+    resizeObserver.observe(overlayElement);
+
+    return () => resizeObserver.disconnect();
+  }, [isOpen, updatePosition]);
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -94,7 +107,11 @@ const EditableCellPopover: React.FC<EditableCellPopoverProps> = ({
       }
     };
 
-    const handleLayoutChange = () => {
+    const handleLayoutChange = (event: Event) => {
+      if (event.target instanceof Node && overlayRef.current?.contains(event.target)) {
+        return;
+      }
+
       onClose();
     };
 

@@ -52,10 +52,6 @@
   }
 }
 
-.columnVisibilityControl {
-  position: relative;
-}
-
 .columnVisibilityButton {
   white-space: nowrap;
 }
@@ -65,22 +61,30 @@
   border: 1px solid $ui-03;
   box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.16);
   display: grid;
-  gap: layout.$spacing-03;
+  gap: 0;
   inline-size: 13rem;
-  inset-block-start: calc(100% + #{layout.$spacing-02});
-  inset-inline-end: 0;
-  padding: layout.$spacing-04;
-  position: absolute;
-  z-index: 4;
+  margin-block-start: layout.$spacing-02;
+  padding-block: layout.$spacing-02;
 }
 
 .columnVisibilityOption {
-  @include type.type-style('body-compact-01');
   align-items: center;
-  color: var(--cds-text-primary, #161616);
-  column-gap: layout.$spacing-03;
   display: flex;
-  white-space: nowrap;
+  min-block-size: layout.$spacing-07;
+  padding-inline: layout.$spacing-04;
+
+  &:hover {
+    background-color: colors.$gray-10;
+  }
+}
+
+.columnVisibilityCheckbox {
+  inline-size: 100%;
+  margin-block: 0 !important;
+
+  :global(.cds--checkbox-label) {
+    inline-size: 100%;
+  }
 }
 
 .table {

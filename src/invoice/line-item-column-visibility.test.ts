@@ -23,7 +23,9 @@ describe('line-item-column-visibility', () => {
   it('defaults all configured default columns when persisted data is absent or malformed', () => {
     expect(getDefaultVisibleLineItemColumnKeys()).toEqual([
       'no',
+      'date',
       'billItem',
+      'provider',
       'status',
       'quantity',
       'price',
@@ -72,6 +74,8 @@ describe('line-item-column-visibility', () => {
   it('exposes only optional columns as hideable', () => {
     expect(getHideableLineItemColumnDefinitions().map((column) => column.key)).toEqual([
       'no',
+      'date',
+      'provider',
       'status',
       'quantity',
       'discount',
@@ -92,7 +96,9 @@ describe('line-item-column-visibility', () => {
     expect(layoutColumns.map((column) => column.key)).toEqual([
       '__selection__',
       'no',
+      'date',
       'billItem',
+      'provider',
       'status',
       'quantity',
       'price',
@@ -114,7 +120,9 @@ describe('line-item-column-visibility', () => {
 
     expect(layoutColumns.map((column) => column.key)).toEqual([
       'no',
+      'date',
       'billItem',
+      'provider',
       'status',
       'quantity',
       'price',
