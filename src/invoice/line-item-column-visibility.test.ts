@@ -22,14 +22,14 @@ describe('line-item-column-visibility', () => {
 
   it('defaults all configured default columns when persisted data is absent or malformed', () => {
     expect(getDefaultVisibleLineItemColumnKeys()).toEqual([
-      'date',
       'billItem',
       'provider',
-      'status',
       'price',
       'discount',
       'total',
+      'status',
       'actionButton',
+      'date',
     ]);
     expect(readLineItemColumnVisibilityPreference()).toEqual(getDefaultVisibleLineItemColumnKeys());
 
@@ -43,11 +43,11 @@ describe('line-item-column-visibility', () => {
 
     expect(readLineItemColumnVisibilityPreference()).toEqual([
       'billItem',
-      'status',
       'price',
       'discount',
       'tax',
       'total',
+      'status',
       'actionButton',
     ]);
   });
@@ -58,7 +58,7 @@ describe('line-item-column-visibility', () => {
       JSON.stringify(['status', 'billItem', 'unknown-column']),
     );
 
-    expect(readLineItemColumnVisibilityPreference()).toEqual(['billItem', 'status', 'price', 'total', 'actionButton']);
+    expect(readLineItemColumnVisibilityPreference()).toEqual(['billItem', 'price', 'total', 'status', 'actionButton']);
   });
 
   it('stores only visible optional column ids', () => {
@@ -72,12 +72,12 @@ describe('line-item-column-visibility', () => {
   it('exposes only optional columns as hideable', () => {
     expect(getHideableLineItemColumnDefinitions().map((column) => column.key)).toEqual([
       'no',
-      'date',
       'provider',
-      'status',
       'quantity',
       'discount',
       'tax',
+      'status',
+      'date',
     ]);
   });
 
@@ -94,16 +94,16 @@ describe('line-item-column-visibility', () => {
     expect(layoutColumns.map((column) => column.key)).toEqual([
       '__selection__',
       'no',
-      'date',
       'billItem',
       'provider',
-      'status',
       'quantity',
       'price',
       'discount',
       'tax',
       'total',
+      'status',
       'actionButton',
+      'date',
     ]);
     expect(layoutColumns[0]).toEqual(
       expect.objectContaining({
@@ -118,16 +118,16 @@ describe('line-item-column-visibility', () => {
 
     expect(layoutColumns.map((column) => column.key)).toEqual([
       'no',
-      'date',
       'billItem',
       'provider',
-      'status',
       'quantity',
       'price',
       'discount',
       'tax',
       'total',
+      'status',
       'actionButton',
+      'date',
     ]);
   });
 

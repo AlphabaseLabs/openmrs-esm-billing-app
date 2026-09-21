@@ -27,7 +27,7 @@ import {
 import { isDesktop, showSnackbar, useDebounce, useLayoutType, useSession } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
-import { Add, Document, TrashCan } from '@carbon/react/icons';
+import { Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
 import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 import { launchBillingWorkspace } from '../workspaces';
@@ -57,6 +57,7 @@ import {
   writeLineItemColumnVisibilityPreference,
   type LineItemColumnKey,
 } from './line-item-column-visibility';
+import AddLineItemCell from './add-line-item-cell.component';
 import LineItemColumnSelector from './line-item-column-selector.component';
 
 type InvoiceTableProps = {
@@ -92,6 +93,17 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [searchTerm, setSearchTerm] = useState('');
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
+  const nextDraftId = useRef(1);
+  const [savingDraftIds, setSavingDraftIds] = useState<string[]>([]);
+  const [draftIds, setDraftIds] = useState<string[]>(() => (lineItems.length ? [] : ['draft-0']));
+  const draftBillUuid = useRef(bill.uuid);
+  useEffect(() => {
+    if (draftBillUuid.current !== bill.uuid) {
+      draftBillUuid.current = bill.uuid;
+      setDraftIds(lineItems.length ? [] : [`draft-${nextDraftId.current++}`]);
+      setActiveEditorKey(null);
+    }
+  }, [bill.uuid, lineItems.length]);
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
@@ -222,14 +234,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     },
     [bill],
   );
-
-  const handleAddBillItem = useCallback(() => {
-    launchBillingWorkspace('billing-form', {
-      patientUuid: bill.patientUuid,
-      workspaceTitle: t('addBillItem', 'Add bill item'),
-      navigateToBillAfterSave: true,
-    });
-  }, [bill.patientUuid, t]);
 
   const handleColumnVisibilityChange = useCallback((columnKey: LineItemColumnKey, checked: boolean) => {
     setActiveEditorKey(null);
@@ -517,16 +521,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                     placeholder={t('searchThisTable', 'Search this table')}
                     size={responsiveSize}
                   />
-                  {!bill.closed ? (
-                    <Button
-                      className={styles.addBillItemButton}
-                      kind="ghost"
-                      size="sm"
-                      renderIcon={Add}
-                      onClick={handleAddBillItem}>
-                      {t('addBillItem', 'Add bill item')}
-                    </Button>
-                  ) : null}
                   <LineItemColumnSelector
                     onOpen={() => setActiveEditorKey(null)}
                     onVisibilityChange={handleColumnVisibilityChange}
@@ -601,6 +595,48 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                     </TableRow>
                   );
                 })}
+                {!bill.closed &&
+                  draftIds.map((draftId) => (
+                    <TableRow key={draftId} data-testid="invoice-table-draft-row">
+                      {shouldRenderSelectionColumn ? <TableCell /> : null}
+                      {visibleColumnDefinitions.map((column) => (
+                        <TableCell key={column.key} className={getCellClassName({ info: { header: column.key } })}>
+                          {column.key === 'billItem' ? (
+                            <AddLineItemCell
+                              bill={bill}
+                              draftId={draftId}
+                              billableServices={billableServices}
+                              activeEditorKey={activeEditorKey}
+                              setActiveEditorKey={setActiveEditorKey}
+                              onLineItemUpdated={onLineItemUpdated}
+                              onRefreshBill={onRefreshBill}
+                              onAdded={() => setDraftIds((current) => current.filter((id) => id !== draftId))}
+                              onSavingChange={(isSaving) =>
+                                setSavingDraftIds((current) =>
+                                  isSaving ? [...current, draftId] : current.filter((id) => id !== draftId),
+                                )
+                              }
+                            />
+                          ) : column.key === 'actionButton' ? (
+                            <div className={styles.actionButtons}>
+                              <Button
+                                size="sm"
+                                hasIconOnly
+                                renderIcon={TrashCan}
+                                iconDescription={t('removeEmptyRow', 'Remove empty row')}
+                                kind="ghost"
+                                disabled={savingDraftIds.includes(draftId)}
+                                onClick={() => {
+                                  setActiveEditorKey((current) => (current === `${draftId}:billItem` ? null : current));
+                                  setDraftIds((current) => current.filter((id) => id !== draftId));
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
                 {!bill.closed ? (
                   <TableRow className={styles.addItemRow} data-testid="invoice-table-add-item-row">
                     <TableCell className={styles.addItemCell} colSpan={columnLayout.columns.length}>
@@ -608,7 +644,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                         aria-label={t('addItem', 'Add item')}
                         className={styles.addItemButton}
                         kind="ghost"
-                        onClick={handleAddBillItem}
+                        onClick={() => {
+                          const draftId = `draft-${nextDraftId.current++}`;
+                          setActiveEditorKey(null);
+                          setDraftIds((current) => [...current, draftId]);
+                        }}
                         size="sm"
                         type="button">
                         <span aria-hidden="true" className={styles.addItemButtonPrefix}>
@@ -624,7 +664,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           </TableContainer>
         )}
       </DataTable>
-      {filteredLineItems?.length === 0 && (
+      {filteredLineItems?.length === 0 && (bill.closed || Boolean(debouncedSearchTerm)) && (
         <div className={styles.filterEmptyState}>
           <Layer>
             <Tile className={styles.filterEmptyStateTile}>

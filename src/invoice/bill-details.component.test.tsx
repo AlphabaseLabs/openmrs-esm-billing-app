@@ -59,13 +59,28 @@ jest.mock('./invoice-table.component', () => ({
   default: ({
     bill,
     onRefreshBill,
+    onLineItemUpdated,
     onVisibleColumnsChange,
   }: {
     bill?: MappedBill;
     onRefreshBill?: () => void;
+    onLineItemUpdated?: (lineItem: LineItem) => void;
     onVisibleColumnsChange?: (visibleColumnKeys: Array<LineItemColumnKey>) => void;
   }) => (
     <div data-testid="invoice-table">
+      <button
+        type="button"
+        onClick={() =>
+          onLineItemUpdated?.({
+            uuid: 'added-item',
+            price: 500,
+            quantity: 1,
+            totalAllocated: 0,
+            paymentStatus: 'PENDING',
+          } as LineItem)
+        }>
+        Append item
+      </button>
       {bill?.lineItems?.map((lineItem) => (
         <span data-testid={`line-discount-${lineItem.uuid}`} key={lineItem.uuid}>
           {lineItem.discounts
@@ -205,6 +220,14 @@ describe('BillDetails', () => {
     } as unknown as ReturnType<typeof useSession>);
     mockSyncBillStatus.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof syncBillStatus>>);
     mockUpdateBillNote.mockResolvedValue({ ok: true } as Awaited<ReturnType<typeof updateBillNote>>);
+  });
+
+  it('immediately includes a newly saved item in the table and balance without a refresh', async () => {
+    render(<BillDetails bill={createBill([createLineItem({ uuid: 'existing-item', price: 100 })])} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Append item' }));
+    expect(screen.getByTestId('line-discount-existing-item')).toBeInTheDocument();
+    expect(screen.getByTestId('line-discount-added-item')).toBeInTheDocument();
+    expect(screen.getByText('Amount due: 600')).toBeInTheDocument();
   });
 
   it('shows a start snackbar immediately and a success snackbar when sending invoice succeeds', async () => {

@@ -104,7 +104,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   };
 
   const handleLineItemUpdated = (updatedLineItem: LineItem) => {
-    setEditableBill((currentBill) => recomputeBillWithLineItem(currentBill ?? bill, updatedLineItem));
+    setEditableBill((currentBill) => {
+      const billToUpdate = currentBill ?? bill;
+      const includesItem = billToUpdate.lineItems.some((item) => item.uuid === updatedLineItem.uuid);
+      return recomputeBillWithLineItem(
+        includesItem ? billToUpdate : { ...billToUpdate, lineItems: [...billToUpdate.lineItems, updatedLineItem] },
+        updatedLineItem,
+      );
+    });
   };
 
   const syncBillStatusAndRefresh = useCallback(

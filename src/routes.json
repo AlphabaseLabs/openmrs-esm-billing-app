@@ -12,6 +12,21 @@
   ],
   "extensions": [
     {
+      "name": "appointments-create-empty-bill",
+      "component": "createEmptyBillButton",
+      "slot": "appointments-create-empty-bill-slot"
+    },
+    {
+      "name": "active-visits-create-empty-bill",
+      "component": "createEmptyBillButton",
+      "slot": "active-visits-create-empty-bill-slot"
+    },
+    {
+      "name": "patient-search-create-empty-bill",
+      "component": "createEmptyBillButton",
+      "slot": "patient-search-create-empty-bill-slot"
+    },
+    {
       "component": "billingDashboardLink",
       "name": "billing-dashboard-link",
       "slot": "homepage-dashboard-slot",

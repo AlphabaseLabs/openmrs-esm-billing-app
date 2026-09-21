@@ -25,11 +25,7 @@ import styles from './bill-history.scss';
 import dayjs from 'dayjs';
 import { type BillingConfig } from '../config-schema';
 import { type MappedBill, PaymentStatus } from '../types';
-import {
-  launchBillingWorkspace,
-  mergePatientChartBillingFormProps,
-  useLaunchBillingWorkspaceRequiringVisit,
-} from '../workspaces';
+import { launchBillingWorkspace, mergePatientChartBillingFormProps } from '../workspaces';
 
 interface BillHistoryProps {
   patientUuid: string;
@@ -53,14 +49,12 @@ const getColumnClassName = (columnKey: string) => {
 const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
   const { t } = useTranslation();
   const config = useConfig<BillingConfig>();
-  const shouldRequireVisit = config.visitRequired ?? true;
   const { bills, isLoading, error, mutate } = useBills(
     patientUuid,
     '',
     getBillHistoryStartDate(config.billHistoryStartDate),
     dayjs().endOf('day').toDate(),
   );
-  const launchPatientWorkspaceRequiringVisit = useLaunchBillingWorkspaceRequiringVisit(patientUuid, 'billing-form');
   const layout = useLayoutType();
   const [pageSize, setPageSize] = React.useState(10);
   const [locationSearch, setLocationSearch] = React.useState(() =>
@@ -94,11 +88,6 @@ const BillHistory: React.FC<BillHistoryProps> = ({ patientUuid }) => {
 
   const handleLaunchBillForm = () => {
     const props = mergePatientChartBillingFormProps({ patientUuid });
-
-    if (shouldRequireVisit) {
-      launchPatientWorkspaceRequiringVisit(props);
-      return;
-    }
 
     launchBillingWorkspace('billing-form', props);
   };

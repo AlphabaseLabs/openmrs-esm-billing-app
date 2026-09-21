@@ -1,3 +1,4 @@
+import CreateEmptyBillButton from './create-empty-bill-button.component';
 import { configSchema } from './config-schema';
 import { createDashboardLink as createPatientDashboardLink } from '@openmrs/esm-patient-common-lib';
 import { defineConfigSchema, getAsyncLifecycle, getSyncLifecycle } from '@openmrs/esm-framework';
@@ -248,3 +249,5 @@ export const billableServicesCardLink = getSyncLifecycle(BillableServicesCardLin
 //   featureName: 'edit bill line item',
 //   moduleName,
 // });
+
+export const createEmptyBillButton = getSyncLifecycle(CreateEmptyBillButton, options);

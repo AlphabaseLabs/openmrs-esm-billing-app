@@ -19,6 +19,8 @@ import { extractString, formatBillDateTime } from './helpers';
 import {
   FacilityDetail,
   type BillLineItemDiscount,
+  type BillingService,
+  type LineItem,
   type MappedBill,
   type PatientInvoice,
   type PaymentMethod,
@@ -539,4 +541,42 @@ export const useBillsPaginated = ({
     isValidating,
     mutate,
   };
+};
+
+/** Append to this invoice, retaining the server's latest items (including voided records). */
+export const addBillLineItem = async (billUuid: string, service: BillingService): Promise<LineItem> => {
+  const url = `${restBaseUrl}/cashier/bill/${billUuid}`;
+  const current = await openmrsFetch<PatientInvoice>(`${url}?v=full&includeVoided=true`);
+  if (!current.ok || current.data.closed) throw new Error('Bill is unavailable or closed');
+  const existingItems = current.data.lineItems ?? [];
+  const price = service.servicePrices?.length === 1 ? service.servicePrices[0] : undefined;
+  const response = await openmrsFetch<PatientInvoice>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: {
+      lineItems: [
+        ...existingItems.map(({ uuid }) => uuid),
+        {
+          billableService: service.uuid,
+          quantity: 1,
+          price: price?.price ?? 0,
+          priceName: price?.name ?? 'Default',
+          priceUuid: price?.uuid ?? '',
+          paymentStatus: 'PENDING',
+          dateCreated: new Date().toISOString(),
+          lineItemOrder: existingItems.length,
+        },
+      ],
+    },
+  });
+  if (!response.ok) throw new Error('Line item creation failed');
+  const existingUuids = new Set(existingItems.map(({ uuid }) => uuid));
+  const addedItem = response.data.lineItems?.find(({ uuid }) => !existingUuids.has(uuid));
+  if (!addedItem) throw new Error('Created line item missing from response');
+  try {
+    await syncBillStatus(billUuid);
+  } catch {
+    // The item is already saved. A failed status refresh must not trigger duplicate additions.
+  }
+  return addedItem;
 };

@@ -5,7 +5,7 @@ import { useBill, useBills } from '../billing.resource';
 import userEvent from '@testing-library/user-event';
 import { useConfig } from '@openmrs/esm-framework';
 import { PaymentStatus } from '../types';
-import { useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
+import { launchBillingWorkspace, useLaunchBillingWorkspaceRequiringVisit } from '../workspaces';
 
 const testProps = {
   patientUuid: 'some-uuid',
@@ -175,6 +175,7 @@ jest.mock('@openmrs/esm-patient-common-lib', () => ({
 }));
 
 jest.mock('../workspaces', () => ({
+  ...jest.requireActual('../workspaces'),
   useLaunchBillingWorkspaceRequiringVisit: jest.fn(),
   launchBillingWorkspace: jest.fn(),
 }));
@@ -201,6 +202,17 @@ const renderBillHistory = (route = '/patient/some-uuid/chart/Billing%20History')
 };
 
 describe('BillHistory', () => {
+  test('opens Add bill item(s) without a visit even when visitRequired is enabled', async () => {
+    renderBillHistory();
+    await userEvent.click(screen.getByRole('button', { name: 'Add bill item(s)' }));
+    expect(launchBillingWorkspace).toHaveBeenCalledWith('billing-form', {
+      patientUuid: 'some-uuid',
+      showPatientHeader: true,
+      navigateToBillAfterSave: true,
+    });
+    expect(mockUseLaunchWorkspaceRequiringVisit).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

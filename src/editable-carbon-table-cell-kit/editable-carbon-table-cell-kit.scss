@@ -231,7 +231,8 @@
 
 .editableCell:hover .optionsButton,
 .editableCell:focus-within .optionsButton,
-.optionsButtonOpen {
+.optionsButtonOpen,
+.emptyItemOptionsButton {
   opacity: 1;
 }
 

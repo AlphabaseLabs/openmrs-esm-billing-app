@@ -9,6 +9,7 @@ import { findSelectedServicePrice, findServiceForLineItem, getLineItemLabel, rec
 
 type EditableBillItemCellProps = {
   lineItem: LineItem;
+  emptyLabel?: string;
   billableServices: Array<BillableService>;
   isEditable: boolean;
   activeEditorKey: ActiveEditorKey;
@@ -18,6 +19,7 @@ type EditableBillItemCellProps = {
 
 const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
   lineItem,
+  emptyLabel,
   billableServices,
   isEditable,
   activeEditorKey,
@@ -32,7 +34,7 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
     [billableServices, lineItem],
   );
   const selectedPrice = useMemo(() => findSelectedServicePrice(lineItem, selectedService), [lineItem, selectedService]);
-  const lineItemLabel = getLineItemLabel(lineItem);
+  const lineItemLabel = emptyLabel !== undefined ? '' : getLineItemLabel(lineItem);
   const selectedServiceName = selectedService?.name ?? lineItemLabel;
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(selectedServiceName);
@@ -177,6 +179,7 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
         ariaLabel: t('billItemOptions', 'Bill item options'),
         buttonProps: getToggleButtonProps({
           'aria-label': t('selectBillItem', 'Select bill item'),
+          className: emptyLabel !== undefined ? styles.emptyItemOptionsButton : undefined,
           onClick: (event) => {
             event.stopPropagation();
 
@@ -227,7 +230,7 @@ const EditableBillItemCell: React.FC<EditableBillItemCellProps> = ({
         onClose: close,
         trigger: <ChevronDown size={16} />,
       }}
-      value={lineItemLabel}
+      value={lineItemLabel || emptyLabel}
     />
   );
 };
