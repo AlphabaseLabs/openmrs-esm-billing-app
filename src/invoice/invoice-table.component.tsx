@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import fuzzy from 'fuzzy';
 import {
   Button,
   ComposedModal,
@@ -18,20 +17,18 @@ import {
   TableHeader,
   TableRow,
   TableSelectAll,
-  TableToolbar,
-  TableToolbarContent,
-  TableToolbarSearch,
   TableSelectRow,
   Tile,
+  Tooltip,
 } from '@carbon/react';
-import { isDesktop, showSnackbar, useDebounce, useLayoutType, useSession } from '@openmrs/esm-framework';
+import { isDesktop, showSnackbar, useLayoutType, useSession } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
 import { Add, Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
 import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 import { launchBillingWorkspace } from '../workspaces';
-import { formatBillAmount, formatInvoiceDate } from '../helpers';
+import { formatBillAmount, formatBillDateTime, formatInvoiceDate } from '../helpers';
 import { updateBillLineItem } from '../billing.resource';
 import {
   canEditLineItem,
@@ -91,7 +88,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const { currentProvider } = useSession();
   const layout = useLayoutType();
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
   const nextDraftId = useRef(1);
   const [savingDraftIds, setSavingDraftIds] = useState<string[]>([]);
@@ -111,47 +107,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const [blockedDeleteLineItem, setBlockedDeleteLineItem] = useState<LineItem | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [tableContainerWidth, setTableContainerWidth] = useState(0);
-  const debouncedSearchTerm = useDebounce(searchTerm);
   const selectedLineItemUuids = useMemo(() => new Set(selectedLineItems.map((item) => item.uuid)), [selectedLineItems]);
   const visibleColumnKeySet = useMemo(() => new Set(visibleColumnKeys), [visibleColumnKeys]);
   const visibleColumnDefinitions = useMemo(
     () => getLineItemColumnDefinitions().filter((column) => visibleColumnKeySet.has(column.key)),
     [visibleColumnKeySet],
   );
-  const shortNamesByServiceUuid = useMemo(
-    () => new Map(billableServices.map((service) => [service.uuid, `${service.shortName ?? ''}`.trim()])),
-    [billableServices],
-  );
   const providerNamesByUuid = useMemo(
     () => new Map(allProviderOptions.map((provider) => [provider.uuid, provider.label])),
     [allProviderOptions],
   );
-  const filteredLineItems = useMemo(() => {
-    if (!debouncedSearchTerm) {
-      return lineItems;
-    }
-
-    return fuzzy
-      .filter(debouncedSearchTerm, lineItems, {
-        extract: (lineItem: LineItem) => {
-          const serviceUuid = lineItem.billableService?.split(':')[0];
-          const shortName = (serviceUuid && shortNamesByServiceUuid.get(serviceUuid)) || '';
-          const providerName = getLineItemProviderName(lineItem, providerNamesByUuid);
-          return `${lineItem.billableService || ''} ${lineItem.item || ''} ${providerName} ${shortName} ${
-            lineItem.dateCreated || lineItem.auditInfo?.dateCreated || ''
-          }`;
-        },
-      })
-      .sort((r1, r2) => r1.score - r2.score)
-      .map((result) => result.original);
-  }, [debouncedSearchTerm, lineItems, providerNamesByUuid, shortNamesByServiceUuid]);
-  const shouldRenderSelectionColumn = filteredLineItems.length > 1 && isSelectable;
+  const shouldRenderSelectionColumn = lineItems.length > 1 && isSelectable;
   const selectableLineItems = useMemo(
     () =>
-      filteredLineItems.filter(
+      lineItems.filter(
         (item) => item.paymentStatus !== PaymentStatus.PAID && item.paymentStatus !== PaymentStatus.EXEMPTED,
       ),
-    [filteredLineItems],
+    [lineItems],
   );
   const selectedSelectableLineItemCount = selectableLineItems.filter((item) =>
     selectedLineItemUuids.has(item.uuid),
@@ -256,7 +228,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
   const tableRows = useMemo(() => {
     return (
-      filteredLineItems?.map((item, index) => {
+      lineItems?.map((item, index) => {
         const lineItemDiscount = getLineItemDiscountAmount(item);
         const lineItemTax = getLineItemTaxAmount(item);
         const lineItemTotal = getLineItemTotal(item);
@@ -298,7 +270,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
         };
       }) ?? []
     );
-  }, [bill, filteredLineItems, providerNamesByUuid, t, handleCancelLineItem, handleCostsWorkspaceLaunch]);
+  }, [bill, lineItems, providerNamesByUuid, t, handleCancelLineItem, handleCostsWorkspaceLaunch]);
 
   const handleLineItemCommit: EditableLineItemCommit = useCallback(
     async (lineItem, updates, optimisticLineItem) => {
@@ -335,7 +307,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
   const handleRowSelection = (row, checkedOrEvent: boolean | React.ChangeEvent<HTMLInputElement>) => {
     const checked = typeof checkedOrEvent === 'boolean' ? checkedOrEvent : checkedOrEvent.target.checked;
-    const matchingRow = filteredLineItems.find((item) => item.uuid === row.id);
+    const matchingRow = lineItems.find((item) => item.uuid === row.id);
     let newSelectedLineItems = selectedLineItems;
 
     if (checked && matchingRow && !selectedLineItemUuids.has(matchingRow.uuid)) {
@@ -365,6 +337,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     const isEditable = canEditLineItem(matchingItem, bill.closed);
 
     switch (cell.info.header) {
+      case 'date': {
+        const tooltip = formatBillDateTime(matchingItem.dateCreated || matchingItem.auditInfo?.dateCreated);
+        return tooltip ? (
+          <Tooltip label={tooltip} enterDelayMs={0}>
+            <span tabIndex={0}>{cell.value}</span>
+          </Tooltip>
+        ) : (
+          cell.value
+        );
+      }
       case 'billItem':
         return (
           <EditableBillItemCell
@@ -507,32 +489,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   return (
     <div className={styles.invoiceContainer} ref={tableContainerRef}>
       <DataTable headers={tableHeaders} isSortable rows={tableRows} size={responsiveSize} useZebraStyles>
-        {({ rows, headers, getRowProps, getSelectionProps, getTableProps, getToolbarProps }) => (
+        {({ rows, headers, getRowProps, getSelectionProps, getTableProps }) => (
           <TableContainer
             description={
               <span className={styles.tableDescription}>
                 <span>{t('itemsToBeBilled', 'Items to be billed')}</span>
               </span>
             }
-            title={t('lineItems', 'Line items')}>
-            <div className={styles.toolbarWrapper}>
-              <TableToolbar {...getToolbarProps()} className={styles.tableToolbar} size={responsiveSize}>
-                <TableToolbarContent className={styles.headerContainer}>
-                  <TableToolbarSearch
-                    className={styles.searchbox}
-                    expanded
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                    placeholder={t('searchThisTable', 'Search this table')}
-                    size={responsiveSize}
-                  />
-                  <LineItemColumnSelector
-                    onOpen={() => setActiveEditorKey(null)}
-                    onVisibilityChange={handleColumnVisibilityChange}
-                    visibleColumnKeys={visibleColumnKeys}
-                  />
-                </TableToolbarContent>
-              </TableToolbar>
-            </div>
+            title={
+              <span className={styles.tableHeading}>
+                <span>{t('lineItems', 'Line items')}</span>
+                <LineItemColumnSelector
+                  onOpen={() => setActiveEditorKey(null)}
+                  onVisibilityChange={handleColumnVisibilityChange}
+                  visibleColumnKeys={visibleColumnKeys}
+                />
+              </span>
+            }>
             <Table
               {...getTableProps()}
               {...({ style: { minInlineSize: `${columnLayout.totalMinWidth}px` } } as any)}
@@ -569,7 +542,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
               <TableBody>
                 {rows.map((row) => {
                   // Find matching item to get payment status (following reference pattern)
-                  const matchingItem = filteredLineItems?.find((item) => `${item.uuid}` === row.id);
+                  const matchingItem = lineItems?.find((item) => `${item.uuid}` === row.id);
                   const paymentStatus = matchingItem?.paymentStatus;
 
                   return (
@@ -673,14 +646,11 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           </TableContainer>
         )}
       </DataTable>
-      {filteredLineItems?.length === 0 && (bill.closed || Boolean(debouncedSearchTerm)) && (
-        <div className={styles.filterEmptyState}>
+      {lineItems?.length === 0 && bill.closed && (
+        <div className={styles.emptyState}>
           <Layer>
-            <Tile className={styles.filterEmptyStateTile}>
-              <p className={styles.filterEmptyStateContent}>
-                {t('noMatchingItemsToDisplay', 'No matching items to display')}
-              </p>
-              <p className={styles.filterEmptyStateHelper}>{t('checkFilters', 'Check the filters above')}</p>
+            <Tile className={styles.emptyStateTile}>
+              <p className={styles.emptyStateContent}>{t('noLineItemsToDisplay', 'No line items to display')}</p>
             </Tile>
           </Layer>
         </div>

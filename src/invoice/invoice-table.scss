@@ -3,7 +3,7 @@
 @use '@carbon/type';
 @use '@openmrs/esm-styleguide/src/vars' as *;
 
-.filterEmptyState {
+.emptyState {
   align-items: center;
   background-color: white;
   display: flex;
@@ -12,11 +12,11 @@
   text-align: center;
 }
 
-.filterEmptyStateTile {
+.emptyStateTile {
   margin: auto;
 }
 
-.filterEmptyStateContent {
+.emptyStateContent {
   @include type.type-style('heading-compact-02');
   color: $text-02;
   margin-bottom: 0.5rem;
@@ -26,34 +26,9 @@
   padding: layout.$spacing-05;
 }
 
-.filterEmptyStateHelper {
-  @include type.type-style('body-compact-01');
-  color: $text-02;
-}
-
-.headerContainer {
-  background-color: colors.$gray-10;
-  display: flex;
-  align-items: center;
-  gap: layout.$spacing-03;
-  width: 100%;
-}
-
 .invoiceContainer {
   margin: 0 0 layout.$spacing-05;
   border: 1px solid $ui-03;
-}
-
-.searchbox {
-  flex: 1;
-
-  input:focus {
-    outline: 2px solid colors.$orange-40 !important;
-  }
-}
-
-.columnVisibilityButton {
-  white-space: nowrap;
 }
 
 .columnVisibilityMenu {
@@ -237,10 +212,6 @@
   }
 }
 
-.tableToolbar {
-  width: 100%;
-}
-
 .addItemRow {
   background-color: colors.$white;
 }
@@ -262,43 +233,6 @@
   }
 }
 
-.toolbarWrapper {
-  position: relative;
-  width: 100%;
-  height: layout.$spacing-07;
-
-  :global(.cds--table-toolbar.cds--table-toolbar) {
-    min-height: layout.$spacing-07;
-    height: layout.$spacing-07;
-    position: relative;
-    top: 0;
-  }
-
-  :global(.cds--toolbar-content),
-  :global(.cds--search),
-  :global(.cds--search-input),
-  :global(.cds--btn) {
-    min-height: layout.$spacing-07;
-    height: layout.$spacing-07;
-  }
-}
-
-:global(.omrs-breakpoint-lt-desktop) {
-  .toolbarWrapper {
-    height: layout.$spacing-07;
-  }
-
-  .headerContainer {
-    flex-wrap: wrap;
-  }
-}
-
-:global(.omrs-breakpoint-gt-tablet) {
-  .toolbarWrapper {
-    height: layout.$spacing-07;
-  }
-}
-
 .actionButtons {
   display: flex;
   margin:  0;
@@ -307,4 +241,11 @@
   :global(svg) {
     pointer-events: none;
   }
+}
+
+.tableHeading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: layout.$spacing-05;
 }

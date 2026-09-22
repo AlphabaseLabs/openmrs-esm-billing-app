@@ -12,7 +12,7 @@ import {
 } from '@carbon/react';
 import { type MappedBill, type Payment } from '../../../types';
 import { formatDate, getCoreTranslation, showSnackbar, UserHasAccess } from '@openmrs/esm-framework';
-import { convertToCurrency } from '../../../helpers';
+import { convertToCurrency, formatBillDateTime } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { TrashCan } from '@carbon/react/icons';
 import styles from './payment-history.scss';
@@ -97,9 +97,16 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
 
   const renderPaymentDate = (payment: Payment) => {
     const paymentDate = formatDate(new Date(payment.dateCreated));
+    const tooltip = formatBillDateTime(new Date(payment.dateCreated));
 
     if (!billIsOpen || payment.voided) {
-      return paymentDate;
+      return tooltip ? (
+        <Tooltip label={tooltip} enterDelayMs={0}>
+          <span tabIndex={0}>{paymentDate}</span>
+        </Tooltip>
+      ) : (
+        paymentDate
+      );
     }
 
     return (
@@ -108,6 +115,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
         showEditIcon
         disabled={updatingPaymentUuid === payment.uuid}
         displayValue={paymentDate}
+        tooltip={tooltip}
         id={`payment-date-${payment.uuid}`}
         onChange={(selectedDates) => handlePaymentDateChange(payment, selectedDates)}
         value={payment.dateCreated}

@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
-import { Button, Checkbox } from '@carbon/react';
+import { IconButton, Checkbox } from '@carbon/react';
+import { Column } from '@carbon/react/icons';
 import { useTranslation } from 'react-i18next';
 import { EditableCellPopover } from '../editable-carbon-table-cell-kit';
 import { getHideableLineItemColumnDefinitions, type LineItemColumnKey } from './line-item-column-visibility';
@@ -36,15 +37,16 @@ const LineItemColumnSelector: React.FC<LineItemColumnSelectorProps> = ({
       isOpen={isOpen}
       onClose={() => setIsOpen(false)}
       trigger={
-        <Button
+        <IconButton
           aria-controls={menuId}
           aria-expanded={isOpen}
-          className={styles.columnVisibilityButton}
+          align="top-end"
+          label={t('chooseColumnsToDisplay', 'Choose columns to display')}
           kind="ghost"
           onClick={toggleMenu}
           size="sm">
-          {t('columns', 'Columns')}
-        </Button>
+          <Column size={16} />
+        </IconButton>
       }>
       <div
         aria-label={t('lineItemColumns', 'Line item columns')}
