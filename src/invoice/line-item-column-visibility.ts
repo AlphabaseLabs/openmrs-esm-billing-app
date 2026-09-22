@@ -89,8 +89,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     required: false,
     defaultVisible: false,
     alignment: 'numeric',
-    minWidth: 112,
-    growWeight: 0.6,
+    minWidth: 100.8,
+    growWeight: 0.54,
     isFixed: false,
   },
   {
@@ -272,7 +272,7 @@ export const calculateLineItemTableColumnLayout = (
 ): LineItemTableColumnLayout => {
   const totalMinWidth = columns.reduce((sum, column) => sum + column.minWidth, 0);
   const normalizedAvailableWidth = Number.isFinite(availableWidth) && availableWidth > 0 ? availableWidth : 0;
-  const layoutWidth = Math.max(totalMinWidth, Math.floor(normalizedAvailableWidth));
+  const layoutWidth = Math.max(Math.ceil(totalMinWidth), Math.floor(normalizedAvailableWidth));
   const surplus = layoutWidth - totalMinWidth;
   const totalGrowWeight = columns.reduce((sum, column) => sum + (column.isFixed ? 0 : column.growWeight), 0);
   const unroundedWidths = columns.map((column) => {

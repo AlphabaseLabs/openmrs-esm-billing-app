@@ -148,13 +148,9 @@ export const useBill = (billUuid: string, options?: { syncStatusWhenZeroBalance?
     },
   );
 
-  // filter out voided line items to prevent them from being included in the bill
-  // TODO: add backend support for voided line items
-  // https://thepalladiumgroup.atlassian.net/browse/KHP3-7068
-  const filteredLineItems = getActiveBillingRecords(data?.data?.lineItems ?? []);
-  const formattedBill = data?.data
-    ? mapBillProperties({ ...data?.data, lineItems: filteredLineItems })
-    : ({} as MappedBill);
+  // Keep the same bill object during revalidation so cached data does not replace
+  // locally saved line items and totals before the fresh response arrives.
+  const formattedBill = useMemo(() => (data?.data ? mapBillProperties(data.data) : ({} as MappedBill)), [data?.data]);
   const hasSyncedStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -573,10 +569,7 @@ export const addBillLineItem = async (billUuid: string, service: BillingService)
   const existingUuids = new Set(existingItems.map(({ uuid }) => uuid));
   const addedItem = response.data.lineItems?.find(({ uuid }) => !existingUuids.has(uuid));
   if (!addedItem) throw new Error('Created line item missing from response');
-  try {
-    await syncBillStatus(billUuid);
-  } catch {
-    // The item is already saved. A failed status refresh must not trigger duplicate additions.
-  }
+  // The invoice applies the saved item immediately, then synchronizes status and
+  // refreshes once through its onRefreshBill callback.
   return addedItem;
 };

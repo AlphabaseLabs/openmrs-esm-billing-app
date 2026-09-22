@@ -229,6 +229,22 @@
   }
 }
 
+.dateEditButton {
+  align-items: center;
+  display: inline-flex;
+  gap: layout.$spacing-03;
+
+  &:disabled .dateEditIcon {
+    visibility: hidden;
+  }
+}
+
+.dateEditIcon {
+  flex-shrink: 0;
+}
+
+.editIndicatorContainer:hover .optionsButton,
+.editIndicatorContainer:focus-within .optionsButton,
 .editableCell:hover .optionsButton,
 .editableCell:focus-within .optionsButton,
 .optionsButtonOpen,

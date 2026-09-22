@@ -210,6 +210,15 @@ const createBill = (lineItems: Array<LineItem>, overrides: Partial<MappedBill> =
 };
 
 describe('BillDetails', () => {
+  it('disables invoice sending and printing until the first item is saved', async () => {
+    render(<BillDetails bill={createBill([])} />);
+    expect(screen.getByRole('button', { name: 'Send invoice' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Print bill' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Append item' }));
+    expect(screen.getByRole('button', { name: 'Send invoice' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Print bill' })).toBeEnabled();
+  });
+
   beforeEach(() => {
     jest.resetAllMocks();
     window.localStorage.removeItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY);

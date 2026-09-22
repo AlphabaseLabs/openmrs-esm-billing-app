@@ -27,6 +27,18 @@ const mockLaunchBillingWorkspace = launchBillingWorkspace as jest.MockedFunction
 const mockUserHasAccess = UserHasAccess as jest.MockedFunction<typeof UserHasAccess>;
 
 describe('InvoiceActions', () => {
+  it('disables actions for an empty bill and hides an open menu when the last item is removed', async () => {
+    const bill = mockBillData[0];
+    const { rerender } = render(<InvoiceActions bill={{ ...bill, lineItems: [] }} />);
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeDisabled();
+    rerender(<InvoiceActions bill={bill} />);
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Actions' }));
+    rerender(<InvoiceActions bill={{ ...bill, lineItems: [] }} />);
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Print Statement' })).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

@@ -43,6 +43,7 @@ export type EditableNumericCellProps = {
   className?: string;
   error?: string;
   inlineMode?: string;
+  inlineEditLabel?: string;
   inputId: string;
   inputLabelText: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];

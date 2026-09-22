@@ -27,7 +27,7 @@ import {
 import { isDesktop, showSnackbar, useDebounce, useLayoutType, useSession } from '@openmrs/esm-framework';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import styles from './invoice-table.scss';
-import { Document, TrashCan } from '@carbon/react/icons';
+import { Add, Document, TrashCan } from '@carbon/react/icons';
 import useBillableServices from '../hooks/useBillableServices';
 import { useAppointmentProviderOptions } from '../payment-points/payment-points.resource';
 import { launchBillingWorkspace } from '../workspaces';
@@ -95,15 +95,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
   const nextDraftId = useRef(1);
   const [savingDraftIds, setSavingDraftIds] = useState<string[]>([]);
-  const [draftIds, setDraftIds] = useState<string[]>(() => (lineItems.length ? [] : ['draft-0']));
+  const [draftIds, setDraftIds] = useState<string[]>(['draft-0']);
   const draftBillUuid = useRef(bill.uuid);
   useEffect(() => {
     if (draftBillUuid.current !== bill.uuid) {
       draftBillUuid.current = bill.uuid;
-      setDraftIds(lineItems.length ? [] : [`draft-${nextDraftId.current++}`]);
+      setDraftIds([`draft-${nextDraftId.current++}`]);
       setActiveEditorKey(null);
+      setSavingDraftIds([]);
     }
-  }, [bill.uuid, lineItems.length]);
+  }, [bill.uuid]);
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
@@ -307,7 +308,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           throw new Error('Line item update failed');
         }
         onLineItemUpdated?.(optimisticLineItem);
-        onRefreshBill?.();
+        // The edit is saved; a background refresh failure must not report a failed save.
+        void Promise.resolve()
+          .then(() => onRefreshBill?.())
+          .catch(() => undefined);
       } catch (error) {
         showSnackbar({
           title: t('billUpdate', 'Bill update'),
@@ -610,7 +614,15 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                               setActiveEditorKey={setActiveEditorKey}
                               onLineItemUpdated={onLineItemUpdated}
                               onRefreshBill={onRefreshBill}
-                              onAdded={() => setDraftIds((current) => current.filter((id) => id !== draftId))}
+                              onAdded={() => {
+                                const nextId = `draft-${nextDraftId.current++}`;
+                                setDraftIds((current) => {
+                                  // Ignore a save that completed after switching to another bill.
+                                  if (!current.includes(draftId)) return current;
+                                  const remaining = current.filter((id) => id !== draftId);
+                                  return remaining.length ? remaining : [nextId];
+                                });
+                              }}
                               onSavingChange={(isSaving) =>
                                 setSavingDraftIds((current) =>
                                   isSaving ? [...current, draftId] : current.filter((id) => id !== draftId),
@@ -642,8 +654,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                     <TableCell className={styles.addItemCell} colSpan={columnLayout.columns.length}>
                       <Button
                         aria-label={t('addItem', 'Add item')}
-                        className={styles.addItemButton}
-                        kind="ghost"
+                        kind="primary"
+                        renderIcon={Add}
                         onClick={() => {
                           const draftId = `draft-${nextDraftId.current++}`;
                           setActiveEditorKey(null);
@@ -651,9 +663,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                         }}
                         size="sm"
                         type="button">
-                        <span aria-hidden="true" className={styles.addItemButtonPrefix}>
-                          +
-                        </span>
                         {t('addItem', 'Add item')}
                       </Button>
                     </TableCell>

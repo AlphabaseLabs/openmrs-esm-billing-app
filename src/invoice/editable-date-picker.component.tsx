@@ -1,6 +1,8 @@
 import { Tooltip } from '@carbon/react';
+import { Edit } from '@carbon/react/icons';
 import dayjs from 'dayjs';
 import React, { useRef } from 'react';
+import cellStyles from '../editable-carbon-table-cell-kit/editable-carbon-table-cell-kit.scss';
 
 type EditableDatePickerProps = {
   readonly ariaLabel: string;
@@ -9,6 +11,7 @@ type EditableDatePickerProps = {
   readonly displayValue?: string;
   readonly id: string;
   readonly tooltip?: string;
+  readonly showEditIcon?: boolean;
   readonly value?: string | number | Date | null;
   readonly onChange: (selectedDates: Array<Date | string>) => void | Promise<void>;
 };
@@ -27,6 +30,7 @@ const datePickerButtonStyle: React.CSSProperties = {
   margin: 0,
   padding: 0,
   textAlign: 'inherit',
+  whiteSpace: 'nowrap',
 };
 
 const hiddenDateInputStyle: React.CSSProperties = {
@@ -58,6 +62,7 @@ export function EditableDatePicker({
   displayValue,
   id,
   tooltip,
+  showEditIcon = false,
   value,
   onChange,
 }: EditableDatePickerProps) {
@@ -84,15 +89,23 @@ export function EditableDatePicker({
     <button
       aria-label={ariaLabel}
       disabled={disabled}
+      className={showEditIcon ? cellStyles.dateEditButton : undefined}
       onClick={openDatePicker}
       style={{ ...datePickerButtonStyle, cursor: disabled ? 'default' : 'pointer' }}
       type="button">
       {renderedValue}
+      {showEditIcon && (
+        <span aria-hidden="true" className={`${cellStyles.optionsButton} ${cellStyles.dateEditIcon}`}>
+          <Edit size={16} />
+        </span>
+      )}
     </button>
   );
 
   return (
-    <span className={className} style={datePickerContainerStyle}>
+    <span
+      className={[className, showEditIcon ? cellStyles.editIndicatorContainer : undefined].filter(Boolean).join(' ')}
+      style={datePickerContainerStyle}>
       {tooltip ? (
         <Tooltip label={tooltip} enterDelayMs={0}>
           {dateButton}

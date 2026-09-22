@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { TextInput } from '@carbon/react';
+import { Edit } from '@carbon/react/icons';
 import EditableCellPopover from './editable-cell-popover.component';
 import { type EditableNumericCellProps } from './types';
 import styles from './editable-carbon-table-cell-kit.scss';
@@ -12,6 +13,7 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
   disabledInteractionLabel,
   error,
   inlineMode = 'inline',
+  inlineEditLabel,
   inputId,
   inputLabelText,
   inputMode = 'decimal',
@@ -117,6 +119,14 @@ const EditableNumericCell: React.FC<EditableNumericCellProps> = ({
               {popover.content}
             </div>
           </EditableCellPopover>
+        ) : !isInlineActive && inlineEditLabel ? (
+          <button
+            type="button"
+            className={styles.optionsButton}
+            aria-label={inlineEditLabel}
+            onClick={onInlineOpen}>
+            <Edit size={16} />
+          </button>
         ) : null}
       </span>
       {isInlineActive ? (

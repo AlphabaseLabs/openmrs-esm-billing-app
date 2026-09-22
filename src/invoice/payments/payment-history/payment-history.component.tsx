@@ -105,6 +105,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
     return (
       <EditableDatePicker
         ariaLabel={t('editPaymentDate', 'Edit payment date')}
+        showEditIcon
         disabled={updatingPaymentUuid === payment.uuid}
         displayValue={paymentDate}
         id={`payment-date-${payment.uuid}`}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, IconButton, Popover, PopoverContent } from '@carbon/react';
 import { Close, FolderOpen, OverflowMenuVertical, Printer, Scalpel, TrashCan } from '@carbon/react/icons';
 import { restBaseUrl, showModal, UserHasAccess } from '@openmrs/esm-framework';
@@ -14,7 +14,12 @@ interface InvoiceActionsProps {
 
 export function InvoiceActions({ bill }: InvoiceActionsProps) {
   const { t } = useTranslation();
+  const hasLineItems = Boolean(bill?.lineItems?.length);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [bill?.uuid, hasLineItems]);
 
   const openPrintPreview = (documentUrl: string, title: string) => {
     const dispose = showModal('print-preview-modal', {
@@ -56,9 +61,10 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
   const hasReceipt = bill?.status === PaymentStatus.PAID || bill?.tenderedAmount > 0;
 
   return (
-    <Popover align="bottom-right" open={isOpen} onRequestClose={() => setIsOpen(false)}>
+    <Popover align="bottom-right" open={isOpen && hasLineItems} onRequestClose={() => setIsOpen(false)}>
       <IconButton
         kind="tertiary"
+        disabled={!hasLineItems}
         label={t('actions', 'Actions')}
         aria-label={t('actions', 'Actions')}
         onClick={() => setIsOpen((currentValue) => !currentValue)}
@@ -66,9 +72,24 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
         className={styles.actionMenuTrigger}>
         <OverflowMenuVertical size={20} />
       </IconButton>
-      <PopoverContent>
-        <div className={styles.actionMenuContent}>
-          {hasReceipt && (
+      {hasLineItems && (
+        <PopoverContent>
+          <div className={styles.actionMenuContent}>
+            {hasReceipt && (
+              <Button
+                kind="ghost"
+                size="sm"
+                renderIcon={Printer}
+                className={styles.actionMenuItem}
+                onClick={() =>
+                  openPrintPreview(
+                    `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
+                    `${t('receipt', 'Receipt')} ${bill?.receiptNumber}`,
+                  )
+                }>
+                {t('printReceipt', 'Print receipt')}
+              </Button>
+            )}
             <Button
               kind="ghost"
               size="sm"
@@ -76,61 +97,48 @@ export function InvoiceActions({ bill }: InvoiceActionsProps) {
               className={styles.actionMenuItem}
               onClick={() =>
                 openPrintPreview(
-                  `/openmrs${restBaseUrl}/cashier/receipt?billId=${bill?.id}`,
-                  `${t('receipt', 'Receipt')} ${bill?.receiptNumber}`,
+                  `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${bill?.id}`,
+                  `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
                 )
               }>
-              {t('printReceipt', 'Print receipt')}
+              {t('printStatement', 'Print Statement')}
             </Button>
-          )}
-          <Button
-            kind="ghost"
-            size="sm"
-            renderIcon={Printer}
-            className={styles.actionMenuItem}
-            onClick={() =>
-              openPrintPreview(
-                `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${bill?.id}`,
-                `${t('billStatement', 'Bill Statement')} ${bill?.receiptNumber} - ${startCase(bill?.patientName)}`,
-              )
-            }>
-            {t('printStatement', 'Print Statement')}
-          </Button>
-          <UserHasAccess privilege={bill?.closed ? 'Reopen Cashier Bills' : 'Close Cashier Bills'}>
-            <Button
-              kind="ghost"
-              size="sm"
-              renderIcon={closeActionIcon}
-              disabled={isCloseDisabled}
-              className={styles.actionMenuItem}
-              onClick={() => launchBillActionModal(closeAction)}>
-              {closeActionLabel}
-            </Button>
-          </UserHasAccess>
-          <UserHasAccess privilege="Manage Cashier Bills">
-            {canWaiveBill && (
+            <UserHasAccess privilege={bill?.closed ? 'Reopen Cashier Bills' : 'Close Cashier Bills'}>
+              <Button
+                kind="ghost"
+                size="sm"
+                renderIcon={closeActionIcon}
+                disabled={isCloseDisabled}
+                className={styles.actionMenuItem}
+                onClick={() => launchBillActionModal(closeAction)}>
+                {closeActionLabel}
+              </Button>
+            </UserHasAccess>
+            <UserHasAccess privilege="Manage Cashier Bills">
+              {canWaiveBill && (
+                <Button
+                  kind="danger--ghost"
+                  size="sm"
+                  renderIcon={Scalpel}
+                  className={styles.actionMenuItem}
+                  onClick={launchWaiveBillWorkspace}>
+                  {t('waiveBill', 'Waive Bill')}
+                </Button>
+              )}
+            </UserHasAccess>
+            <UserHasAccess privilege="Force Delete Cashier Bills">
               <Button
                 kind="danger--ghost"
                 size="sm"
-                renderIcon={Scalpel}
+                renderIcon={TrashCan}
                 className={styles.actionMenuItem}
-                onClick={launchWaiveBillWorkspace}>
-                {t('waiveBill', 'Waive Bill')}
+                onClick={launchDeleteBillModal}>
+                {t('deleteBill', 'Delete Bill')}
               </Button>
-            )}
-          </UserHasAccess>
-          <UserHasAccess privilege="Force Delete Cashier Bills">
-            <Button
-              kind="danger--ghost"
-              size="sm"
-              renderIcon={TrashCan}
-              className={styles.actionMenuItem}
-              onClick={launchDeleteBillModal}>
-              {t('deleteBill', 'Delete Bill')}
-            </Button>
-          </UserHasAccess>
-        </div>
-      </PopoverContent>
+            </UserHasAccess>
+          </div>
+        </PopoverContent>
+      )}
     </Popover>
   );
 }

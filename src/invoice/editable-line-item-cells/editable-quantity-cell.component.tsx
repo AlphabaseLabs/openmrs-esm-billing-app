@@ -105,6 +105,7 @@ const EditableQuantityCell: React.FC<EditableQuantityCellProps> = ({
       error={error}
       inputId={`quantity-${lineItem.uuid}`}
       inputLabelText={t('quantity', 'Quantity')}
+      inlineEditLabel={t('editQuantity', 'Edit quantity')}
       inputMode="numeric"
       inputValue={draft}
       isActive={isActive}

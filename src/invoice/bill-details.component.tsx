@@ -1,4 +1,4 @@
-import { Button, ButtonSet, Stack, TextArea, Tile, Tooltip } from '@carbon/react';
+import { Button, ButtonSet, Stack, TextArea, Tooltip } from '@carbon/react';
 import { Edit, Printer } from '@carbon/react/icons';
 import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -56,7 +56,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const [visibleLineItemColumnKeys, setVisibleLineItemColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
   );
-  const billToRender = editableBill ?? bill;
+  const billToRender = editableBill?.uuid === bill.uuid ? editableBill : bill;
+  const hasLineItems = Boolean(billToRender?.lineItems?.length);
   const showTaxSummary = visibleLineItemColumnKeys.includes('tax');
 
   useEffect(() => {
@@ -105,6 +106,9 @@ const BillDetails: React.FC<BillDetailsProps> = ({
 
   const handleLineItemUpdated = (updatedLineItem: LineItem) => {
     setEditableBill((currentBill) => {
+      if (currentBill && currentBill.uuid !== bill.uuid) {
+        return currentBill;
+      }
       const billToUpdate = currentBill ?? bill;
       const includesItem = billToUpdate.lineItems.some((item) => item.uuid === updatedLineItem.uuid);
       return recomputeBillWithLineItem(
@@ -292,12 +296,17 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           ))}
         </section>
         <div className={styles.actionsContainer}>
-          <Button kind="secondary" renderIcon={WhatsAppIcon} disabled={!billToRender?.uuid} onClick={handleSendInvoice}>
+          <Button
+            kind="secondary"
+            renderIcon={WhatsAppIcon}
+            disabled={!billToRender?.uuid || !hasLineItems}
+            onClick={handleSendInvoice}>
             {t('sendInvoice', 'Send invoice')}
           </Button>
           <Button
             kind="primary"
             renderIcon={Printer}
+            disabled={!hasLineItems}
             onClick={() =>
               openPrintPreview(
                 `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${billToRender?.id}`,
@@ -360,6 +369,7 @@ function InvoiceDetails({
         <h1 className={styles.label}>{label}</h1>
         <EditableDatePicker
           ariaLabel={label}
+          showEditIcon
           className={styles.value}
           disabled={disabled}
           displayValue={String(value)}
@@ -455,8 +465,8 @@ function BillNote({
   };
 
   return (
-    <section aria-label={t('billNote', 'Bill note')}>
-      <Tile className={styles.billNote}>
+    <section aria-label={t('billNote', 'Bill note')} className={styles.billNote}>
+      <div className={styles.billNoteHeader}>
         <CardHeader title={t('billNote', 'Bill note')}>
           <Button
             className={styles.billNoteEditButton}
@@ -468,47 +478,47 @@ function BillNote({
             {t('edit', 'Edit')}
           </Button>
         </CardHeader>
-        <div className={styles.billNoteContent}>
-          {isEditing ? (
-            <Stack gap={4}>
-              <TextArea
-                autoFocus
-                disabled={isSaving}
-                enableCounter
-                id="bill-note"
-                invalid={noteExceedsLimit}
-                invalidText={t('billNoteMaximumLength', 'Bill note must be {{count}} characters or fewer', {
-                  count: MAX_BILL_NOTE_LENGTH,
-                })}
-                labelText={t('billNote', 'Bill note')}
-                hideLabel
-                maxCount={MAX_BILL_NOTE_LENGTH}
-                onChange={(event) => setDraftNote(event.target.value)}
-                placeholder={t('enterBillNote', 'Enter bill note')}
-                rows={4}
-                value={draftNote}
-              />
-              <ButtonSet className={styles.billNoteActions}>
-                <Button disabled={isSaving} kind="secondary" size="sm" onClick={handleCancelEditing} type="button">
-                  {t('cancel', 'Cancel')}
-                </Button>
-                <Button
-                  disabled={isSaving || noteExceedsLimit || noteIsUnchanged}
-                  kind="primary"
-                  size="sm"
-                  onClick={handleSaveNote}
-                  type="button">
-                  {isSaving ? t('saving', 'Saving...') : t('save', 'Save')}
-                </Button>
-              </ButtonSet>
-            </Stack>
-          ) : (
-            <p aria-live="polite" className={styles.billNoteText}>
-              {note ?? t('noBillNoteAdded', 'No bill note added')}
-            </p>
-          )}
-        </div>
-      </Tile>
+      </div>
+      <div className={styles.billNoteContent}>
+        {isEditing ? (
+          <Stack gap={4}>
+            <TextArea
+              autoFocus
+              disabled={isSaving}
+              enableCounter
+              id="bill-note"
+              invalid={noteExceedsLimit}
+              invalidText={t('billNoteMaximumLength', 'Bill note must be {{count}} characters or fewer', {
+                count: MAX_BILL_NOTE_LENGTH,
+              })}
+              labelText={t('billNote', 'Bill note')}
+              hideLabel
+              maxCount={MAX_BILL_NOTE_LENGTH}
+              onChange={(event) => setDraftNote(event.target.value)}
+              placeholder={t('enterBillNote', 'Enter bill note')}
+              rows={4}
+              value={draftNote}
+            />
+            <ButtonSet className={styles.billNoteActions}>
+              <Button disabled={isSaving} kind="secondary" size="sm" onClick={handleCancelEditing} type="button">
+                {t('cancel', 'Cancel')}
+              </Button>
+              <Button
+                disabled={isSaving || noteExceedsLimit || noteIsUnchanged}
+                kind="primary"
+                size="sm"
+                onClick={handleSaveNote}
+                type="button">
+                {isSaving ? t('saving', 'Saving...') : t('save', 'Save')}
+              </Button>
+            </ButtonSet>
+          </Stack>
+        ) : (
+          <p aria-live="polite" className={styles.billNoteText}>
+            {note ?? t('noBillNoteAdded', 'No bill note added')}
+          </p>
+        )}
+      </div>
     </section>
   );
 }

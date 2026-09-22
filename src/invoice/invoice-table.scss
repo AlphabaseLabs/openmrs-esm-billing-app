@@ -252,17 +252,6 @@
   padding: 0 layout.$spacing-05;
 }
 
-.addItemButton {
-  @include type.type-style('body-compact-01');
-  color: colors.$gray-70;
-  min-height: 2rem;
-  padding-inline: 0;
-}
-
-.addItemButtonPrefix {
-  margin-inline-end: layout.$spacing-02;
-}
-
 .deleteBlockerModalPrimaryButton {
   background-color: var(--brand-03, #007d79);
   border-color: var(--brand-03, #007d79);
