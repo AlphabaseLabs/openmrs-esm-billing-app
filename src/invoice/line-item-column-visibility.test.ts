@@ -131,11 +131,13 @@ describe('line-item-column-visibility', () => {
     ]);
   });
 
-  it('preserves minimum widths when available width is narrower than visible minimum width', () => {
+  it('rounds fractional minimum widths to whole pixels when available width is narrower', () => {
     const layoutColumns = getLineItemTableLayoutColumns(getLineItemColumnDefinitions(), true);
     const layout = calculateLineItemTableColumnLayout(layoutColumns, 100);
 
-    expect(layout.layoutWidth).toBe(layout.totalMinWidth);
+    expect(layout.totalMinWidth).toBeCloseTo(1512.8);
+    expect(layout.layoutWidth).toBe(1513);
+    expect(layout.columns.find((column) => column.key === 'quantity')?.width).toBe(101);
     expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(layout.layoutWidth);
     expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(144);
   });

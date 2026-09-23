@@ -9,7 +9,7 @@ const service = {
   servicePrices: [{ uuid: 'price', name: 'Cash', price: 500 }],
 } as BillingService;
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => mockFetch.mockReset());
 
 test('appends to the specified invoice using fresh server UUIDs, retaining voided items', async () => {
   mockFetch.mockResolvedValueOnce({
@@ -20,8 +20,8 @@ test('appends to the specified invoice using fresh server UUIDs, retaining voide
     ok: true,
     data: { lineItems: [{ uuid: 'existing' }, { uuid: 'concurrent-item' }, { uuid: 'new-item' }] },
   } as any);
-  mockFetch.mockResolvedValueOnce({ ok: true, data: {} } as any);
   await expect(addBillLineItem('bill', service)).resolves.toEqual({ uuid: 'new-item' });
+  expect(mockFetch).toHaveBeenCalledTimes(2);
   expect(mockFetch.mock.calls[0][0]).toContain('/cashier/bill/bill?v=full&includeVoided=true');
   expect(mockFetch.mock.calls[1]).toEqual([
     expect.stringContaining('/cashier/bill/bill'),

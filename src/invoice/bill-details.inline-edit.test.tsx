@@ -11,11 +11,11 @@ const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof 
 const mockUseBillableServices = useBillableServices as jest.MockedFunction<typeof useBillableServices>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (_key: string, fallback: string) => fallback,
-  }),
-}));
+jest.mock('react-i18next', () => {
+  // Keep t stable so memoized provider options do not trigger Downshift selection updates on every render.
+  const t = (_key: string, fallback: string) => fallback;
+  return { useTranslation: () => ({ t }) };
+});
 
 jest.mock('@openmrs/esm-framework', () => ({
   EditIcon: () => <span>Edit</span>,

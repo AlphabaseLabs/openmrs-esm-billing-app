@@ -53,7 +53,7 @@ const mockUseAppointmentProviderOptions = useAppointmentProviderOptions as jest.
 const mockUseSession = useSession as jest.MockedFunction<typeof useSession>;
 const mockUpdateBillLineItem = updateBillLineItem as jest.MockedFunction<typeof updateBillLineItem>;
 
-const getInvoiceTable = () => screen.getByRole('table', { name: /^line items$/i });
+const getInvoiceTable = () => screen.getByRole('table', { name: /^line items\b/i });
 
 const getColumnWidths = (table: HTMLElement) =>
   Array.from(table.querySelectorAll('col')).map((column) => (column as HTMLTableColElement).style.width);
@@ -137,7 +137,7 @@ describe('InvoiceTable', () => {
     expect(screen.queryByText('No matching items to display')).not.toBeInTheDocument();
   });
 
-  it('adds a searched service and removes its draft row', async () => {
+  it('adds a searched service and replaces its draft with a fresh entry row', async () => {
     const user = userEvent.setup();
     const service = { uuid: 'service-new', name: 'Consultation', shortName: 'NEW', servicePrices: [] };
     mockUseBillableServices.mockReturnValue({ billableServices: [service], isLoading: false } as any);
@@ -146,20 +146,20 @@ describe('InvoiceTable', () => {
     const onLineItemUpdated = jest.fn();
     const onRefreshBill = jest.fn();
     render(<InvoiceTable bill={openPendingBill} onLineItemUpdated={onLineItemUpdated} onRefreshBill={onRefreshBill} />);
-    expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Add item' }));
+    const originalDraft = getDraftRow();
     await user.click(within(getDraftRow()).getByTestId('editable-text-content'));
     await user.type(within(getDraftRow()).getByRole('combobox'), 'Cons');
     await user.click(screen.getByRole('option', { name: 'Consultation' }));
     await waitFor(() => expect(addBillLineItem).toHaveBeenCalledWith(openPendingBill.uuid, service));
     expect(onLineItemUpdated).toHaveBeenCalledWith(addedItem);
     expect(onRefreshBill).toHaveBeenCalled();
-    expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument();
+    expect(originalDraft).not.toBeInTheDocument();
+    expect(within(getDraftRow()).getByTestId('editable-text-content')).toHaveTextContent('Select bill item');
     expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument();
     expect(mockLaunchBillingWorkspace).not.toHaveBeenCalled();
   });
 
-  it('does not recreate the first draft when refresh briefly returns an empty bill', async () => {
+  it('preserves the replacement draft when refresh briefly returns an empty bill', async () => {
     const user = userEvent.setup();
     const service = { uuid: 'service-new', name: 'Consultation', servicePrices: [] };
     mockUseBillableServices.mockReturnValue({ billableServices: [service], isLoading: false } as any);
@@ -168,17 +168,19 @@ describe('InvoiceTable', () => {
     const emptyBill = { ...openPendingBill, lineItems: [] };
     const savedBill = { ...openPendingBill, lineItems: [addedItem] };
     const { rerender } = render(<InvoiceTable bill={emptyBill} />);
+    const originalDraft = getDraftRow();
     await user.click(within(getDraftRow()).getByTestId('editable-text-content'));
     await user.type(within(getDraftRow()).getByRole('combobox'), 'Cons');
     await user.click(screen.getByRole('option', { name: 'Consultation' }));
-    await waitFor(() => expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument());
+    await waitFor(() => expect(originalDraft).not.toBeInTheDocument());
+    const replacementDraft = getDraftRow();
     rerender(<InvoiceTable bill={savedBill} />);
     rerender(<InvoiceTable bill={emptyBill} />);
     rerender(<InvoiceTable bill={savedBill} />);
-    expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument();
+    expect(getDraftRow()).toBe(replacementDraft);
     expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add item' }));
-    expect(getDraftRow()).toBeInTheDocument();
+    expect(screen.getAllByTestId('invoice-table-draft-row')).toHaveLength(2);
   });
 
   it('removes only the chosen draft without saving or launching a workspace', async () => {
@@ -225,23 +227,26 @@ describe('InvoiceTable', () => {
     jest.mocked(addBillLineItem).mockRejectedValue(new Error('Failed'));
     const onLineItemUpdated = jest.fn();
     render(<InvoiceTable bill={openPendingBill} onLineItemUpdated={onLineItemUpdated} />);
-    await user.click(screen.getByRole('button', { name: 'Add item' }));
+    const originalDraft = getDraftRow();
     await user.click(within(getDraftRow()).getByTestId('editable-text-content'));
     await user.type(within(getDraftRow()).getByRole('combobox'), 'Cons');
     await user.click(screen.getByRole('option', { name: 'Consultation' }));
     await waitFor(() => expect(within(getDraftRow()).getByTestId('editable-text-content')).toBeEnabled());
+    expect(addBillLineItem).toHaveBeenCalledWith(openPendingBill.uuid, service);
+    expect(getDraftRow()).toBe(originalDraft);
     expect(onLineItemUpdated).not.toHaveBeenCalled();
   });
 
   it('appends independent blank rows above the unchanged Add item button', async () => {
     const user = userEvent.setup();
     render(<InvoiceTable bill={openPendingBill} />);
-    expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument();
+    const originalDraft = getDraftRow();
     await user.click(screen.getByRole('button', { name: 'Add item' }));
     await user.click(screen.getByRole('button', { name: 'Add item' }));
     const drafts = screen.getAllByTestId('invoice-table-draft-row');
-    expect(drafts).toHaveLength(2);
-    expect(drafts[1].nextElementSibling).toBe(getAddItemRow());
+    expect(drafts).toHaveLength(3);
+    expect(drafts[0]).toBe(originalDraft);
+    expect(drafts[2].nextElementSibling).toBe(getAddItemRow());
     for (const draft of drafts) {
       expect(within(draft).queryByRole('checkbox')).not.toBeInTheDocument();
       expect(draft.children).toHaveLength(getInvoiceTable().querySelectorAll('col').length);
@@ -257,7 +262,7 @@ describe('InvoiceTable', () => {
     expect(screen.queryByTestId('invoice-table-add-item-row')).not.toBeInTheDocument();
   });
 
-  it('searches invoice line items by billable service short name', async () => {
+  it('filters the inline bill-item options by service name', async () => {
     const user = userEvent.setup();
 
     mockUseBillableServices.mockReturnValue({
@@ -286,9 +291,13 @@ describe('InvoiceTable', () => {
       />,
     );
 
-    await user.type(screen.getByRole('searchbox'), 'GCON');
+    await user.click(within(getDraftRow()).getByTestId('editable-text-content'));
+    await user.type(within(getDraftRow()).getByRole('combobox'), 'general');
 
-    expect(screen.getByText('General Consultation')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'General Consultation' })).toBeInTheDocument();
+    await user.clear(within(getDraftRow()).getByRole('combobox'));
+    await user.type(within(getDraftRow()).getByRole('combobox'), 'unmatched');
+    expect(screen.queryByRole('option', { name: 'General Consultation' })).not.toBeInTheDocument();
   });
 
   it('keeps the bill-item edit affordance layout-neutral between read and edit mode', async () => {
@@ -363,7 +372,7 @@ describe('InvoiceTable', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Provider' })).toBeInTheDocument();
-    expect(screen.getByText(/16-Sep-2026/i)).toBeInTheDocument();
+    expect(screen.getByText('16-Sep-2026')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Select provider' }));
     await user.type(screen.getByRole('combobox', { name: 'Search providers' }), 'Appointment');
@@ -656,7 +665,9 @@ describe('InvoiceTable', () => {
     const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
     const addItemRow = getAddItemRow();
 
-    expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 1);
+    expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 2);
+    expect(bodyRows[bodyRows.length - 2]).toBe(getDraftRow());
+    expect(within(getDraftRow()).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(bodyRows[bodyRows.length - 1]).toBe(addItemRow);
     expect(within(addItemRow).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(addItemRow).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
