@@ -16,10 +16,14 @@ import { Download } from '@carbon/react/icons';
 import { navigate, useDebounce, useLayoutType } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { convertToCurrency, getInvoiceUrl } from '../../helpers';
+import { getInvoiceUrl } from '../../helpers';
+import { formatCurrency } from '../../helpers/currency';
+import amountStyles from '../../helpers/table.scss';
 import { exportToExcel } from '../../helpers/excelExport';
 import { type BillingHistoryRow } from './history.resource';
 import {
+  billingHistoryAmountKeys as amountKeys,
+  billingHistoryColumnStyles,
   createHistorySortRow,
   getHistoryColumnStyle,
   getHistoryResponsiveSize,
@@ -43,19 +47,6 @@ type BillHistoryTableProps = {
   onPageChange: (page: number, pageSize: number) => void;
   onExport: (search: string) => Promise<Array<BillingHistoryRow>>;
 };
-
-type TableRowData = Omit<BillingHistoryRow, 'totalAmount' | 'totalDiscount' | 'totalPaid' | 'amountDue'> & {
-  totalAmount: string;
-  totalDiscount: string;
-  totalPaid: string;
-  amountDue: string;
-};
-
-const columnStyles = {
-  dateCreated: { inlineSize: '12rem', whiteSpace: 'nowrap' },
-  receiptNumber: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-  billedItems: { inlineSize: '16rem' },
-} as const;
 
 export const BillHistoryTable = ({
   headers,
@@ -81,19 +72,8 @@ export const BillHistoryTable = ({
     [debouncedSearchString, rows],
   );
 
-  const transformedRows = useMemo<Array<TableRowData>>(
-    () =>
-      filteredRows.map((row) => ({
-        ...row,
-        totalAmount: convertToCurrency(row.totalAmount),
-        totalDiscount: convertToCurrency(row.totalDiscount),
-        totalPaid: convertToCurrency(row.totalPaid),
-        amountDue: convertToCurrency(row.amountDue),
-      })),
-    [filteredRows],
-  );
   const rowLookup = useMemo(() => new Map(filteredRows.map((row) => [row.id, row])), [filteredRows]);
-  const sortRow = createHistorySortRow('dateCreated', ['totalAmount', 'totalDiscount', 'totalPaid', 'amountDue']);
+  const sortRow = createHistorySortRow('dateCreated', amountKeys);
 
   const handleExport = async () => {
     const exportRows = await onExport(debouncedSearchString);
@@ -151,7 +131,7 @@ export const BillHistoryTable = ({
         useZebraStyles
         isSortable
         size={historyTableSize}
-        rows={transformedRows}
+        rows={filteredRows}
         headers={headers}
         sortRow={sortRow}>
         {({ rows: tableRows, headers, getHeaderProps, getRowProps, getTableProps, getTableContainerProps }) => (
@@ -163,7 +143,8 @@ export const BillHistoryTable = ({
                     <TableHeader
                       key={header.key}
                       {...getHeaderProps({ header })}
-                      style={getHistoryColumnStyle(columnStyles, header.key)}>
+                      className={amountKeys.includes(header.key) ? amountStyles.numericCell : undefined}
+                      style={getHistoryColumnStyle(billingHistoryColumnStyles, header.key)}>
                       {header.header}
                     </TableHeader>
                   ))}
@@ -179,8 +160,17 @@ export const BillHistoryTable = ({
                       onClick={() => billData && navigate({ to: getInvoiceUrl(billData.patientUuid, billData.uuid) })}
                       className={styles.clickableRow}>
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id} style={getHistoryColumnStyle(columnStyles, cell.info.header)}>
-                          {cell.value}
+                        <TableCell
+                          key={cell.id}
+                          className={
+                            amountKeys.includes(cell.info.header)
+                              ? `${amountStyles.numericCell} ${amountStyles.sortableNumericCell}`
+                              : undefined
+                          }
+                          style={getHistoryColumnStyle(billingHistoryColumnStyles, cell.info.header)}>
+                          {amountKeys.includes(cell.info.header)
+                            ? formatCurrency(cell.value, { style: 'decimal', maximumFractionDigits: 2 })
+                            : cell.value}
                         </TableCell>
                       ))}
                     </TableRow>

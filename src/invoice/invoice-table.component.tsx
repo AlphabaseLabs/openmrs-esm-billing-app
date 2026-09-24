@@ -1,7 +1,9 @@
+import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
+  IconButton,
   ComposedModal,
   DataTable,
   DataTableSkeleton,
@@ -90,7 +92,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   const responsiveSize = isDesktop(layout) ? 'sm' : 'lg';
   const [activeEditorKey, setActiveEditorKey] = useState<ActiveEditorKey>(null);
   const nextDraftId = useRef(1);
-  const [savingDraftIds, setSavingDraftIds] = useState<string[]>([]);
   const [draftIds, setDraftIds] = useState<string[]>(['draft-0']);
   const draftBillUuid = useRef(bill.uuid);
   useEffect(() => {
@@ -98,7 +99,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       draftBillUuid.current = bill.uuid;
       setDraftIds([`draft-${nextDraftId.current++}`]);
       setActiveEditorKey(null);
-      setSavingDraftIds([]);
     }
   }, [bill.uuid]);
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
@@ -246,24 +246,30 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
           total: formatBillAmount(lineItemTotal),
           actionButton: (
             <div className={styles.actionButtons}>
-              <Button
+              <IconButton
                 size="sm"
-                hasIconOnly
-                renderIcon={(props) => <Document size={16} {...props} />}
-                iconDescription={t('costs', 'Costs')}
                 kind="ghost"
-                onClick={() => handleCostsWorkspaceLaunch(item)}
-              />
+                autoAlign
+                align="top-start"
+                aria-labelledby=""
+                label={t('costs', 'Costs')}
+                aria-label={t('costs', 'Costs')}
+                onClick={() => handleCostsWorkspaceLaunch(item)}>
+                <Document size={16} />
+              </IconButton>
               {bill.status !== PaymentStatus.PAID && (
-                <Button
+                <IconButton
                   size="sm"
-                  hasIconOnly
-                  data-testid={`cancel-button-${item.uuid}`}
-                  renderIcon={(props) => <TrashCan size={16} {...props} />}
-                  iconDescription={t('cancelItem', 'Cancel item')}
                   kind="ghost"
-                  onClick={() => handleCancelLineItem(item)}
-                />
+                  autoAlign
+                  align="top-start"
+                  aria-labelledby=""
+                  label={t('cancelItem', 'Cancel item')}
+                  aria-label={t('cancelItem', 'Cancel item')}
+                  data-testid={`cancel-button-${item.uuid}`}
+                  onClick={() => handleCancelLineItem(item)}>
+                  <TrashCan size={16} />
+                </IconButton>
               )}
             </div>
           ),
@@ -340,7 +346,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       case 'date': {
         const tooltip = formatBillDateTime(matchingItem.dateCreated || matchingItem.auditInfo?.dateCreated);
         return tooltip ? (
-          <Tooltip label={tooltip} enterDelayMs={0}>
+          <Tooltip autoAlign align="top-start" label={tooltip} enterDelayMs={0}>
             <span tabIndex={0}>{cell.value}</span>
           </Tooltip>
         ) : (
@@ -411,34 +417,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   };
 
   const getCellClassName = (cell) => {
-    if (cell.info.header === 'billItem') {
-      return styles.billItemCell;
-    }
-
     if (cell.info.header === 'no') {
       return styles.numberCell;
     }
 
-    if (cell.info.header === 'status') {
-      return styles.statusCell;
-    }
-
     if (['price', 'discount'].includes(cell.info.header)) {
-      return `${styles.numericCell} ${styles.editableNumericCellColumn} ${
-        cell.info.header === 'price' ? styles.priceCell : styles.discountCell
-      }`;
+      return `${styles.numericCell} ${styles.editableNumericCellColumn}`;
     }
 
     if (cell.info.header === 'quantity') {
       return `${styles.numericCell} ${styles.quantityCell}`;
     }
 
-    if (cell.info.header === 'tax') {
-      return `${styles.numericCell} ${styles.taxCell}`;
-    }
-
-    if (cell.info.header === 'total') {
-      return `${styles.numericCell} ${styles.totalCell}`;
+    if (['tax', 'total'].includes(cell.info.header)) {
+      return styles.numericCell;
     }
 
     if (cell.info.header === 'actionButton') {
@@ -449,34 +441,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   };
 
   const getHeaderClassName = (header) => {
-    if (header.key === 'billItem') {
-      return styles.billItemHeaderCell;
-    }
-
     if (header.key === 'no') {
       return styles.numberHeaderCell;
     }
 
-    if (header.key === 'status') {
-      return styles.statusHeaderCell;
-    }
-
     if (['price', 'discount'].includes(header.key)) {
-      return `${styles.numericHeaderCell} ${styles.editableNumericHeaderCell} ${
-        header.key === 'price' ? styles.priceHeaderCell : styles.discountHeaderCell
-      }`;
+      return `${styles.numericHeaderCell} ${styles.editableNumericHeaderCell}`;
     }
 
     if (header.key === 'quantity') {
       return `${styles.numericHeaderCell} ${styles.quantityHeaderCell}`;
     }
 
-    if (header.key === 'tax') {
-      return `${styles.numericHeaderCell} ${styles.taxHeaderCell}`;
-    }
-
-    if (header.key === 'total') {
-      return `${styles.numericHeaderCell} ${styles.totalHeaderCell}`;
+    if (['tax', 'total'].includes(header.key)) {
+      return styles.numericHeaderCell;
     }
 
     if (header.key === 'actionButton') {
@@ -490,26 +468,20 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     <div className={styles.invoiceContainer} ref={tableContainerRef}>
       <DataTable headers={tableHeaders} isSortable rows={tableRows} size={responsiveSize} useZebraStyles>
         {({ rows, headers, getRowProps, getSelectionProps, getTableProps }) => (
-          <TableContainer
-            description={
-              <span className={styles.tableDescription}>
-                <span>{t('itemsToBeBilled', 'Items to be billed')}</span>
-              </span>
-            }
-            title={
-              <span className={styles.tableHeading}>
-                <span>{t('lineItems', 'Line items')}</span>
+          <TableContainer>
+            <CardHeader title={t('lineItems', 'Line items')}>
+              <div className={styles.columnSelectorActions}>
                 <LineItemColumnSelector
                   onOpen={() => setActiveEditorKey(null)}
                   onVisibilityChange={handleColumnVisibilityChange}
                   visibleColumnKeys={visibleColumnKeys}
                 />
-              </span>
-            }>
+              </div>
+            </CardHeader>
             <Table
               {...getTableProps()}
               {...({ style: { minInlineSize: `${columnLayout.totalMinWidth}px` } } as any)}
-              aria-label="Invoice line items"
+              aria-label={t('lineItems', 'Line items')}
               className={styles.table}>
               <colgroup>
                 {columnLayout.columns.map((column) => (
@@ -596,53 +568,31 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                                   return remaining.length ? remaining : [nextId];
                                 });
                               }}
-                              onSavingChange={(isSaving) =>
-                                setSavingDraftIds((current) =>
-                                  isSaving ? [...current, draftId] : current.filter((id) => id !== draftId),
-                                )
-                              }
                             />
-                          ) : column.key === 'actionButton' ? (
-                            <div className={styles.actionButtons}>
-                              <Button
-                                size="sm"
-                                hasIconOnly
-                                renderIcon={TrashCan}
-                                iconDescription={t('removeEmptyRow', 'Remove empty row')}
-                                kind="ghost"
-                                disabled={savingDraftIds.includes(draftId)}
-                                onClick={() => {
-                                  setActiveEditorKey((current) => (current === `${draftId}:billItem` ? null : current));
-                                  setDraftIds((current) => current.filter((id) => id !== draftId));
-                                }}
-                              />
-                            </div>
                           ) : null}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))}
-                {!bill.closed ? (
-                  <TableRow className={styles.addItemRow} data-testid="invoice-table-add-item-row">
-                    <TableCell className={styles.addItemCell} colSpan={columnLayout.columns.length}>
-                      <Button
-                        aria-label={t('addItem', 'Add item')}
-                        kind="primary"
-                        renderIcon={Add}
-                        onClick={() => {
-                          const draftId = `draft-${nextDraftId.current++}`;
-                          setActiveEditorKey(null);
-                          setDraftIds((current) => [...current, draftId]);
-                        }}
-                        size="sm"
-                        type="button">
-                        {t('addItem', 'Add item')}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : null}
               </TableBody>
             </Table>
+            {!bill.closed ? (
+              <div className={styles.addItemActions} data-testid="invoice-table-add-item-footer">
+                <Button
+                  aria-label={t('addItem', 'Add item')}
+                  kind="primary"
+                  renderIcon={Add}
+                  onClick={() => {
+                    const draftId = `draft-${nextDraftId.current++}`;
+                    setActiveEditorKey(null);
+                    setDraftIds((current) => [...current, draftId]);
+                  }}
+                  size="sm"
+                  type="button">
+                  {t('addItem', 'Add item')}
+                </Button>
+              </div>
+            ) : null}
           </TableContainer>
         )}
       </DataTable>

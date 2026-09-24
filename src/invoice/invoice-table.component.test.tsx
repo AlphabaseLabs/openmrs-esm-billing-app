@@ -1,3 +1,12 @@
+jest.mock('@openmrs/esm-patient-common-lib', () => ({
+  CardHeader: ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div>
+      <h4>{title}</h4>
+      {children}
+    </div>
+  ),
+}));
+
 import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -60,7 +69,7 @@ const getColumnWidths = (table: HTMLElement) =>
 
 const getDraftRow = () => screen.getByTestId('invoice-table-draft-row');
 
-const getAddItemRow = () => screen.getByTestId('invoice-table-add-item-row');
+const getAddItemFooter = () => screen.getByTestId('invoice-table-add-item-footer');
 
 describe('InvoiceTable', () => {
   beforeEach(() => {
@@ -122,8 +131,8 @@ describe('InvoiceTable', () => {
     expect(cells.filter((_cell, index) => index !== 0 && index !== 6).every((cell) => cell.textContent === '')).toBe(
       true,
     );
-    expect(within(cells[6]).getByRole('button', { name: 'Remove empty row' })).toBeEnabled();
-    expect(within(getAddItemRow()).getByRole('button', { name: 'Add item' })).toBeInTheDocument();
+    expect(within(getDraftRow()).queryByRole('button', { name: 'Remove empty row' })).not.toBeInTheDocument();
+    expect(within(getAddItemFooter()).getByRole('button', { name: 'Add item' })).toBeInTheDocument();
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Bill item',
       'Provider',
@@ -183,25 +192,7 @@ describe('InvoiceTable', () => {
     expect(screen.getAllByTestId('invoice-table-draft-row')).toHaveLength(2);
   });
 
-  it('removes only the chosen draft without saving or launching a workspace', async () => {
-    const user = userEvent.setup();
-    render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [] }} />);
-    await user.click(screen.getByRole('button', { name: 'Add item' }));
-    await user.click(screen.getByRole('button', { name: 'Add item' }));
-    const drafts = screen.getAllByTestId('invoice-table-draft-row');
-    await user.click(within(drafts[1]).getByRole('button', { name: 'Remove empty row' }));
-    expect(screen.getAllByTestId('invoice-table-draft-row')).toEqual([drafts[0], drafts[2]]);
-    await user.click(within(drafts[0]).getByRole('button', { name: 'Remove empty row' }));
-    await user.click(within(drafts[2]).getByRole('button', { name: 'Remove empty row' }));
-    expect(screen.queryByTestId('invoice-table-draft-row')).not.toBeInTheDocument();
-    expect(addBillLineItem).not.toHaveBeenCalled();
-    expect(mockUpdateBillLineItem).not.toHaveBeenCalled();
-    expect(mockLaunchBillingWorkspace).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Add item' }));
-    expect(getDraftRow()).toBeInTheDocument();
-  });
-
-  it('disables draft removal while its selected item is being saved', async () => {
+  it('retains the draft selector after a failed save without exposing a delete action', async () => {
     const user = userEvent.setup();
     const service = { uuid: 'service-new', name: 'Consultation', servicePrices: [] };
     mockUseBillableServices.mockReturnValue({ billableServices: [service], isLoading: false } as any);
@@ -215,9 +206,9 @@ describe('InvoiceTable', () => {
     await user.click(within(getDraftRow()).getByTestId('editable-text-content'));
     await user.type(within(getDraftRow()).getByRole('combobox'), 'Cons');
     await user.click(screen.getByRole('option', { name: 'Consultation' }));
-    expect(within(getDraftRow()).getByRole('button', { name: 'Remove empty row' })).toBeDisabled();
+    expect(within(getDraftRow()).queryByRole('button', { name: 'Remove empty row' })).not.toBeInTheDocument();
     rejectSave(new Error('Unable to save'));
-    await waitFor(() => expect(within(getDraftRow()).getByRole('button', { name: 'Remove empty row' })).toBeEnabled());
+    await waitFor(() => expect(within(getDraftRow()).getByTestId('editable-text-content')).toBeInTheDocument());
   });
 
   it('retains an editable entry row after a failed addition', async () => {
@@ -246,7 +237,8 @@ describe('InvoiceTable', () => {
     const drafts = screen.getAllByTestId('invoice-table-draft-row');
     expect(drafts).toHaveLength(3);
     expect(drafts[0]).toBe(originalDraft);
-    expect(drafts[2].nextElementSibling).toBe(getAddItemRow());
+    expect(drafts[2].nextElementSibling).toBeNull();
+    expect(getInvoiceTable().parentElement?.nextElementSibling).toBe(getAddItemFooter());
     for (const draft of drafts) {
       expect(within(draft).queryByRole('checkbox')).not.toBeInTheDocument();
       expect(draft.children).toHaveLength(getInvoiceTable().querySelectorAll('col').length);
@@ -259,7 +251,7 @@ describe('InvoiceTable', () => {
 
     expect(screen.queryByRole('button', { name: /add bill item/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^add item$/i })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('invoice-table-add-item-row')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-table-add-item-footer')).not.toBeInTheDocument();
   });
 
   it('filters the inline bill-item options by service name', async () => {
@@ -551,7 +543,7 @@ describe('InvoiceTable', () => {
     const columnWidths = getColumnWidths(table);
 
     expect(columnWidths[0]).toBe('48px');
-    expect(columnWidths[columnWidths.length - 2]).toBe('144px');
+    expect(columnWidths[columnWidths.length - 2]).toBe('75px');
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
 
@@ -608,7 +600,8 @@ describe('InvoiceTable', () => {
     const table = getInvoiceTable();
     const renderedColumnCount = table.querySelectorAll('col').length;
 
-    expect(getAddItemRow().querySelector('td')?.colSpan).toBe(renderedColumnCount);
+    expect(getDraftRow().children).toHaveLength(renderedColumnCount);
+    expect(table.parentElement?.nextElementSibling).toBe(getAddItemFooter());
   });
 
   it('omits the synthetic selection column width when selection is absent', () => {
@@ -636,11 +629,11 @@ describe('InvoiceTable', () => {
     const columnWidths = getColumnWidths(table);
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
-    expect(columnWidths[columnWidths.length - 2]).toBe('144px');
+    expect(columnWidths[columnWidths.length - 2]).toBe('75px');
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
   });
 
-  it('keeps the final add item row cells aligned when optional columns are hidden', async () => {
+  it('keeps the add item footer outside the table when optional columns are hidden', async () => {
     const user = userEvent.setup();
 
     render(<InvoiceTable bill={openPendingBill} />);
@@ -653,29 +646,30 @@ describe('InvoiceTable', () => {
 
     expect(screen.queryByRole('columnheader', { name: /discount/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();
-    expect(getAddItemRow().querySelector('td')?.colSpan).toBe(table.querySelectorAll('col').length);
+    expect(table).not.toContainElement(getAddItemFooter());
+    expect(table.parentElement?.nextElementSibling).toBe(getAddItemFooter());
   });
 
-  it('keeps the final add item row non-selectable and outside line item numbering', () => {
+  it('keeps the add item footer non-selectable and outside line item numbering', () => {
     window.localStorage.setItem(LINE_ITEM_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(['no']));
 
     render(<InvoiceTable bill={openPendingBill} />);
 
     const table = getInvoiceTable();
     const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
-    const addItemRow = getAddItemRow();
+    const addItemFooter = getAddItemFooter();
 
-    expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 2);
-    expect(bodyRows[bodyRows.length - 2]).toBe(getDraftRow());
+    expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 1);
+    expect(bodyRows[bodyRows.length - 1]).toBe(getDraftRow());
     expect(within(getDraftRow()).queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(bodyRows[bodyRows.length - 1]).toBe(addItemRow);
-    expect(within(addItemRow).queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(within(addItemRow).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
-    expect(within(addItemRow).queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
+    expect(table).not.toContainElement(addItemFooter);
+    expect(within(addItemFooter).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(addItemFooter).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
+    expect(within(addItemFooter).queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
     expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length + 1);
     expect(bodyRows[0].children[1]).toHaveTextContent(/^1$/);
     expect(bodyRows[1].children[1]).toHaveTextContent(/^2$/);
-    expect(addItemRow).not.toHaveTextContent(/^3$/);
+    expect(addItemFooter).not.toHaveTextContent(/^3$/);
   });
 
   it('keeps computed column widths stable while an editable cell is active', async () => {

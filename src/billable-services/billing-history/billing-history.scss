@@ -1,14 +1,4 @@
 @use '@carbon/layout';
-@use '@carbon/colors';
-@use '~@openmrs/esm-styleguide/src/vars' as *;
-
-.table {
-  padding: layout.$spacing-05;
-}
-
-.emptyStateWrapper {
-  padding-top: layout.$spacing-05;
-}
 
 .tableToolbar {
   display: flex;
@@ -32,29 +22,16 @@
   cursor: pointer;
 }
 
-.skeletonIcon {
-  width: layout.$spacing-09;
-  height: layout.$spacing-09;
-  margin-right: layout.$spacing-05;
-}
+.paymentMethodSummary {
+  table-layout: fixed;
 
-.paymentTotals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: layout.$spacing-05;
-  margin-bottom: layout.$spacing-05;
-}
+  th:first-child {
+    inline-size: 50%;
+  }
 
-.paymentTotal {
-  color: colors.$blue-60;
-  margin-top: layout.$spacing-05;
-}
-
-.tile {
-  border: 1px solid $ui-03;
-}
-
-.clockIn {
-  margin-left: layout.$spacing-05;
-  align-self: flex-end;
+  .summaryAmount {
+    display: block;
+    inline-size: 10rem;
+    max-inline-size: 100%;
+  }
 }

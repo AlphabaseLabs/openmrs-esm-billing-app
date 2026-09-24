@@ -17,9 +17,15 @@
 
 .value {
   @include type.type-style('heading-01');
+  display: flex;
+  justify-content: space-between;
+  gap: layout.$spacing-03;
   font-weight: bold;
+  font-variant-numeric: tabular-nums;
   margin-left: layout.$spacing-03;
-  text-align: start;
+  padding-inline-end: layout.$spacing-06;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .extendedLabel {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
+import { openmrsFetch, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
 import { syncBillStatus, updateBillDate, updateBillLineItem, updateBillNote } from '../billing.resource';
 import { type LineItem, type MappedBill, PaymentStatus } from '../types';
@@ -210,6 +210,37 @@ const createBill = (lineItems: Array<LineItem>, overrides: Partial<MappedBill> =
 };
 
 describe('BillDetails', () => {
+  it('prints directly from the primary action and only opens print options from the chevron', async () => {
+    const user = userEvent.setup();
+    const bill = { ...mockBillData[0], tenderedAmount: 100 };
+    render(<BillDetails bill={bill} />);
+    await user.click(screen.getByRole('button', { name: 'Print bill' }));
+    expect(showModal).toHaveBeenCalledWith(
+      'print-preview-modal',
+      expect.objectContaining({
+        documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=invoice&billId=${bill.id}`,
+      }),
+    );
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    jest.mocked(showModal).mockClear();
+    await user.click(screen.getByRole('button', { name: /additional actions/i }));
+    expect(showModal).not.toHaveBeenCalled();
+    // JSDOM has no layout, so Carbon's collision detection hides floating menus.
+    const menu = await screen.findByRole('menu', { hidden: true });
+    expect(
+      within(menu)
+        .getAllByRole('menuitem', { hidden: true })
+        .map((item) => item.textContent),
+    ).toEqual(['Print receipt', 'Print Statement']);
+    fireEvent.click(within(menu).getByText('Print Statement'));
+    expect(showModal).toHaveBeenCalledWith(
+      'print-preview-modal',
+      expect.objectContaining({
+        documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=billstatement&billId=${bill.id}`,
+      }),
+    );
+  });
+
   it('disables invoice sending and printing until the first item is saved', async () => {
     render(<BillDetails bill={createBill([])} />);
     expect(screen.getByRole('button', { name: 'Send invoice' })).toBeDisabled();
@@ -278,7 +309,8 @@ describe('BillDetails', () => {
     expect(invoiceTable.compareDocumentPosition(payments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(paymentsFooterSlot).toContainElement(billNote);
     expect(within(paymentsRightSlot).getByText('Bulk discount:')).toBeInTheDocument();
-    expect(within(paymentsRightSlot).getByRole('button', { name: /PKR\s*0\.00/i })).toBeInTheDocument();
+    expect(within(paymentsRightSlot).getByText('PKR')).toBeInTheDocument();
+    expect(within(paymentsRightSlot).getByRole('button', { name: /^0\.00$/i })).toBeInTheDocument();
   });
 
   it('edits the bill note inline', async () => {
@@ -416,7 +448,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={billWithBulkDiscountBase} />);
 
-    expect(screen.getByRole('button', { name: /01-Jan-2024, 09:00 AM/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /date and time/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/date and time input/i), { target: { value: '2026-01-05' } });
 
@@ -440,7 +472,7 @@ describe('BillDetails', () => {
 
     expect(screen.getByTestId('line-discount-line-one')).toHaveTextContent('0');
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '50');
@@ -456,7 +488,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '50{Enter}');
@@ -495,7 +527,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} onRefreshBill={onRefreshBill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '50{Enter}');
@@ -532,10 +564,10 @@ describe('BillDetails', () => {
     render(<BillDetails bill={bill} />);
 
     expect(screen.getByText('Bulk discount:')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /PKR\s*50\.00/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^50\.00$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Discounts are managed on line items/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^50\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '25{Enter}');
@@ -563,7 +595,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '50');
@@ -590,7 +622,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '101{Enter}');
@@ -614,7 +646,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^50\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '151{Enter}');
@@ -629,7 +661,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*0\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^0\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, 'abc{Enter}');
@@ -651,7 +683,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*25\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^25\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.keyboard('{Enter}');
@@ -744,7 +776,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^50\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     fireEvent.change(input, { target: { value: '75' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -783,7 +815,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*50\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^50\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     fireEvent.change(input, { target: { value: '75' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -832,7 +864,7 @@ describe('BillDetails', () => {
 
     render(<BillDetails bill={bill} />);
 
-    await user.click(screen.getByRole('button', { name: /PKR\s*1,859\.00/i }));
+    await user.click(screen.getByRole('button', { name: /^1,859\.00$/i }));
     const input = screen.getByRole('textbox', { name: /Bulk discount/i });
     await user.clear(input);
     await user.type(input, '2000');
@@ -885,7 +917,7 @@ describe('BillDetails', () => {
     );
 
     expect(screen.getByText('Bulk discount:')).toBeInTheDocument();
-    expect(screen.getByText(/PKR\s*25\.00/i)).toBeInTheDocument();
+    expect(screen.getByText('25.00')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Open Bulk discount editor/i })).not.toBeInTheDocument();
   });
 });

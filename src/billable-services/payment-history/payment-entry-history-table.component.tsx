@@ -17,7 +17,9 @@ import { navigate, useDebounce, useLayoutType } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { exportToExcel } from '../../helpers/excelExport';
-import { convertToCurrency, getInvoiceUrl } from '../../helpers';
+import { getInvoiceUrl } from '../../helpers';
+import { formatCurrency } from '../../helpers/currency';
+import amountStyles from '../../helpers/table.scss';
 import { type PaymentHistoryEntry } from '../billing-history/history.resource';
 import {
   createHistorySortRow,
@@ -26,6 +28,8 @@ import {
   historyControlSize,
   historyPageSizes,
   historyTableSize,
+  paymentHistoryColumnStyles,
+  paymentHistoryAmountKeys as amountKeys,
 } from '../billing-history/history-table.utils';
 import { matchesPaymentHistoryEntrySearch } from './usePaymentHistoryEntries';
 import styles from './payment-history.scss';
@@ -43,16 +47,6 @@ type PaymentEntryHistoryTableProps = {
   onPageChange: (page: number, pageSize: number) => void;
   onExport: (search: string) => Promise<Array<PaymentHistoryEntry>>;
 };
-
-type TableRowData = Omit<PaymentHistoryEntry, 'paymentAmount'> & {
-  paymentAmount: string;
-};
-
-const columnStyles = {
-  paymentDate: { inlineSize: '12rem', whiteSpace: 'nowrap' },
-  invoiceId: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-  paymentAmount: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-} as const;
 
 export const PaymentEntryHistoryTable = ({
   headers,
@@ -78,16 +72,8 @@ export const PaymentEntryHistoryTable = ({
     [debouncedSearchString, rows],
   );
 
-  const transformedRows = useMemo<Array<TableRowData>>(
-    () =>
-      filteredEntries.map((row) => ({
-        ...row,
-        paymentAmount: convertToCurrency(row.paymentAmount),
-      })),
-    [filteredEntries],
-  );
   const rowLookup = useMemo(() => new Map(filteredEntries.map((row) => [row.id, row])), [filteredEntries]);
-  const sortRow = createHistorySortRow('paymentDate', ['paymentAmount']);
+  const sortRow = createHistorySortRow('paymentDate', amountKeys);
 
   const handleRowClick = (billUuid: string, patientUuid: string) => {
     navigate({ to: getInvoiceUrl(patientUuid, billUuid) });
@@ -145,7 +131,7 @@ export const PaymentEntryHistoryTable = ({
         useZebraStyles
         isSortable
         size={historyTableSize}
-        rows={transformedRows}
+        rows={filteredEntries}
         headers={headers}
         sortRow={sortRow}>
         {({ rows: tableRows, headers, getHeaderProps, getRowProps, getTableProps, getTableContainerProps }) => (
@@ -157,7 +143,8 @@ export const PaymentEntryHistoryTable = ({
                     <TableHeader
                       key={header.key}
                       {...getHeaderProps({ header })}
-                      style={getHistoryColumnStyle(columnStyles, header.key)}>
+                      className={amountKeys.includes(header.key) ? amountStyles.numericCell : undefined}
+                      style={getHistoryColumnStyle(paymentHistoryColumnStyles, header.key)}>
                       {header.header}
                     </TableHeader>
                   ))}
@@ -173,8 +160,17 @@ export const PaymentEntryHistoryTable = ({
                       onClick={() => paymentData && handleRowClick(paymentData.billUuid, paymentData.patientUuid)}
                       className={styles.clickableRow}>
                       {row.cells.map((cell) => (
-                        <TableCell key={cell.id} style={getHistoryColumnStyle(columnStyles, cell.info.header)}>
-                          {cell.value}
+                        <TableCell
+                          key={cell.id}
+                          className={
+                            amountKeys.includes(cell.info.header)
+                              ? `${amountStyles.numericCell} ${amountStyles.sortableNumericCell}`
+                              : undefined
+                          }
+                          style={getHistoryColumnStyle(paymentHistoryColumnStyles, cell.info.header)}>
+                          {amountKeys.includes(cell.info.header)
+                            ? formatCurrency(cell.value, { style: 'decimal', maximumFractionDigits: 2 })
+                            : cell.value}
                         </TableCell>
                       ))}
                     </TableRow>

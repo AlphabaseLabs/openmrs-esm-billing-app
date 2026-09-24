@@ -1,9 +1,15 @@
 import { ErrorState } from '@openmrs/esm-framework';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrencyForLocale } from '../../helpers/currency';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
 import { type PaymentHistoryEntry } from '../billing-history/history.resource';
-import { HistoryTableSkeleton, type HistoryTableHeader } from '../billing-history/history-table.utils';
+import {
+  HistoryTableSkeleton,
+  paymentHistoryAmountKeys,
+  paymentHistoryColumnStyles,
+  type HistoryTableHeader,
+} from '../billing-history/history-table.utils';
 import { PaymentEntryHistoryTable } from './payment-entry-history-table.component';
 import { useBillingHistoryFilterContext } from '../billing-history/useBillingHistoryFilterContext';
 import { usePaymentHistoryEntries } from './usePaymentHistoryEntries';
@@ -20,12 +26,6 @@ interface PaymentEntryHistoryViewerContentProps {
   onExport: (search: string) => Promise<Array<PaymentHistoryEntry>>;
 }
 
-const columnStyles = {
-  paymentDate: { inlineSize: '12rem', whiteSpace: 'nowrap' },
-  invoiceId: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-  paymentAmount: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-} as const;
-
 export const PaymentEntryHistoryViewerContent = ({
   entries,
   totalCount,
@@ -38,6 +38,7 @@ export const PaymentEntryHistoryViewerContent = ({
   onExport,
 }: PaymentEntryHistoryViewerContentProps) => {
   const { t } = useTranslation();
+  const currency = getCurrencyForLocale();
 
   const headers = useMemo<Array<HistoryTableHeader>>(
     () => [
@@ -45,11 +46,11 @@ export const PaymentEntryHistoryViewerContent = ({
       { header: t('invoiceNumberShort', 'Invoice #'), key: 'invoiceId' },
       { header: t('patientName', 'Patient name'), key: 'patientName' },
       { header: t('identifier', 'Identifier'), key: 'identifier' },
-      { header: t('paymentAmount', 'Payment amount'), key: 'paymentAmount' },
-      { header: t('paymentMethod', 'Payment method'), key: 'paymentMethod' },
+      { header: `${t('amount', 'Amount')} (${currency})`, key: 'paymentAmount' },
+      { header: t('mode', 'Mode'), key: 'paymentMethod' },
       { header: t('referenceCodes', 'Reference codes'), key: 'referenceId' },
     ],
-    [t],
+    [currency, t],
   );
 
   if (error) {
@@ -59,7 +60,8 @@ export const PaymentEntryHistoryViewerContent = ({
   if (isLoading) {
     return (
       <HistoryTableSkeleton
-        columnStyles={columnStyles}
+        amountKeys={paymentHistoryAmountKeys}
+        columnStyles={paymentHistoryColumnStyles}
         compactWidthKeys={['paymentDate', 'invoiceId']}
         headers={headers}
         title={t('paymentHistory', 'Payment History')}

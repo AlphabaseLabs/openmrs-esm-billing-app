@@ -14,8 +14,17 @@
   background-color: colors.$white-0;
 }
 
-.dataTableSkeleton {
-  margin-top: layout.$spacing-05;
+.patientBillsTable:global(.cds--data-table) {
+  // Keep identifiers and values intact; Carbon scrolls the table when needed.
+  > thead > tr > th :global(.cds--table-header-label),
+  > tbody > tr[data-parent-row] > td {
+    white-space: nowrap;
+  }
+
+  > thead > tr > th.amountColumn {
+    inline-size: 11rem;
+    min-inline-size: 11rem;
+  }
 }
 
 .expendableRow {

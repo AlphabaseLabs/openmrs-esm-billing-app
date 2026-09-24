@@ -27,8 +27,14 @@
 }
 
 .invoiceContainer {
-  margin: 0 0 layout.$spacing-05;
-  border: 1px solid $ui-03;
+  min-width: 0;
+  outline: 1px solid $ui-03;
+  outline-offset: -1px;
+}
+
+.columnSelectorActions {
+  display: flex;
+  margin-inline-end: var(--invoice-content-inset, #{layout.$spacing-05});
 }
 
 .columnVisibilityMenu {
@@ -63,6 +69,7 @@
 }
 
 .table {
+  --editable-cell-padding-inline: 0px;
   inline-size: 100%;
   table-layout: fixed;
 
@@ -73,118 +80,71 @@
 
   td {
     border-bottom: none !important;
-    padding-inline: layout.$spacing-04;
+    padding-inline: layout.$spacing-03;
+  }
+
+  td.numericCell {
+    --editable-numeric-align: right;
+    --editable-numeric-justify: flex-end;
+    --editable-numeric-affordance-inset: -#{layout.$spacing-06};
+    // Use the same amount edge for editable and read-only financial cells.
+    // The trailing space keeps the floating edit control clear of the value.
+    padding-inline: layout.$spacing-02 calc(#{layout.$spacing-02} + #{layout.$spacing-06});
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.numberCell,
+  td.quantityCell {
+    --editable-numeric-align: center;
+    --editable-numeric-justify: center;
+    --editable-numeric-affordance-inset: -#{layout.$spacing-03};
+    padding-inline: layout.$spacing-03;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th.numberHeaderCell,
+  th.quantityHeaderCell,
+  th.actionHeaderCell {
+    text-align: center;
+  }
+
+  th.numericHeaderCell:not(.quantityHeaderCell) {
+    text-align: right;
+  }
+
+  td.actionCell {
+    // Fit two standard 32px icon buttons within the 75px action column.
+    padding-inline: 5px;
+  }
+
+  th.actionHeaderCell {
+    padding-inline: 5px;
   }
 
   &:global(.cds--data-table--sort) th > :global(.cds--table-header-label) {
-    padding-inline: layout.$spacing-04;
+    padding-inline: layout.$spacing-03;
+    text-align: inherit;
+  }
+
+  &:global(.cds--data-table--sort) th.numericHeaderCell:not(.quantityHeaderCell) > :global(.cds--table-header-label) {
+    padding-inline: layout.$spacing-02 calc(#{layout.$spacing-02} + #{layout.$spacing-06});
   }
 
   :global(.cds--table-sort) {
-    padding-inline-start: layout.$spacing-04;
+    padding-inline-start: layout.$spacing-03;
+  }
+
+  // Match the first column's outer inset to the Line items heading.
+  td:first-child,
+  &:global(.cds--data-table--sort) th:first-child > :global(.cds--table-header-label) {
+    padding-inline-start: var(--invoice-content-inset, #{layout.$spacing-05});
   }
 }
 
-.editableTextCellRoot,
-.editableTextCellContainer {
-  align-items: center;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2rem;
-  gap: layout.$spacing-02;
-  min-height: 2.5rem;
-}
-
-.editableTextCellContent {
-  min-width: 0;
-}
-
-.editableTextCellEditor {
-  min-width: 0;
-}
-
-.editableTextCellEditorColumn {
-  min-width: 0;
-  width: 100%;
-}
-
-.editableTextCellAffordanceLane {
-  align-items: center;
-  display: flex;
-  justify-content: flex-end;
-  width: 2rem;
-  min-width: 2rem;
-  max-width: 2rem;
-}
-
-.editableTextCellAffordanceButton,
-.editableTextCellAffordancePlaceholder {
-  justify-content: center;
-  max-width: 2rem;
-  min-width: 2rem;
-  padding: 0;
-  width: 2rem;
-}
-
-.editableTextCellAffordancePlaceholder {
-  border: 0;
-  visibility: hidden;
-}
-
-.editableTextCellAffordanceButton {
-  opacity: 0;
-  transition: opacity 120ms;
-}
-
-.editableTextCellRoot:hover .editableTextCellAffordanceButton,
-.editableTextCellContent:focus-within + .editableTextCellAffordanceLane .editableTextCellAffordanceButton,
-.editableTextCellAffordanceButton:focus-visible {
-  opacity: 1;
-}
-
-.editableTextValueButton {
-  justify-content: flex-start;
-  min-width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  width: 100%;
-}
-
-.editableLineItemEditorActions {
-  display: flex;
-  gap: layout.$spacing-02;
-}
-
-.priceOptionButtonRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: layout.$spacing-02;
-  margin-top: layout.$spacing-02;
-}
-
-.priceOptionButton {
-  min-width: 0;
-}
-
-.priceOptionPopover {
-  position: absolute;
-  z-index: 2;
-  padding: layout.$spacing-02;
-  border: 1px solid $ui-03;
-  background-color: colors.$white;
-}
-
-.inlineErrorMessage {
-  color: colors.$red-60;
-  margin-top: layout.$spacing-02;
-}
-
-.numericCell {
-  text-align: right;
-  white-space: nowrap;
-}
-
+.numericCell,
 .numericHeaderCell {
-  text-align: right;
   white-space: nowrap;
 }
 
@@ -193,34 +153,11 @@
   min-width: 0;
 }
 
-.tableDescription {
+.addItemActions {
   display: flex;
-  align-items: flex-start;
-  margin-top: layout.$spacing-02;
-  column-gap: layout.$spacing-01;
-
-  ::after {
-    content: '';
-    display: block;
-    width: 2rem;
-    padding-top: 0.188rem;
-    border-bottom: 0.375rem solid var(--brand-03);
-  }
-
-  & > span {
-    @include type.type-style('body-01');
-  }
-}
-
-.addItemRow {
-  background-color: colors.$white;
-}
-
-.addItemCell {
-  border-bottom: 1px solid $ui-03 !important;
+  justify-content: flex-end;
   border-top: 1px solid $ui-03;
-  height: 2rem;
-  padding: 0 layout.$spacing-05;
+  padding: layout.$spacing-03 var(--invoice-content-inset, #{layout.$spacing-05});
 }
 
 .deleteBlockerModalPrimaryButton {
@@ -235,17 +172,11 @@
 
 .actionButtons {
   display: flex;
-  margin:  0;
+  justify-content: center;
+  margin: 0;
   padding: 0;
 
   :global(svg) {
     pointer-events: none;
   }
-}
-
-.tableHeading {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  gap: layout.$spacing-05;
 }

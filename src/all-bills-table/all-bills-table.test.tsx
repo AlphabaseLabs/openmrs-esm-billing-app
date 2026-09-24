@@ -178,9 +178,12 @@ describe('AllBillsTable', () => {
       'Name',
       'Status',
       'Billed items',
-      'Bill total',
+      'Bill total (PKR)',
     ]);
     expect(screen.queryByText('Patient identifier')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Bill total (PKR)' })).toHaveClass('numericCell');
+    screen.getAllByRole('cell', { name: '250.00' }).forEach((cell) => expect(cell).toHaveClass('numericCell'));
+    expect(screen.queryByText(/PKR\s*250/)).not.toBeInTheDocument();
   });
 
   test('defaults to all bills and shows all returned statuses', () => {

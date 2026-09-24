@@ -40,7 +40,10 @@ const LineItemColumnSelector: React.FC<LineItemColumnSelectorProps> = ({
         <IconButton
           aria-controls={menuId}
           aria-expanded={isOpen}
-          align="top-end"
+          autoAlign
+          aria-labelledby=""
+          aria-label={t('chooseColumnsToDisplay', 'Choose columns to display')}
+          align="top-start"
           label={t('chooseColumnsToDisplay', 'Choose columns to display')}
           kind="ghost"
           onClick={toggleMenu}

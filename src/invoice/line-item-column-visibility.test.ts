@@ -132,26 +132,32 @@ describe('line-item-column-visibility', () => {
   });
 
   it('rounds fractional minimum widths to whole pixels when available width is narrower', () => {
-    const layoutColumns = getLineItemTableLayoutColumns(getLineItemColumnDefinitions(), true);
+    const layoutColumns = getLineItemTableLayoutColumns(getLineItemColumnDefinitions(), true).map((column) =>
+      column.key === 'quantity' ? { ...column, minWidth: 80.8 } : column,
+    );
     const layout = calculateLineItemTableColumnLayout(layoutColumns, 100);
 
-    expect(layout.totalMinWidth).toBeCloseTo(1512.8);
-    expect(layout.layoutWidth).toBe(1513);
-    expect(layout.columns.find((column) => column.key === 'quantity')?.width).toBe(101);
+    expect(layout.totalMinWidth).toBeCloseTo(1283.8);
+    expect(layout.layoutWidth).toBe(1284);
+    expect(layout.columns.find((column) => column.key === 'quantity')?.width).toBe(81);
     expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(layout.layoutWidth);
-    expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(144);
+    expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(75);
   });
 
   it('distributes surplus only to flexible columns and keeps fixed columns stable', () => {
-    const layoutColumns = getLineItemTableLayoutColumns(
-      getLineItemColumnDefinitions().filter((column) => !['status', 'discount', 'tax'].includes(column.key)),
-      true,
-    );
+    const layoutColumns = getLineItemTableLayoutColumns(getLineItemColumnDefinitions(), true);
     const layout = calculateLineItemTableColumnLayout(layoutColumns, 1600);
 
     expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(1600);
     expect(layout.columns.find((column) => column.key === '__selection__')?.width).toBe(48);
-    expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(144);
+    expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(75);
+    for (const key of ['price', 'discount', 'total']) {
+      expect(layout.columns.find((column) => column.key === key)?.width).toBe(100);
+    }
+    expect(layout.columns.find((column) => column.key === 'status')?.width).toBe(100);
+    expect(layout.columns.find((column) => column.key === 'date')?.width).toBe(120);
+    expect(layout.columns.find((column) => column.key === 'quantity')?.width).toBe(80);
+    expect(layout.columns.find((column) => column.key === 'tax')?.width).toBe(80);
     expect(layout.columns.find((column) => column.key === 'billItem')?.width).toBeGreaterThan(224);
   });
 });

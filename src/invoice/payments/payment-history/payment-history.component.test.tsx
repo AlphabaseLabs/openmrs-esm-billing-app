@@ -75,6 +75,13 @@ describe('PaymentHistory', () => {
     jest.clearAllMocks();
   });
 
+  it('places currency-free amounts and their heading in matching compact blocks', () => {
+    render(<PaymentHistory bill={{ ...bill, payments: [{ ...payment, amountTendered: 29999.5 } as any] }} />);
+
+    expect(screen.getByText('29,999.50')).toHaveClass('amountContent');
+    expect(screen.getByText('Amount tendered')).toHaveClass('amountContent');
+  });
+
   it('updates an active payment date and refreshes the bill', async () => {
     const user = userEvent.setup();
     const onRefreshBill = jest.fn();

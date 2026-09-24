@@ -1,10 +1,10 @@
 import { launchWorkspace2, navigate, openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
 import { addPaymentToBill, usePaymentModes } from '../../billing.resource';
-import { convertToCurrency } from '../../helpers';
+import { formatCurrency, getCurrencyForLocale } from '../../helpers/currency';
 import Payments from './payments.component';
 import { type LineItem, type PaymentMethod, PaymentStatus } from '../../types';
 
@@ -101,9 +101,11 @@ const paymentBill = {
 
 const normalizeWhitespace = (value: string) => value.replace(/\s/g, ' ');
 
-const expectCurrencyValue = (amount: number) => {
-  const expectedValue = normalizeWhitespace(convertToCurrency(amount));
-  expect(screen.getByText((content) => normalizeWhitespace(content) === expectedValue)).toBeInTheDocument();
+const expectSummaryAmount = (amount: number) => {
+  const expectedValue = normalizeWhitespace(formatCurrency(amount, { style: 'decimal', maximumFractionDigits: 2 }));
+  const amountElement = screen.getByText((content) => normalizeWhitespace(content) === expectedValue);
+  expect(amountElement).toBeInTheDocument();
+  expect(within(amountElement.parentElement).getByText(getCurrencyForLocale())).toBeInTheDocument();
 };
 
 describe('Payment', () => {
@@ -308,16 +310,17 @@ describe('Payment', () => {
       />,
     );
 
+    expect(screen.queryByText(`Amounts in ${getCurrencyForLocale()}`)).not.toBeInTheDocument();
     expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
-    expectCurrencyValue(320);
+    expectSummaryAmount(320);
     expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
-    expectCurrencyValue(20);
+    expectSummaryAmount(20);
     expect(screen.getByText(/Tax:/i)).toBeInTheDocument();
-    expectCurrencyValue(10);
+    expectSummaryAmount(10);
     expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
-    expectCurrencyValue(100);
+    expectSummaryAmount(100);
     expect(screen.getByText(/Amount due:/i)).toBeInTheDocument();
-    expectCurrencyValue(150);
+    expectSummaryAmount(150);
   });
 
   test('renders payment footer content after the payment form and summary content in the totals column', () => {
@@ -375,15 +378,16 @@ describe('Payment', () => {
       />,
     );
 
+    expect(screen.queryByText(`Amounts in ${getCurrencyForLocale()}`)).not.toBeInTheDocument();
     expect(screen.getByText(/Total amount:/i)).toBeInTheDocument();
-    expectCurrencyValue(320);
+    expectSummaryAmount(320);
     expect(screen.getByText(/^Discounts:\s*$/)).toBeInTheDocument();
-    expectCurrencyValue(20);
+    expectSummaryAmount(20);
     expect(screen.queryByText(/Tax:/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Total tendered:/i)).toBeInTheDocument();
-    expectCurrencyValue(100);
+    expectSummaryAmount(100);
     expect(screen.getByText(/Amount due:/i)).toBeInTheDocument();
-    expectCurrencyValue(150);
+    expectSummaryAmount(150);
   });
 
   test('should validate payment amount against amount due', async () => {
@@ -422,7 +426,7 @@ describe('Payment', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Process Payment/i })).not.toBeDisabled());
   });
 
-  test('should launch the AI payments workspace from the billing payment header', async () => {
+  test('should launch the AI payments workspace from the Payment receipt button', async () => {
     const user = userEvent.setup();
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
@@ -433,7 +437,7 @@ describe('Payment', () => {
 
     render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
-    await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
+    await user.click(screen.getByRole('button', { name: /Payment receipt/i }));
 
     expect(mockLaunchWorkspace2).toHaveBeenCalledTimes(1);
     expect(mockLaunchWorkspace2).toHaveBeenCalledWith(
@@ -448,7 +452,12 @@ describe('Payment', () => {
     );
   });
 
-  test('should hide the AI payments workspace action for paid bills', () => {
+  test.each([
+    { closed: false, status: PaymentStatus.PAID },
+    { closed: false, status: PaymentStatus.PENDING },
+    { closed: true, status: PaymentStatus.PAID },
+    { closed: true, status: PaymentStatus.PENDING },
+  ])('Payment receipt visibility follows closed=$closed for $status bills', ({ closed, status }) => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
       isLoading: false,
@@ -461,14 +470,19 @@ describe('Payment', () => {
         bill={
           {
             ...paymentBill,
-            status: PaymentStatus.PAID,
+            status,
+            closed,
           } as any
         }
         selectedLineItems={updatedMockLineItems}
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /Open AI payments workspace/i })).not.toBeInTheDocument();
+    if (closed) {
+      expect(screen.queryByRole('button', { name: /Payment receipt/i })).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByRole('button', { name: /Payment receipt/i })).toBeEnabled();
+    }
   });
 
   test('should process AI-linked payments and update the attachment after save', async () => {
@@ -484,7 +498,7 @@ describe('Payment', () => {
 
     render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
 
-    await user.click(screen.getByRole('button', { name: /Open AI payments workspace/i }));
+    await user.click(screen.getByRole('button', { name: /Payment receipt/i }));
 
     const workspaceProps = mockLaunchWorkspace2.mock.calls[0]?.[1] as {
       onAddPaymentDraft?: (draft: any) => Promise<void>;

@@ -7,12 +7,13 @@ import {
   TableHeader,
   TableBody,
   TableCell,
-  Button,
+  IconButton,
   Tooltip,
 } from '@carbon/react';
 import { type MappedBill, type Payment } from '../../../types';
 import { formatDate, getCoreTranslation, showSnackbar, UserHasAccess } from '@openmrs/esm-framework';
-import { convertToCurrency, formatBillDateTime } from '../../../helpers';
+import { formatBillDateTime } from '../../../helpers';
+import { formatCurrency } from '../../../helpers/currency';
 import { useTranslation } from 'react-i18next';
 import { TrashCan } from '@carbon/react/icons';
 import styles from './payment-history.scss';
@@ -101,7 +102,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
 
     if (!billIsOpen || payment.voided) {
       return tooltip ? (
-        <Tooltip label={tooltip} enterDelayMs={0}>
+        <Tooltip autoAlign align="top-start" label={tooltip} enterDelayMs={0}>
           <span tabIndex={0}>{paymentDate}</span>
         </Tooltip>
       ) : (
@@ -273,8 +274,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
     .map((payment) => ({
       id: `${payment.uuid}`,
       dateCreated: renderPaymentDate(payment),
-      amountTendered: convertToCurrency(payment.amountTendered),
-      amount: convertToCurrency(payment.amount),
+      amountTendered: formatCurrency(payment.amountTendered, { style: 'decimal', maximumFractionDigits: 2 }),
       paymentMethod: payment.instanceType.name,
       ...(hasReferenceCodes && {
         referenceCodes: renderPaymentReferences(payment),
@@ -283,20 +283,24 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
         actions: (
           <span className={styles.actionButtons}>
             <UserHasAccess privilege="o3: Delete Bill">
-              <Button
+              <IconButton
                 size="sm"
-                hasIconOnly
                 data-testid={`delete-payment-button-${payment.uuid}`}
                 disabled={payment.voided}
-                renderIcon={(props) => <TrashCan size={16} {...props} />}
-                iconDescription={t('deletePayment', 'Delete payment')}
-                kind="danger--ghost"
+                label={t('deletePayment', 'Delete payment')}
+                aria-label={t('deletePayment', 'Delete payment')}
+                aria-labelledby=""
+                autoAlign
+                align="top-start"
+                kind="ghost"
+                className="cds--btn--danger--ghost"
                 onClick={() => {
                   if (!payment.voided) {
                     handleDeletePayment(payment);
                   }
-                }}
-              />
+                }}>
+                <TrashCan size={16} />
+              </IconButton>
             </UserHasAccess>
           </span>
         ),
@@ -310,11 +314,17 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
   return (
     <DataTable size="sm" rows={rows} headers={headers}>
       {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-        <Table {...getTableProps()}>
+        <Table {...getTableProps()} className={styles.table}>
           <TableHead>
             <TableRow>
               {headers.map((header) => (
-                <TableHeader {...getHeaderProps({ header })}>{header.header}</TableHeader>
+                <TableHeader {...getHeaderProps({ header })}>
+                  {header.key === 'amountTendered' ? (
+                    <span className={styles.amountContent}>{header.header}</span>
+                  ) : (
+                    header.header
+                  )}
+                </TableHeader>
               ))}
             </TableRow>
           </TableHead>
@@ -340,6 +350,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
                     <TableCell key={cell.id}>
                       {index === 0 && hoveredVoidedPaymentUuid === row.id ? (
                         <Tooltip
+                          autoAlign
                           align="top-start"
                           className={styles.voidedPaymentTooltip}
                           defaultOpen
@@ -352,7 +363,11 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
                           />
                         </Tooltip>
                       ) : null}
-                      {cell.value}
+                      {cell.info.header === 'amountTendered' ? (
+                        <span className={styles.amountContent}>{cell.value}</span>
+                      ) : (
+                        cell.value
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

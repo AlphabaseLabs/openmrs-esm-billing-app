@@ -383,6 +383,8 @@ describe('BillingHistoryFilters', () => {
   it('defaults the bill status filter to all', () => {
     render(<BillingHistoryFilters />);
 
-    expect(screen.getByLabelText('Bill Status')).toHaveValue('');
+    expect(screen.getByLabelText('Bill status')).toHaveValue('');
+    expect(screen.getByLabelText('Payment mode')).toBeInTheDocument();
+    expect(screen.queryByText('Payment Type')).not.toBeInTheDocument();
   });
 });

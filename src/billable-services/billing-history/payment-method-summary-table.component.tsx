@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   DataTable,
-  DataTableSkeleton,
+  SkeletonText,
   Table,
   TableBody,
   TableCell,
@@ -12,10 +12,12 @@ import {
 } from '@carbon/react';
 import { useLayoutType } from '@openmrs/esm-framework';
 import { useTranslation } from 'react-i18next';
-import { convertToCurrency } from '../../helpers';
+import { formatCurrency, getCurrencyForLocale } from '../../helpers/currency';
+import amountStyles from '../../helpers/table.scss';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
 import { type PaymentMethodTotal } from './history.resource';
 import { getHistoryResponsiveSize } from './history-table.utils';
+import styles from './billing-history.scss';
 
 interface PaymentMethodSummaryTableProps {
   isLoading: boolean;
@@ -29,6 +31,7 @@ export const PaymentMethodSummaryTable = ({
   tableLabel,
 }: PaymentMethodSummaryTableProps) => {
   const { t } = useTranslation();
+  const currency = getCurrencyForLocale();
   const responsiveSize = getHistoryResponsiveSize(useLayoutType());
   const resolvedTableLabel = tableLabel ?? t('paymentModeSummary', 'Payment Mode Summary');
 
@@ -37,7 +40,7 @@ export const PaymentMethodSummaryTable = ({
       paymentMethodTotals.map(({ paymentMethod, total }, index) => ({
         id: `${paymentMethod}-${index}`,
         paymentMode: paymentMethod,
-        total: convertToCurrency(total),
+        total: formatCurrency(total, { style: 'decimal', maximumFractionDigits: 2 }),
       })),
     [paymentMethodTotals],
   );
@@ -50,17 +53,13 @@ export const PaymentMethodSummaryTable = ({
       },
       {
         key: 'total',
-        header: t('total', 'Total'),
+        header: `${t('total', 'Total')} (${currency})`,
       },
     ],
-    [t],
+    [currency, t],
   );
 
-  if (isLoading) {
-    return <DataTableSkeleton headers={headers} aria-label={resolvedTableLabel} />;
-  }
-
-  if (rows.length === 0) {
+  if (!isLoading && rows.length === 0) {
     return (
       <EmptyPatientBill
         title={t('noPaymentModes', 'No payment modes found')}
@@ -70,7 +69,7 @@ export const PaymentMethodSummaryTable = ({
   }
 
   return (
-    <DataTable useZebraStyles size={responsiveSize} rows={rows} headers={headers}>
+    <DataTable useZebraStyles size={responsiveSize} rows={isLoading ? [] : rows} headers={headers}>
       {({
         rows: tableRows,
         headers: tableHeaders,
@@ -80,21 +79,56 @@ export const PaymentMethodSummaryTable = ({
         getTableContainerProps,
       }) => (
         <TableContainer {...getTableContainerProps()}>
-          <Table {...getTableProps()} size={responsiveSize} aria-label={resolvedTableLabel}>
+          <Table
+            {...getTableProps()}
+            className={styles.paymentMethodSummary}
+            size={responsiveSize}
+            aria-busy={isLoading}
+            aria-label={resolvedTableLabel}>
             <TableHead>
               <TableRow>
                 {tableHeaders.map((header) => (
-                  <TableHeader key={header.key} {...getHeaderProps({ header })}>
-                    {header.header}
+                  <TableHeader
+                    key={header.key}
+                    {...getHeaderProps({ header })}
+                    className={header.key === 'total' ? amountStyles.numericCell : undefined}>
+                    {header.key === 'total' ? (
+                      <span className={styles.summaryAmount}>{header.header}</span>
+                    ) : (
+                      header.header
+                    )}
                   </TableHeader>
                 ))}
               </TableRow>
             </TableHead>
             <TableBody>
+              {isLoading
+                ? Array.from({ length: 5 }, (_, rowIndex) => (
+                    <TableRow key={`skeleton-${rowIndex}`}>
+                      {tableHeaders.map((header) => (
+                        <TableCell
+                          key={header.key}
+                          className={header.key === 'total' ? amountStyles.numericCell : undefined}>
+                          <div className={header.key === 'total' ? styles.summaryAmount : undefined}>
+                            <SkeletonText width="70%" />
+                          </div>
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : null}
               {tableRows.map((row) => (
                 <TableRow key={row.id} {...getRowProps({ row })}>
                   {row.cells.map((cell) => (
-                    <TableCell key={cell.id}>{cell.value}</TableCell>
+                    <TableCell
+                      key={cell.id}
+                      className={cell.info.header === 'total' ? amountStyles.numericCell : undefined}>
+                      {cell.info.header === 'total' ? (
+                        <span className={styles.summaryAmount}>{cell.value}</span>
+                      ) : (
+                        cell.value
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))}

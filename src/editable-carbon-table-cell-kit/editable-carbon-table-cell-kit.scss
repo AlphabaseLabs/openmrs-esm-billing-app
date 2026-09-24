@@ -27,23 +27,23 @@
 }
 
 .quantityEditableCell {
-  justify-content: flex-start;
-  text-align: left;
+  justify-content: var(--editable-numeric-justify, flex-start);
+  text-align: var(--editable-numeric-align, left);
 
   .numericContent,
   .numericContent.cellSurfaceButton {
-    justify-content: flex-start;
-    text-align: left;
+    justify-content: var(--editable-numeric-justify, flex-start);
+    text-align: var(--editable-numeric-align, left);
   }
 
   .inlineNumericSizingValue {
-    text-align: left;
+    text-align: var(--editable-numeric-align, left);
     width: 100%;
   }
 
   .inlineNumericEditor {
     :global(.cds--text-input) {
-      text-align: left;
+      text-align: var(--editable-numeric-align, left);
     }
   }
 }
@@ -69,7 +69,7 @@
 }
 
 .numericAffordance {
-  inset-inline-end: 0;
+  inset-inline-end: var(--editable-numeric-affordance-inset, 0);
 }
 
 .textAffordance {
@@ -86,9 +86,9 @@
 }
 
 .numericContent {
-  justify-content: flex-start;
+  justify-content: var(--editable-numeric-justify, flex-start);
   min-width: 0;
-  text-align: left;
+  text-align: var(--editable-numeric-align, left);
 }
 
 .textContent {
@@ -106,7 +106,7 @@
   display: flex;
   min-height: layout.$spacing-07;
   min-width: 0;
-  padding: 0 layout.$spacing-01;
+  padding: 0 var(--editable-cell-padding-inline, #{layout.$spacing-01});
   max-width: 100%;
   width: 100%;
 
@@ -117,8 +117,8 @@
 }
 
 .numericContent.cellSurfaceButton {
-  justify-content: flex-start;
-  text-align: left;
+  justify-content: var(--editable-numeric-justify, flex-start);
+  text-align: var(--editable-numeric-align, left);
 }
 
 .textContent.cellSurfaceButton {
@@ -135,7 +135,7 @@
   color: inherit;
   min-height: layout.$spacing-07;
   outline: none;
-  padding: 0 layout.$spacing-01;
+  padding: 0 var(--editable-cell-padding-inline, #{layout.$spacing-01});
 
   &:focus {
     outline: none;
@@ -156,20 +156,6 @@
   box-shadow: none;
   font: inherit;
   line-height: inherit;
-}
-
-.cellValueButton {
-  all: unset;
-  border-radius: 0.125rem;
-  color: inherit;
-  cursor: pointer;
-  min-width: 0;
-  padding: 0 layout.$spacing-01;
-
-  &:focus {
-    outline: 2px solid colors.$blue-60;
-    outline-offset: 2px;
-  }
 }
 
 .staticValue {
@@ -258,12 +244,6 @@
   box-shadow: none;
 }
 
-.discountPercentAffordance {
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
 .billItemEditableCell .optionsButton {
   color: $text-02;
 
@@ -326,8 +306,8 @@
     min-inline-size: 0;
     min-block-size: layout.$spacing-07;
     outline: none;
-    padding: 0 layout.$spacing-01;
-    text-align: left;
+    padding: 0 var(--editable-cell-padding-inline, #{layout.$spacing-01});
+    text-align: var(--editable-numeric-align, left);
   }
 
   :global(.cds--text-input:focus),
@@ -356,12 +336,12 @@
 }
 
 .inlineNumericInput {
-  text-align: left;
+  text-align: var(--editable-numeric-align, left);
 }
 
 .inlineNumericSizingValue {
   box-sizing: border-box;
-  padding: 0 layout.$spacing-01;
+  padding: 0 var(--editable-cell-padding-inline, #{layout.$spacing-01});
   pointer-events: none;
   visibility: hidden;
 }
@@ -524,10 +504,6 @@
   color: var(--cds-text-primary, #{$text-02});
 }
 
-.optionAmount {
-  justify-self: end;
-}
-
 .priceOptionButton {
   box-sizing: border-box;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -543,12 +519,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.priceOptionAmount {
-  justify-self: end;
-  min-width: 4rem;
-  text-align: right;
 }
 
 .priceOptionButton.selectedOption,
@@ -575,44 +545,6 @@
 
 .billItemOption .optionCheck {
   color: var(--cds-icon-primary, #{$text-02});
-}
-
-.formGrid {
-  display: grid;
-  gap: layout.$spacing-03;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: layout.$spacing-04;
-
-  :global(.cds--form-item:nth-child(n + 3)) {
-    grid-column: 1 / -1;
-  }
-}
-
-.formActions {
-  display: flex;
-  gap: layout.$spacing-03;
-  justify-content: flex-end;
-  margin-top: layout.$spacing-03;
-}
-
-.discountPopoverHeader {
-  @include type.type-style('label-01');
-  align-items: center;
-  color: $text-02;
-  display: flex;
-  justify-content: space-between;
-  padding: layout.$spacing-04 layout.$spacing-04 0;
-}
-
-.inlineResetButton {
-  all: unset;
-  color: colors.$blue-60;
-  cursor: pointer;
-
-  &:focus {
-    outline: 2px solid colors.$blue-60;
-    outline-offset: 2px;
-  }
 }
 
 .errorText {
@@ -673,28 +605,15 @@
 }
 
 .discountValueGroup,
-.discountFieldGroup,
-.discountReadout {
+.discountFieldGroup {
   display: grid;
   gap: layout.$spacing-02;
 }
 
 .discountGroupLabel,
-.discountFieldLabel,
-.discountReadoutLabel,
-.discountTotalLine {
+.discountFieldLabel {
   @include type.type-style('label-01');
   color: $text-02;
-}
-
-.discountTotalLine {
-  color: $text-03;
-}
-
-.discountValueFields {
-  display: grid;
-  gap: layout.$spacing-02;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .discountInlineField,
@@ -742,12 +661,6 @@
 
 .discountInlineUnitDivider {
   color: $text-03;
-}
-
-.discountReadoutValue {
-  @include type.type-style('heading-compact-02');
-  color: $text-02;
-  font-weight: 600;
 }
 
 .discountSponsorCombobox {

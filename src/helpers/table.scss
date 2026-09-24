@@ -1,0 +1,31 @@
+@use '@carbon/layout';
+
+:global(.cds--data-table) {
+  th.numericCell,
+  td.numericCell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th.numericCell :global(.cds--table-header-label) {
+    flex: 1;
+    min-inline-size: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  th.numericCell :global(.cds--table-sort__flex) > svg {
+    flex-shrink: 0;
+  }
+
+  th.sortableNumericCell,
+  td.sortableNumericCell {
+    // Match the header's trailing sort icon (20px) and its two 8px margins.
+    padding-inline-end: calc(1.25rem + 2 * #{layout.$spacing-03});
+  }
+
+  td.numericCell :global(.cds--skeleton__text) {
+    margin-inline-start: auto;
+  }
+}

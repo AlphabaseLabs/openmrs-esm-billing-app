@@ -1,18 +1,11 @@
 import React from 'react';
-import { ExtensionSlot, UserHasAccess, WorkspaceContainer } from '@openmrs/esm-framework';
+import { ExtensionSlot, WorkspaceContainer } from '@openmrs/esm-framework';
 import PatientBills from './patient-bills.component';
 import styles from './bill-manager.scss';
-import { DataTableSkeleton } from '@carbon/react';
 import { EmptyState } from '@openmrs/esm-patient-common-lib';
 import { useTranslation } from 'react-i18next';
 import BillingHeader from '../../billing-header/billing-header.component';
 import { usePatientBills } from '../../prompt-payment/prompt-payment.resource';
-
-const headers = [
-  { header: 'Date', key: 'date' },
-  { header: 'Billable service', key: 'billableService' },
-  { header: 'Total amount', key: 'totalAmount' },
-];
 
 interface BillManagerProps {
   showHeader?: boolean;
@@ -44,19 +37,8 @@ const BillManager: React.FC<BillManagerProps> = ({ showHeader = true }) => {
               headerTitle="Not Searched"
             />
           </div>
-        ) : isLoading ? (
-          <DataTableSkeleton
-            headers={headers}
-            aria-label="patient bills table"
-            showToolbar={false}
-            showHeader={false}
-            rowCount={3}
-            zebra
-            columnCount={3}
-            className={styles.dataTableSkeleton}
-          />
         ) : (
-          bills && <PatientBills bills={filteredBills} />
+          <PatientBills bills={filteredBills} isLoading={isLoading} />
         )}
       </div>
       <WorkspaceContainer overlay contextKey="bill-manager" />

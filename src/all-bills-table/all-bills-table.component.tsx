@@ -26,7 +26,9 @@ import { useTranslation } from 'react-i18next';
 import { getActiveBillingRecords } from '../billing-voided-utils';
 import { useBillsPaginated } from '../billing.resource';
 import SelectedDateContext from '../hooks/selectedDateContext';
-import { convertToCurrency, getInvoiceUrl } from '../helpers';
+import { getInvoiceUrl } from '../helpers';
+import { formatCurrency, getCurrencyForLocale } from '../helpers/currency';
+import amountStyles from '../helpers/table.scss';
 import { toPatientSearchOption, type PatientSearchResult, usePatientSearchResults } from '../hooks/use-patient-search';
 import type { MappedBill } from '../types';
 import styles from './all-bills-table.scss';
@@ -241,15 +243,16 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
   const showInitialSkeleton = billTableData.isLoading && !displayedTable.hasResolvedData;
   const shouldRenderTableShell = displayedTable.visibleBills.length > 0 || hasActiveTableFilters;
 
+  const currency = getCurrencyForLocale();
   const headerData = useMemo(
     () => [
       { header: t('billDate', 'Bill date'), key: 'billDate' },
       { header: t('name', 'Name'), key: 'patientName' },
       { header: t('status', 'Status'), key: 'status' },
       { header: t('billedItems', 'Billed items'), key: 'billedItems' },
-      { header: t('billTotal', 'Bill total'), key: 'billTotal' },
+      { header: `${t('billTotal', 'Bill total')} (${currency})`, key: 'billTotal' },
     ],
-    [t],
+    [currency, t],
   );
 
   const rowData = useMemo<Array<TableRowData>>(
@@ -262,7 +265,7 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
         billDate: bill.dateCreated,
         status: bill.status,
         billedItems: getBilledItems(bill),
-        billTotal: convertToCurrency(Number(bill.totalAmount ?? 0)),
+        billTotal: formatCurrency(Number(bill.totalAmount ?? 0), { style: 'decimal', maximumFractionDigits: 2 }),
       })),
     [displayedTable.visibleBills],
   );
@@ -375,7 +378,11 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
                   <TableHead>
                     <TableRow>
                       {headers.map((header) => (
-                        <TableHeader key={header.key}>{header.header}</TableHeader>
+                        <TableHeader
+                          key={header.key}
+                          className={header.key === 'billTotal' ? amountStyles.numericCell : undefined}>
+                          {header.header}
+                        </TableHeader>
                       ))}
                     </TableRow>
                   </TableHead>
@@ -392,7 +399,13 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
                           {row.cells.map((cell) => (
                             <TableCell
                               key={cell.id}
-                              className={cell.info.header === 'billDate' ? styles.billDateCell : undefined}>
+                              className={
+                                cell.info.header === 'billTotal'
+                                  ? amountStyles.numericCell
+                                  : cell.info.header === 'billDate'
+                                    ? styles.billDateCell
+                                    : undefined
+                              }>
                               {cell.value}
                             </TableCell>
                           ))}

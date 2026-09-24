@@ -1,10 +1,16 @@
 import { ErrorState } from '@openmrs/esm-framework';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrencyForLocale } from '../../helpers/currency';
 import EmptyPatientBill from '../../past-patient-bills/patient-bills-dashboard/empty-patient-bill.component';
 import { type BillingHistoryRow } from './history.resource';
 import { BillHistoryTable } from './bill-history-table.component';
-import { HistoryTableSkeleton, type HistoryTableHeader } from './history-table.utils';
+import {
+  billingHistoryAmountKeys,
+  billingHistoryColumnStyles,
+  HistoryTableSkeleton,
+  type HistoryTableHeader,
+} from './history-table.utils';
 import { useBillingHistoryFilterContext } from './useBillingHistoryFilterContext';
 import { useBillingHistoryBills } from './useBillingHistoryBills';
 
@@ -20,12 +26,6 @@ interface BillHistoryViewerContentProps {
   onExport: (search: string) => Promise<Array<BillingHistoryRow>>;
 }
 
-const columnStyles = {
-  dateCreated: { inlineSize: '12rem', whiteSpace: 'nowrap' },
-  receiptNumber: { inlineSize: '9rem', whiteSpace: 'nowrap' },
-  billedItems: { inlineSize: '16rem' },
-} as const;
-
 export const BillHistoryViewerContent = ({
   rows,
   totalCount,
@@ -38,6 +38,7 @@ export const BillHistoryViewerContent = ({
   onExport,
 }: BillHistoryViewerContentProps) => {
   const { t } = useTranslation();
+  const currency = getCurrencyForLocale();
 
   const headers = useMemo<Array<HistoryTableHeader>>(
     () => [
@@ -45,15 +46,15 @@ export const BillHistoryViewerContent = ({
       { header: t('invoiceNumberShort', 'Invoice #'), key: 'receiptNumber' },
       { header: t('patientName', 'Patient name'), key: 'patientName' },
       { header: t('identifier', 'Identifier'), key: 'identifier' },
-      { header: t('totalAmount', 'Total amount'), key: 'totalAmount' },
-      { header: t('billingHistoryTotalDiscount', 'Total discount'), key: 'totalDiscount' },
-      { header: t('totalPaid', 'Total paid'), key: 'totalPaid' },
-      { header: t('billingHistoryAmountDue', 'Amount due'), key: 'amountDue' },
+      { header: `${t('totalAmount', 'Total amount')} (${currency})`, key: 'totalAmount' },
+      { header: `${t('billingHistoryTotalDiscount', 'Total discount')} (${currency})`, key: 'totalDiscount' },
+      { header: `${t('totalPaid', 'Total paid')} (${currency})`, key: 'totalPaid' },
+      { header: `${t('billingHistoryAmountDue', 'Amount due')} (${currency})`, key: 'amountDue' },
       { header: t('billingHistoryStatus', 'Status'), key: 'status' },
       { header: t('billingHistoryLineItems', 'Billed items'), key: 'billedItems' },
       { header: t('referenceCodes', 'Reference codes'), key: 'referenceCodes' },
     ],
-    [t],
+    [currency, t],
   );
 
   if (error) {
@@ -63,7 +64,8 @@ export const BillHistoryViewerContent = ({
   if (isLoading) {
     return (
       <HistoryTableSkeleton
-        columnStyles={columnStyles}
+        amountKeys={billingHistoryAmountKeys}
+        columnStyles={billingHistoryColumnStyles}
         compactWidthKeys={['dateCreated', 'receiptNumber']}
         headers={headers}
         title={t('billingHistory', 'Billing History')}

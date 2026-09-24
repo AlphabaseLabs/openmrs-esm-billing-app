@@ -14,7 +14,6 @@ interface AddLineItemCellProps {
   onLineItemUpdated?: (lineItem: LineItem) => void;
   onRefreshBill?: () => unknown;
   onAdded: () => void;
-  onSavingChange: (isSaving: boolean) => void;
 }
 
 const AddLineItemCell: React.FC<AddLineItemCellProps> = ({
@@ -26,7 +25,6 @@ const AddLineItemCell: React.FC<AddLineItemCellProps> = ({
   onLineItemUpdated,
   onRefreshBill,
   onAdded,
-  onSavingChange,
 }) => {
   const { t } = useTranslation();
   const pending = useRef(false);
@@ -49,7 +47,6 @@ const AddLineItemCell: React.FC<AddLineItemCellProps> = ({
         if (!service || pending.current) return;
         pending.current = true;
         setIsSaving(true);
-        onSavingChange(true);
         try {
           const lineItem = await addBillLineItem(bill.uuid, service);
           onLineItemUpdated?.(lineItem);
@@ -67,7 +64,6 @@ const AddLineItemCell: React.FC<AddLineItemCellProps> = ({
         } finally {
           pending.current = false;
           setIsSaving(false);
-          onSavingChange(false);
         }
       }}
     />

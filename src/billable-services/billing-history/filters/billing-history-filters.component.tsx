@@ -405,7 +405,7 @@ export const BillingHistoryFilters = () => {
         <div className={styles.filterControl}>
           <Select
             id="bill-status-filter"
-            labelText={t('billStatus', 'Bill Status')}
+            labelText={t('billStatus', 'Bill status')}
             value={filters.billStatus ?? ''}
             onChange={handleBillStatusChange}
             size={compactControlSize}>
@@ -422,8 +422,8 @@ export const BillingHistoryFilters = () => {
           ) : (
             <MultiSelect
               id="payment-type-filter"
-              label={t('paymentType', 'Payment Type')}
-              titleText={t('paymentType', 'Payment Type')}
+              label={t('paymentMode', 'Payment mode')}
+              titleText={t('paymentMode', 'Payment mode')}
               items={paymentTypeOptions}
               selectedItems={selectedPaymentTypeItems}
               itemToString={itemToString}

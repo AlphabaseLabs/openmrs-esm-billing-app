@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { updateBillLineItem } from '../billing.resource';
 import { EditableNumericCell, editableCellStyles } from '../editable-carbon-table-cell-kit';
 import { convertToCurrency } from '../helpers';
+import { formatCurrency, getCurrencyForLocale } from '../helpers/currency';
 import { type ProviderOption, useProviderOptions } from '../payment-points/payment-points.resource';
 import { type LineItem, type MappedBill } from '../types';
 import { extractErrorMessagesFromResponse } from '../utils';
@@ -117,7 +118,7 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
   const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null);
   const isEditable = !bill.closed && !disabled && !isSaving;
   const isActive = mode !== null;
-  const amountDisplay = convertToCurrency(currentDiscounts);
+  const amountDisplay = formatCurrency(currentDiscounts, { style: 'decimal', maximumFractionDigits: 2 });
   const bulkDiscountLabel = t('bulkDiscount', 'Bulk discount');
   const amountValidationError = () =>
     t('bulkDiscountValidationError', 'Enter Bulk discount between 0 and {{amount}}', {
@@ -386,6 +387,7 @@ const BulkDiscountControl: React.FC<BulkDiscountControlProps> = ({ bill, disable
       <div className={styles.bulkDiscountControl} aria-busy={isSaving}>
         <span className={styles.bulkDiscountLabel}>{bulkDiscountLabel}:</span>
         <div className={styles.bulkDiscountEditorShell}>
+          <span className={styles.bulkDiscountCurrency}>{getCurrencyForLocale()}</span>
           <EditableNumericCell
             activeMode={mode}
             className={`${editableCellStyles.discountEditableCell} ${

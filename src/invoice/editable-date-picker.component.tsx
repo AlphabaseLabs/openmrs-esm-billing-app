@@ -107,7 +107,7 @@ export function EditableDatePicker({
       className={[className, showEditIcon ? cellStyles.editIndicatorContainer : undefined].filter(Boolean).join(' ')}
       style={datePickerContainerStyle}>
       {tooltip ? (
-        <Tooltip label={tooltip} enterDelayMs={0}>
+        <Tooltip autoAlign align="top-start" description={tooltip} enterDelayMs={0}>
           {dateButton}
         </Tooltip>
       ) : (

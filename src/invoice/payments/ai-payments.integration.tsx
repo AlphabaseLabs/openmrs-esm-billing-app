@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@carbon/react';
+import { IconButton } from '@carbon/react';
 import { TrashCan } from '@carbon/react/icons';
 import {
   launchWorkspace2,
@@ -391,70 +391,6 @@ function refreshBillPayments(billUuid: string) {
   return mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill/${billUuid}`));
 }
 
-const AiPaymentsHeaderAction: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button aria-label="Open AI payments workspace" className="billing-ai-title-action" onClick={onClick} type="button">
-    <span className="billing-ai-title-action-icon-wrapper">
-      <AiAgentIcon />
-    </span>
-  </button>
-);
-
-const AiAgentIcon: React.FC = () => (
-  <svg
-    aria-hidden="true"
-    className="billing-ai-agent-icon"
-    fill="none"
-    focusable="false"
-    preserveAspectRatio="xMidYMid meet"
-    viewBox="0 0 512 480.24"
-    xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <path
-        d="M193.38 382.9c-76.59 28.86-69.65 18.21-96.71 97.34C69.63 401.11 76.59 411.76 0 382.9c76.59-28.81 69.63-18.15 96.67-97.31 27.06 79.16 20.12 68.5 96.71 97.31z"
-        id="billingAiBottomSparkleShape"
-      />
-
-      <radialGradient cx="50%" cy="50%" id="billingAiBrightBlueInnerGlow" r="70%">
-        <stop offset="0%" stopColor="#A8F6FF" stopOpacity="1" />
-        <stop offset="35%" stopColor="#00D9FF" stopOpacity="1" />
-        <stop offset="70%" stopColor="#008CFF" stopOpacity="0.95" />
-        <stop offset="100%" stopColor="#005CFF" stopOpacity="0.75" />
-      </radialGradient>
-
-      <filter height="260%" id="billingAiStrongBlueGlow" width="260%" x="-80%" y="-80%">
-        <feGaussianBlur result="blur" stdDeviation="14" />
-        <feFlood floodColor="#00BFFF" floodOpacity="1" result="blue" />
-        <feComposite in="blue" in2="blur" operator="in" result="coloredGlow" />
-        <feMerge>
-          <feMergeNode in="coloredGlow" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-    <g transform="translate(-49.08 0)">
-      <path
-        d="M512 220.6c-163.88 61.72-149.02 38.94-206.92 208.29-57.91-169.35-43.06-146.57-206.92-208.26 163.86-61.72 149.01-38.95 206.92-208.3C362.98 181.68 348.12 158.91 512 220.6z"
-        fill="var(--brand-03, #007d79)"
-        fillRule="nonzero"
-      />
-    </g>
-    <g transform="translate(320 72) scale(0.85)">
-      <use fill="#FFFFFF" href="#billingAiBottomSparkleShape" />
-      <use
-        className="billing-ai-secondary-sparkle-glow"
-        fill="#00BFFF"
-        filter="url(#billingAiStrongBlueGlow)"
-        href="#billingAiBottomSparkleShape"
-      />
-      <use
-        className="billing-ai-secondary-sparkle-fill"
-        fill="url(#billingAiBrightBlueInnerGlow)"
-        href="#billingAiBottomSparkleShape"
-      />
-    </g>
-  </svg>
-);
-
 export function useAiPaymentsIntegration({
   bill,
   formMethods,
@@ -657,10 +593,6 @@ export function useAiPaymentsIntegration({
   };
 }
 
-export function PaymentAiWorkspaceHeaderAction({ onLaunchAiPayments }: { onLaunchAiPayments: () => void }) {
-  return <AiPaymentsHeaderAction onClick={onLaunchAiPayments} />;
-}
-
 export function PaymentRowRemoveAction({
   index,
   onRemove,
@@ -671,16 +603,17 @@ export function PaymentRowRemoveAction({
   t: (key: string, defaultValue: string) => string;
 }) {
   return (
-    <Button
-      hasIconOnly
-      iconDescription={t('removePaymentRow', 'Remove payment row')}
+    <IconButton
+      autoAlign
+      align="top-start"
+      aria-labelledby=""
+      aria-label={t('removePaymentRow', 'Remove payment row')}
+      label={t('removePaymentRow', 'Remove payment row')}
       kind="ghost"
       onClick={() => onRemove(index)}
-      renderIcon={TrashCan}
-      size="sm"
-      tooltipAlignment="end"
-      tooltipPosition="top"
-    />
+      size="sm">
+      <TrashCan size={16} />
+    </IconButton>
   );
 }
 

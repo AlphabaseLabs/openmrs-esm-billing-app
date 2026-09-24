@@ -14,11 +14,7 @@ import PaymentHistory from './payment-history/payment-history.component';
 import styles from './payments.scss';
 import { usePaymentSchema } from '../../hooks/usePaymentSchema';
 import { usePaymentModes } from '../../billing.resource';
-import {
-  createEmptyPaymentRow,
-  PaymentAiWorkspaceHeaderAction,
-  useAiPaymentsIntegration,
-} from './ai-payments.integration';
+import { createEmptyPaymentRow, useAiPaymentsIntegration } from './ai-payments.integration';
 import { getLineItemAmountDue } from '../editable-line-item-cells/utils';
 import { getActiveBillingRecords } from '../../billing-voided-utils';
 
@@ -101,19 +97,15 @@ const Payments: React.FC<PaymentProps> = ({
     hasEnteredPaymentAmount &&
     !isFullyPaid &&
     getActiveBillingRecords(bill.lineItems).length > 1;
-  const showAiPaymentsAction = bill.status !== PaymentStatus.PAID;
+  const showAiPaymentsAction = !bill.closed;
   const isProcessPaymentDisabled = !hasEnteredPaymentAmount || hasAmountPaidExceeded || isSubmittingPayments;
 
   return (
     <FormProvider {...methods}>
       <div className={styles.wrapper}>
         <div className={styles.paymentContainer}>
-          <div className={styles.paymentHeader}>
-            <CardHeader title={t('payments', 'Payments')}>
-              {showAiPaymentsAction ? (
-                <PaymentAiWorkspaceHeaderAction onLaunchAiPayments={launchAiPaymentsWorkspace} />
-              ) : null}
-            </CardHeader>
+          <div>
+            <CardHeader title={t('payments', 'Payments')}>{null}</CardHeader>
           </div>
           <div>
             {bill && <PaymentHistory bill={bill} onRefreshBill={onRefreshBill} />}
@@ -156,6 +148,13 @@ const Payments: React.FC<PaymentProps> = ({
               onRemovePaymentRow={removePaymentRow}
               paymentModes={paymentModes}
             />
+            {showAiPaymentsAction ? (
+              <div className={styles.receiptAction}>
+                <Button kind="tertiary" size="sm" disabled={isSubmittingPayments} onClick={launchAiPaymentsWorkspace}>
+                  {t('paymentReceipt', 'Payment receipt')}
+                </Button>
+              </div>
+            ) : null}
           </div>
           {paymentFooterContent ? <div className={styles.paymentFooter}>{paymentFooterContent}</div> : null}
         </div>
@@ -163,20 +162,11 @@ const Payments: React.FC<PaymentProps> = ({
         <div className={styles.paymentTotals}>
           {summaryContentHeader}
           <div>
-            <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={convertToCurrency(summaryTotalAmount)} />
-            <InvoiceBreakDown label={t('discounts', 'Discounts')} value={convertToCurrency(bill.totalDiscounts ?? 0)} />
-            {showTaxSummary ? (
-              <InvoiceBreakDown label={t('tax', 'Tax')} value={convertToCurrency(bill.totalTax ?? 0)} />
-            ) : null}
-            <InvoiceBreakDown
-              label={t('totalTendered', 'Total tendered')}
-              value={convertToCurrency(bill.totalActualPayments ?? 0)}
-            />
-            <InvoiceBreakDown
-              hasBalance={amountDue < 0}
-              label={amountDueDisplay(amountDue)}
-              value={convertToCurrency(amountDue ?? 0)}
-            />
+            <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={summaryTotalAmount} />
+            <InvoiceBreakDown label={t('discounts', 'Discounts')} value={bill.totalDiscounts ?? 0} />
+            {showTaxSummary ? <InvoiceBreakDown label={t('tax', 'Tax')} value={bill.totalTax ?? 0} /> : null}
+            <InvoiceBreakDown label={t('totalTendered', 'Total tendered')} value={bill.totalActualPayments ?? 0} />
+            <InvoiceBreakDown hasBalance={amountDue < 0} label={amountDueDisplay(amountDue)} value={amountDue ?? 0} />
             <div className={styles.processPayments}>
               {showDiscardButton ? (
                 <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">

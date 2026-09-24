@@ -1,5 +1,5 @@
-import { Button, ButtonSet, Stack, TextArea, Tooltip } from '@carbon/react';
-import { Edit, Printer } from '@carbon/react/icons';
+import { Button, ButtonSet, ComboButton, MenuItem, Stack, TextArea, Tooltip } from '@carbon/react';
+import { Document, Edit, Printer, Receipt } from '@carbon/react/icons';
 import { openmrsFetch, restBaseUrl, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { type BillingConfig } from '../config-schema';
 import { MAX_BILL_NOTE_LENGTH } from '../constants';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
-import { type LineItem, type MappedBill } from '../types';
+import { type LineItem, type MappedBill, PaymentStatus } from '../types';
 import { syncBillStatus, updateBillDate, updateBillNote } from '../billing.resource';
 import BulkDiscountControl from './bulk-discount-control.component';
 import { EditableDatePicker, getDateWithCurrentTime } from './editable-date-picker.component';
@@ -17,6 +17,7 @@ import InvoiceTable from './invoice-table.component';
 import { readLineItemColumnVisibilityPreference, type LineItemColumnKey } from './line-item-column-visibility';
 import Payments from './payments/payments.component';
 import styles from './invoice.scss';
+import startCase from 'lodash-es/startCase';
 
 type PatientPhoneResponse = {
   person?: {
@@ -280,7 +281,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const patientFirstName = billToRender?.patientName?.trim().split(/\s+/)?.[0];
 
   return (
-    <>
+    <div className={styles.billLayout}>
       <div className={styles.detailsContainer}>
         <section className={styles.details}>
           {Object.entries(invoiceDetails).map(([key, value]) => (
@@ -303,19 +304,43 @@ const BillDetails: React.FC<BillDetailsProps> = ({
             onClick={handleSendInvoice}>
             {t('sendInvoice', 'Send invoice')}
           </Button>
-          <Button
-            kind="primary"
-            renderIcon={Printer}
-            disabled={!hasLineItems}
-            onClick={() =>
-              openPrintPreview(
-                `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${billToRender?.id}`,
-                `${t('invoice', 'Invoice')} ${billToRender?.receiptNumber}`,
-              )
-            }>
-            {t('printBill', 'Print bill')}
-          </Button>
-          <InvoiceActions bill={billToRender} />
+          <div className={styles.printBillButton} data-disabled={!hasLineItems}>
+            <ComboButton
+              label={t('printBill', 'Print bill')}
+              disabled={!hasLineItems}
+              menuAlignment="bottom-end"
+              tooltipAlignment="left"
+              onClick={() =>
+                openPrintPreview(
+                  `/openmrs${restBaseUrl}/cashier/print?documentType=invoice&billId=${billToRender?.id}`,
+                  `${t('invoice', 'Invoice')} ${billToRender?.receiptNumber}`,
+                )
+              }>
+              {(billToRender.status === PaymentStatus.PAID || billToRender.tenderedAmount > 0) && (
+                <MenuItem
+                  label={t('printReceipt', 'Print receipt')}
+                  renderIcon={Receipt}
+                  onClick={() =>
+                    openPrintPreview(
+                      `/openmrs${restBaseUrl}/cashier/receipt?billId=${billToRender.id}`,
+                      `${t('receipt', 'Receipt')} ${billToRender.receiptNumber}`,
+                    )
+                  }
+                />
+              )}
+              <MenuItem
+                label={t('printStatement', 'Print Statement')}
+                renderIcon={Document}
+                onClick={() =>
+                  openPrintPreview(
+                    `/openmrs${restBaseUrl}/cashier/print?documentType=billstatement&billId=${billToRender.id}`,
+                    `${t('billStatement', 'Bill Statement')} ${billToRender.receiptNumber} - ${startCase(billToRender.patientName)}`,
+                  )
+                }
+              />
+            </ComboButton>
+            <Printer size={16} className={styles.printBillIcon} aria-hidden="true" />
+          </div>
         </div>
       </div>
       <div className={styles.invoiceContent}>
@@ -341,8 +366,9 @@ const BillDetails: React.FC<BillDetailsProps> = ({
             <BulkDiscountControl bill={billToRender} onBulkDiscountUpdated={handleBulkDiscountUpdated} />
           }
         />
+        <InvoiceActions bill={billToRender} />
       </div>
-    </>
+    </div>
   );
 };
 
@@ -361,7 +387,11 @@ function InvoiceDetails({
   readonly disabled?: boolean;
   readonly onDateChange?: (selectedDates: Array<Date | string>) => void | Promise<void>;
 }) {
-  const valueContent = <span className={styles.value}>{value}</span>;
+  const valueContent = (
+    <span className={styles.value} tabIndex={tooltip ? 0 : undefined}>
+      {value}
+    </span>
+  );
 
   if (onDateChange) {
     return (
@@ -386,7 +416,7 @@ function InvoiceDetails({
     <div>
       <h1 className={styles.label}>{label}</h1>
       {tooltip ? (
-        <Tooltip label={tooltip} enterDelayMs={0}>
+        <Tooltip autoAlign align="top-start" label={tooltip} enterDelayMs={0}>
           {valueContent}
         </Tooltip>
       ) : (
@@ -465,7 +495,7 @@ function BillNote({
   };
 
   return (
-    <section aria-label={t('billNote', 'Bill note')} className={styles.billNote}>
+    <section aria-label={t('billNote', 'Bill note')}>
       <div className={styles.billNoteHeader}>
         <CardHeader title={t('billNote', 'Bill note')}>
           <Button

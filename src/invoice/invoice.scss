@@ -17,13 +17,22 @@
   justify-content: center;
 }
 
+.billLayout {
+  --invoice-content-inset: #{layout.$spacing-05};
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: layout.$spacing-05;
+  margin-inline: layout.$spacing-05;
+  padding-bottom: layout.$spacing-05;
+}
+
 .detailsContainer {
   align-items: center;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: layout.$spacing-05;
-  margin: 0 layout.$spacing-05 layout.$spacing-05;
-  padding: layout.$spacing-05;
+  min-width: 0;
+  padding: var(--invoice-content-inset);
 }
 
 .details {
@@ -48,8 +57,23 @@
   justify-content: flex-end;
 }
 
-.buttonSpinner {
-  margin-inline-end: layout.$spacing-03;
+.printBillButton {
+  position: relative;
+  display: inline-flex;
+
+  &[data-disabled='true'] .printBillIcon {
+    color: var(--cds-text-on-color-disabled, #{colors.$gray-50});
+  }
+}
+
+// ComboButton has no renderIcon prop; retain its native split-button behavior.
+.printBillIcon {
+  position: absolute;
+  inset-inline-end: calc(3rem + 1px + #{layout.$spacing-05});
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--cds-text-on-color, #{colors.$white});
+  pointer-events: none;
 }
 
 .label {
@@ -65,11 +89,9 @@
 }
 
 .invoiceContent {
-  margin: 0 layout.$spacing-05 layout.$spacing-05;
-}
-
-.billNote {
-  margin-bottom: layout.$spacing-05;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: layout.$spacing-05;
 }
 
 .billNoteHeader {
@@ -115,18 +137,33 @@
 }
 
 .bulkDiscountEditorShell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: layout.$spacing-03;
+  box-shadow: inset 0 -1px 0 0 colors.$gray-50;
   margin-left: layout.$spacing-03;
   min-width: 0;
 }
 
-.bulkDiscountEditor {
-  background: transparent;
-  box-shadow: inset 0 -1px 0 0 colors.$gray-50;
+.bulkDiscountCurrency {
+  @include type.type-style('heading-01');
   color: colors.$gray-100;
   font-weight: 700;
+}
+
+.bulkDiscountEditor {
+  --editable-numeric-align: right;
+  --editable-numeric-justify: flex-end;
+  --editable-cell-padding-inline: 0px;
+  background: transparent;
+  color: colors.$gray-100;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   min-height: layout.$spacing-08;
   min-width: 0;
-  padding-inline-end: layout.$spacing-05;
+  // Reserve space for the discount control; summary values use the same inset.
+  padding-inline-end: layout.$spacing-06;
 
   > [data-testid='editable-numeric-content'] {
     @include type.type-style('heading-01');
@@ -137,27 +174,25 @@
   }
 }
 
-.actionMenuContent {
+.billManagementActions {
+  align-items: flex-start;
   display: flex;
   flex-direction: column;
-  gap: layout.$spacing-01;
+  gap: layout.$spacing-02;
+  padding-block: layout.$spacing-05;
+  border-top: 1px solid colors.$gray-20;
 }
 
-.actionMenuItem {
-  width: 100%;
-  justify-content: flex-start;
-}
+.disabledBillAction {
+  display: inline-flex;
 
-.actionMenuTrigger {
-  min-height: 3rem;
-  padding: 0;
-  justify-content: center;
-  align-items: center;
-
-  :global(.cds--btn__icon) {
-    margin: 0;
-    color: colors.$gray-100;
+  :global(.cds--btn:disabled) {
     pointer-events: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid colors.$blue-60;
+    outline-offset: 2px;
   }
 }
 
@@ -173,8 +208,7 @@
     width: 100%;
   }
 
-  .bulkDiscountEditorShell {
-    flex: 1 1 auto;
-    min-width: 0;
+  .details {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   }
 }
