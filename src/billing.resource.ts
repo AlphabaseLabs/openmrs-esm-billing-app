@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { type BillingConfig } from './config-schema';
 import { getActiveBillingRecords, sumActivePaymentTenderedAmounts } from './billing-voided-utils';
 import { extractString, formatBillDateTime } from './helpers';
+import { extractPatientIdentifier, extractPatientName } from './hooks/use-patient-search';
 import {
   FacilityDetail,
   type BillLineItemDiscount,
@@ -27,7 +28,11 @@ import {
   type PaymentStatus,
 } from './types';
 
+const billListRepresentation =
+  'custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display,identifiers:(identifier,preferred),patientIdentifier:(identifier),person:(personName)))';
+
 export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
+  const patient = bill?.patient;
   const lineItems = getActiveBillingRecords(bill?.lineItems ?? []);
   const payments = bill?.payments ?? [];
   const hasPaymentsField = Array.isArray(bill?.payments);
@@ -43,9 +48,9 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
   const mappedBill: MappedBill = {
     id: bill?.id,
     uuid: bill?.uuid,
-    patientName: bill?.patient?.display.split('-')?.[1],
-    identifier: bill?.patient?.display.split('-')?.[0],
-    patientUuid: bill?.patient?.uuid,
+    patientName: patient ? extractPatientName(patient) : undefined,
+    identifier: patient ? extractPatientIdentifier(patient) : undefined,
+    patientUuid: patient?.uuid,
     status: bill?.status,
     receiptNumber: bill?.receiptNumber,
     cashier: bill?.cashier,
@@ -112,7 +117,7 @@ export const useBills = (
 
   const dateParams =
     startingDateISO && endDateISO ? `&createdOnOrAfter=${startingDateISO}&createdOnOrBefore=${endDateISO}` : '';
-  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))${dateParams}`;
+  const url = `${restBaseUrl}/cashier/bill?status=${billStatus}&v=${billListRepresentation}${dateParams}`;
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: { results: Array<PatientInvoice> } }>(
     enabled ? (patientUuid ? `${url}&patientUuid=${patientUuid}` : url) : null,
@@ -462,7 +467,7 @@ const buildPaginatedBillsUrl = ({
   pageSize,
 }: Required<Omit<UseBillsPaginatedParams, 'enabled'>>) => {
   const urlParams = new URLSearchParams({
-    v: 'custom:(uuid,display,voided,voidReason,adjustedBy,cashPoint:(uuid,name),cashier:(uuid,display),dateCreated,lineItems,patient:(uuid,display))',
+    v: billListRepresentation,
     createdOnOrAfter: startingDate.toISOString(),
     createdOnOrBefore: endDate.toISOString(),
     limit: pageSize.toString(),

@@ -31,6 +31,11 @@
   :has(.filterEmptyState) {
     border-bottom: none;
   }
+
+  :global(.cds--data-table) th.billTotalHeader :global(.cds--table-header-label) {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
 }
 
 .filterContainer {

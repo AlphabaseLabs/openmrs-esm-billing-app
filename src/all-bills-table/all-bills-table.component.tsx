@@ -380,7 +380,11 @@ const AllBillsTable: React.FC<AllBillsTableProps> = ({ actions, patientUuid = ''
                       {headers.map((header) => (
                         <TableHeader
                           key={header.key}
-                          className={header.key === 'billTotal' ? amountStyles.numericCell : undefined}>
+                          className={
+                            header.key === 'billTotal'
+                              ? classNames(amountStyles.numericCell, styles.billTotalHeader)
+                              : undefined
+                          }>
                           {header.header}
                         </TableHeader>
                       ))}

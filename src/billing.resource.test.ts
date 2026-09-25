@@ -1,7 +1,14 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
-import { mapBillProperties, updateBillNote, updatePaymentAttributes, useBill } from './billing.resource';
+import {
+  mapBillProperties,
+  updateBillNote,
+  updatePaymentAttributes,
+  useBill,
+  useBills,
+  useBillsPaginated,
+} from './billing.resource';
 import { PaymentStatus } from './types';
 
 jest.mock('swr', () => jest.fn());
@@ -39,6 +46,58 @@ const baseInvoice = {
 };
 
 describe('mapBillProperties', () => {
+  it.each(['SC-F8-9767 - Outdated name', undefined])(
+    'uses structured patient fields when the display is %s',
+    (display) => {
+      const mappedBill = mapBillProperties({
+        ...baseInvoice,
+        patient: {
+          uuid: 'patient-uuid',
+          display,
+          person: { personName: { display: 'Jane Anne-Doe' } },
+          identifiers: [
+            { identifier: 'OLD-123', preferred: false },
+            { identifier: 'SC-F8-9767', preferred: true },
+          ],
+        },
+      } as any);
+
+      expect(mappedBill.patientName).toBe('Jane Anne-Doe');
+      expect(mappedBill.identifier).toBe('SC-F8-9767');
+    },
+  );
+
+  it('uses structured name parts and the primary identifier when available', () => {
+    const mappedBill = mapBillProperties({
+      ...baseInvoice,
+      patient: {
+        uuid: 'patient-uuid',
+        person: { personName: { givenName: 'Jane', middleName: 'Mary', familyName: 'Anne-Doe' } },
+        patientIdentifier: { identifier: 'SC-F8-9767' },
+      },
+    } as any);
+
+    expect(mappedBill.patientName).toBe('Jane Mary Anne-Doe');
+    expect(mappedBill.identifier).toBe('SC-F8-9767');
+  });
+
+  it('preserves hyphens in names and identifiers in older display-only responses', () => {
+    const mappedBill = mapBillProperties({
+      ...baseInvoice,
+      patient: { uuid: 'patient-uuid', display: 'SC-F8-9767 - Jane Anne-Doe' },
+    } as any);
+
+    expect(mappedBill.patientName).toBe('Jane Anne-Doe');
+    expect(mappedBill.identifier).toBe('SC-F8-9767');
+  });
+
+  it('handles a bill without a patient without parsing a missing display', () => {
+    const mappedBill = mapBillProperties({ ...baseInvoice, patient: undefined } as any);
+
+    expect(mappedBill.patientName).toBeUndefined();
+    expect(mappedBill.identifier).toBeUndefined();
+  });
+
   it('derives Discounts from line totals', () => {
     const mappedBill = mapBillProperties({
       ...baseInvoice,
@@ -156,6 +215,43 @@ describe('mapBillProperties', () => {
     expect(mappedBill.totalPayments).toBe(100);
     expect(mappedBill.tenderedAmount).toBe(100);
     expect(mappedBill.referenceCodes).toBe('Cash: ACTIVE-REF');
+  });
+});
+
+describe('bill list patient fields', () => {
+  it.each([
+    ['paginated', () => useBillsPaginated()],
+    ['unpaginated', () => useBills()],
+  ] as const)('requests and maps the patient name and identifier for the %s list', (_label, useList) => {
+    mockUseSWR.mockReturnValue({
+      data: {
+        data: {
+          results: [
+            {
+              ...baseInvoice,
+              patient: {
+                uuid: 'patient-uuid',
+                display: 'SC-F8-9767 - Outdated name',
+                person: { personName: { display: 'Jane Anne-Doe' } },
+                patientIdentifier: { identifier: 'SC-F8-9767' },
+              },
+            },
+          ],
+          totalCount: 1,
+        },
+      },
+      isLoading: false,
+      isValidating: false,
+      mutate: jest.fn(),
+    });
+
+    const { result } = renderHook(() => useList());
+    const url = new URL(mockUseSWR.mock.calls[0][0], 'http://localhost');
+    expect(url.searchParams.get('v')).toContain(
+      'patient:(uuid,display,identifiers:(identifier,preferred),patientIdentifier:(identifier),person:(personName))',
+    );
+    expect(result.current.bills[0].patientName).toBe('Jane Anne-Doe');
+    expect(result.current.bills[0].identifier).toBe('SC-F8-9767');
   });
 });
 

@@ -1,5 +1,6 @@
 import { type OpenmrsResource } from '@openmrs/esm-framework';
 import { type Drug, type OrderBasketItem } from '@openmrs/esm-patient-common-lib';
+import { type PatientSearchResult } from '../hooks/use-patient-search';
 
 export interface MappedBill {
   uuid: string;
@@ -136,11 +137,10 @@ interface PatientLink {
   resourceAlias: string;
 }
 
-interface Patient {
-  uuid: string;
+interface Patient extends PatientSearchResult {
   display: string;
   links: PatientLink[];
-  identifiers: Array<{ uuid: string; display: string }>;
+  identifiers: Array<{ uuid: string; display: string; identifier?: string; preferred?: boolean }>;
 }
 
 interface AttributeType {
