@@ -30,6 +30,10 @@
   min-width: 0;
   outline: 1px solid $ui-03;
   outline-offset: -1px;
+
+  > :global(.cds--data-table-container) {
+    background-color: transparent;
+  }
 }
 
 .columnSelectorActions {
@@ -106,7 +110,9 @@
 
   th.numberHeaderCell,
   th.quantityHeaderCell,
-  th.actionHeaderCell {
+  th.actionHeaderCell,
+  th.statusHeaderCell,
+  td.statusCell {
     text-align: center;
   }
 
@@ -115,7 +121,7 @@
   }
 
   td.actionCell {
-    // Fit two standard 32px icon buttons within the 75px action column.
+    // Fit two standard 32px icon buttons within the action column's 75px minimum.
     padding-inline: 5px;
   }
 
@@ -155,7 +161,7 @@
 
 .addItemActions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   border-top: 1px solid $ui-03;
   padding: layout.$spacing-03 var(--invoice-content-inset, #{layout.$spacing-05});
 }

@@ -7,6 +7,14 @@
   min-height: calc(100vh - 3rem);
 }
 
+@media screen {
+  // Keep workspaces out of the shell grid while an invoice occupies the main page.
+  :global(body):has(:global(#omrs-apps-container) .invoiceContainer) :global(#omrs-workspaces-container) {
+    position: fixed;
+    inset-inline-end: 0;
+  }
+}
+
 .errorContainer {
   margin: layout.$spacing-05;
 }
@@ -19,30 +27,33 @@
 
 .billLayout {
   --invoice-content-inset: #{layout.$spacing-05};
+  --invoice-section-spacing: 42px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: layout.$spacing-05;
+  gap: var(--invoice-section-spacing);
   margin-inline: layout.$spacing-05;
   padding-bottom: layout.$spacing-05;
 }
 
 .detailsContainer {
   align-items: center;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: layout.$spacing-05;
   min-width: 0;
   padding: var(--invoice-content-inset);
+  padding-block-end: 0;
 }
 
 .details {
   align-items: center;
   column-gap: layout.$spacing-05;
   display: grid;
-  grid-template-columns: repeat(3, minmax(8rem, 1fr)) minmax(max-content, 1fr) minmax(8rem, 1fr);
+  // Five 8rem fields and four 1rem gaps fit beside the actions when space permits.
+  flex: 1 1 44rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   min-width: 0;
   row-gap: layout.$spacing-06;
-  width: 100%;
 }
 
 .details > div {
@@ -55,6 +66,8 @@
   gap: layout.$spacing-03;
   flex-wrap: wrap;
   justify-content: flex-end;
+  margin-inline-start: auto;
+  max-width: 100%;
 }
 
 .printBillButton {
@@ -91,7 +104,6 @@
 .invoiceContent {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: layout.$spacing-05;
 }
 
 .billNoteHeader {
@@ -101,6 +113,7 @@
 .billNoteContent {
   overflow-wrap: anywhere;
   padding: layout.$spacing-05;
+  padding-block-end: 0;
 }
 
 .billNoteActions {
@@ -179,7 +192,9 @@
   display: flex;
   flex-direction: column;
   gap: layout.$spacing-02;
-  padding-block: layout.$spacing-05;
+  // Keep the divider and its padding within the section spacing.
+  margin-block-start: calc(var(--invoice-section-spacing, 42px) - #{layout.$spacing-06} - 1px);
+  padding-block: layout.$spacing-06 layout.$spacing-05;
   border-top: 1px solid colors.$gray-20;
 }
 
@@ -193,22 +208,5 @@
   &:focus-visible {
     outline: 2px solid colors.$blue-60;
     outline-offset: 2px;
-  }
-}
-
-:global(.omrs-breakpoint-lt-desktop) {
-  .detailsContainer {
-    align-items: flex-start;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .details,
-  .actionsContainer {
-    width: 100%;
-  }
-
-  .details {
-    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   }
 }

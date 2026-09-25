@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Button, InlineLoading, InlineNotification } from '@carbon/react';
+import { Receipt } from '@carbon/react/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { navigate } from '@openmrs/esm-framework';
 import { CardHeader } from '@openmrs/esm-patient-common-lib';
@@ -103,6 +104,16 @@ const Payments: React.FC<PaymentProps> = ({
   return (
     <FormProvider {...methods}>
       <div className={styles.wrapper}>
+        <div className={styles.paymentTotals}>
+          {summaryContentHeader}
+          <div>
+            <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={summaryTotalAmount} />
+            <InvoiceBreakDown label={t('discounts', 'Discounts')} value={bill.totalDiscounts ?? 0} />
+            {showTaxSummary ? <InvoiceBreakDown label={t('tax', 'Tax')} value={bill.totalTax ?? 0} /> : null}
+            <InvoiceBreakDown label={t('totalTendered', 'Total tendered')} value={bill.totalActualPayments ?? 0} />
+            <InvoiceBreakDown hasBalance={amountDue < 0} label={amountDueDisplay(amountDue)} value={amountDue ?? 0} />
+          </div>
+        </div>
         <div className={styles.paymentContainer}>
           <div>
             <CardHeader title={t('payments', 'Payments')}>{null}</CardHeader>
@@ -150,7 +161,12 @@ const Payments: React.FC<PaymentProps> = ({
             />
             {showAiPaymentsAction ? (
               <div className={styles.receiptAction}>
-                <Button kind="tertiary" size="sm" disabled={isSubmittingPayments} onClick={launchAiPaymentsWorkspace}>
+                <Button
+                  kind="tertiary"
+                  size="md"
+                  renderIcon={Receipt}
+                  disabled={isSubmittingPayments}
+                  onClick={launchAiPaymentsWorkspace}>
                   {t('paymentReceipt', 'Payment receipt')}
                 </Button>
               </div>
@@ -159,32 +175,22 @@ const Payments: React.FC<PaymentProps> = ({
           {paymentFooterContent ? <div className={styles.paymentFooter}>{paymentFooterContent}</div> : null}
         </div>
         <div className={styles.divider} />
-        <div className={styles.paymentTotals}>
-          {summaryContentHeader}
-          <div>
-            <InvoiceBreakDown label={t('totalAmount', 'Total amount')} value={summaryTotalAmount} />
-            <InvoiceBreakDown label={t('discounts', 'Discounts')} value={bill.totalDiscounts ?? 0} />
-            {showTaxSummary ? <InvoiceBreakDown label={t('tax', 'Tax')} value={bill.totalTax ?? 0} /> : null}
-            <InvoiceBreakDown label={t('totalTendered', 'Total tendered')} value={bill.totalActualPayments ?? 0} />
-            <InvoiceBreakDown hasBalance={amountDue < 0} label={amountDueDisplay(amountDue)} value={amountDue ?? 0} />
-            <div className={styles.processPayments}>
-              {showDiscardButton ? (
-                <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
-                  {t('discard', 'Discard')}
-                </Button>
-              ) : null}
-              <Button type="button" onClick={() => void processPayments(t)} disabled={isProcessPaymentDisabled}>
-                {isSubmittingPayments ? (
-                  <span className={styles.processButtonContent}>
-                    {t('processingPayments', 'Processing...')}
-                    <InlineLoading status="active" iconDescription={t('loading', 'Loading')} />
-                  </span>
-                ) : (
-                  t('processPayment', 'Process Payment')
-                )}
-              </Button>
-            </div>
-          </div>
+        <div className={styles.processPayments}>
+          {showDiscardButton ? (
+            <Button type="button" onClick={handleNavigateToBillingDashboard} kind="secondary">
+              {t('discard', 'Discard')}
+            </Button>
+          ) : null}
+          <Button type="button" onClick={() => void processPayments(t)} disabled={isProcessPaymentDisabled}>
+            {isSubmittingPayments ? (
+              <span className={styles.processButtonContent}>
+                {t('processingPayments', 'Processing...')}
+                <InlineLoading status="active" iconDescription={t('loading', 'Loading')} />
+              </span>
+            ) : (
+              t('processPayment', 'Process Payment')
+            )}
+          </Button>
         </div>
       </div>
     </FormProvider>

@@ -11,17 +11,13 @@ export type LineItemColumnKey =
   | 'total'
   | 'actionButton';
 
-type LineItemColumnAlignment = 'text' | 'numeric' | 'action';
-
 export type LineItemColumnDefinition = {
   key: LineItemColumnKey;
   translationKey: string;
   defaultLabel: string;
   required: boolean;
   defaultVisible: boolean;
-  alignment: LineItemColumnAlignment;
   minWidth: number;
-  growWeight: number;
   isFixed: boolean;
 };
 
@@ -30,7 +26,6 @@ export type LineItemTableLayoutColumnKey = LineItemColumnKey | '__selection__';
 export type LineItemTableLayoutColumn = {
   key: LineItemTableLayoutColumnKey;
   minWidth: number;
-  growWeight: number;
   isFixed: boolean;
 };
 
@@ -54,10 +49,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     translationKey: 'number',
     defaultLabel: 'Number',
     required: false,
-    defaultVisible: false,
-    alignment: 'text',
-    minWidth: 80,
-    growWeight: 0,
+    defaultVisible: true,
+    minWidth: 112,
     isFixed: true,
   },
   {
@@ -66,9 +59,7 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Bill item',
     required: true,
     defaultVisible: true,
-    alignment: 'text',
-    minWidth: 224,
-    growWeight: 2.5,
+    minWidth: 192,
     isFixed: false,
   },
   {
@@ -77,9 +68,7 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Provider',
     required: false,
     defaultVisible: true,
-    alignment: 'text',
     minWidth: 176,
-    growWeight: 1.2,
     isFixed: false,
   },
   {
@@ -88,9 +77,7 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Quantity',
     required: false,
     defaultVisible: false,
-    alignment: 'numeric',
     minWidth: 80,
-    growWeight: 0,
     isFixed: true,
   },
   {
@@ -99,10 +86,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Price',
     required: true,
     defaultVisible: true,
-    alignment: 'numeric',
     minWidth: 100,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'discount',
@@ -110,10 +95,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Discount',
     required: false,
     defaultVisible: true,
-    alignment: 'numeric',
     minWidth: 100,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'tax',
@@ -121,10 +104,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Tax',
     required: false,
     defaultVisible: false,
-    alignment: 'numeric',
     minWidth: 80,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'total',
@@ -132,10 +113,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Total',
     required: true,
     defaultVisible: true,
-    alignment: 'numeric',
     minWidth: 100,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'status',
@@ -143,10 +122,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Status',
     required: false,
     defaultVisible: true,
-    alignment: 'text',
     minWidth: 100,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'actionButton',
@@ -154,10 +131,8 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Action',
     required: true,
     defaultVisible: true,
-    alignment: 'action',
     minWidth: 75,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
   {
     key: 'date',
@@ -165,17 +140,14 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     defaultLabel: 'Date',
     required: false,
     defaultVisible: true,
-    alignment: 'text',
     minWidth: 120,
-    growWeight: 0,
-    isFixed: true,
+    isFixed: false,
   },
 ];
 
 export const lineItemSelectionColumnDefinition: LineItemTableLayoutColumn = {
   key: '__selection__',
   minWidth: 48,
-  growWeight: 0,
   isFixed: true,
 };
 
@@ -263,7 +235,7 @@ export const getLineItemTableLayoutColumns = (
   includeSelectionColumn: boolean,
 ): Array<LineItemTableLayoutColumn> => [
   ...(includeSelectionColumn ? [lineItemSelectionColumnDefinition] : []),
-  ...visibleColumns.map(({ key, minWidth, growWeight, isFixed }) => ({ key, minWidth, growWeight, isFixed })),
+  ...visibleColumns.map(({ key, minWidth, isFixed }) => ({ key, minWidth, isFixed })),
 ];
 
 export const calculateLineItemTableColumnLayout = (
@@ -272,16 +244,30 @@ export const calculateLineItemTableColumnLayout = (
 ): LineItemTableColumnLayout => {
   const totalMinWidth = columns.reduce((sum, column) => sum + column.minWidth, 0);
   const normalizedAvailableWidth = Number.isFinite(availableWidth) && availableWidth > 0 ? availableWidth : 0;
-  const layoutWidth = Math.max(Math.ceil(totalMinWidth), Math.floor(normalizedAvailableWidth));
-  const surplus = layoutWidth - totalMinWidth;
-  const totalGrowWeight = columns.reduce((sum, column) => sum + (column.isFixed ? 0 : column.growWeight), 0);
-  const unroundedWidths = columns.map((column) => {
-    if (column.isFixed || totalGrowWeight === 0) {
-      return column.minWidth;
+  let flexibleColumns = columns.map((column, index) => ({ ...column, index })).filter((column) => !column.isFixed);
+  const layoutWidth = Math.max(
+    Math.ceil(totalMinWidth),
+    flexibleColumns.length > 0 ? Math.floor(normalizedAvailableWidth) : 0,
+  );
+  const unroundedWidths = columns.map((column) => column.minWidth);
+  let remainingWidth = layoutWidth - columns.reduce((sum, column) => sum + (column.isFixed ? column.minWidth : 0), 0);
+
+  // Equalize the data columns, reserving wider minimums first when space is limited.
+  while (flexibleColumns.length > 0) {
+    const equalWidth = remainingWidth / flexibleColumns.length;
+    const constrainedColumns = flexibleColumns.filter((column) => column.minWidth > equalWidth);
+
+    if (constrainedColumns.length === 0) {
+      for (const column of flexibleColumns) {
+        unroundedWidths[column.index] = equalWidth;
+      }
+      break;
     }
 
-    return column.minWidth + surplus * (column.growWeight / totalGrowWeight);
-  });
+    remainingWidth -= constrainedColumns.reduce((sum, column) => sum + column.minWidth, 0);
+    flexibleColumns = flexibleColumns.filter((column) => column.minWidth <= equalWidth);
+  }
+
   const floorWidths = unroundedWidths.map(Math.floor);
   const remainders = unroundedWidths
     .map((width, index) => ({ index, remainder: width - floorWidths[index] }))

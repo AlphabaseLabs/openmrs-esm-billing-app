@@ -117,7 +117,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     () => new Map(allProviderOptions.map((provider) => [provider.uuid, provider.label])),
     [allProviderOptions],
   );
-  const shouldRenderSelectionColumn = lineItems.length > 1 && isSelectable;
+  const shouldRenderSelectionColumn = isSelectable && (!bill.closed || lineItems.length > 1);
   const selectableLineItems = useMemo(
     () =>
       lineItems.filter(
@@ -180,7 +180,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     resizeObserver.observe(element);
 
     return () => resizeObserver.disconnect();
-  }, []);
+  }, [isLoadingBill]);
 
   const handleCancelLineItem = useCallback(
     (row: LineItem) => {
@@ -306,7 +306,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
   if (isLoadingBill) {
     return (
       <div className={styles.loaderContainer}>
-        <DataTableSkeleton columnCount={tableHeaders.length} showHeader={false} showToolbar={false} zebra />
+        <DataTableSkeleton columnCount={renderedLayoutColumns.length} showHeader={false} showToolbar={false} zebra />
       </div>
     );
   }
@@ -433,6 +433,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       return styles.numericCell;
     }
 
+    if (cell.info.header === 'status') {
+      return styles.statusCell;
+    }
+
     if (cell.info.header === 'actionButton') {
       return styles.actionCell;
     }
@@ -455,6 +459,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
     if (['tax', 'total'].includes(header.key)) {
       return styles.numericHeaderCell;
+    }
+
+    if (header.key === 'status') {
+      return styles.statusHeaderCell;
     }
 
     if (header.key === 'actionButton') {
@@ -545,11 +553,21 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
                   );
                 })}
                 {!bill.closed &&
-                  draftIds.map((draftId) => (
+                  draftIds.map((draftId, draftIndex) => (
                     <TableRow key={draftId} data-testid="invoice-table-draft-row">
-                      {shouldRenderSelectionColumn ? <TableCell /> : null}
+                      {shouldRenderSelectionColumn ? (
+                        <TableSelectRow
+                          aria-label="Select row"
+                          id={`invoice-${bill.uuid}-${draftId}-select`}
+                          name={draftId}
+                          checked={false}
+                          disabled
+                          onSelect={() => undefined}
+                        />
+                      ) : null}
                       {visibleColumnDefinitions.map((column) => (
                         <TableCell key={column.key} className={getCellClassName({ info: { header: column.key } })}>
+                          {column.key === 'no' ? lineItems.length + draftIndex + 1 : null}
                           {column.key === 'billItem' ? (
                             <AddLineItemCell
                               bill={bill}

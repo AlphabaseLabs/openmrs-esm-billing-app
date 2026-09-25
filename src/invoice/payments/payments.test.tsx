@@ -323,7 +323,7 @@ describe('Payment', () => {
     expectSummaryAmount(150);
   });
 
-  test('renders payment footer content after the payment form and summary content in the totals column', () => {
+  test('orders the summary, payments, note, and action buttons for the stacked layout', () => {
     mockUsePaymentModes.mockReturnValue({
       paymentModes: updatedMockPaymentModes,
       isLoading: false,
@@ -343,11 +343,21 @@ describe('Payment', () => {
     expect(screen.getByText('Bulk discount content')).toBeInTheDocument();
     expect(screen.getByText('Bill note content')).toBeInTheDocument();
     expect(
+      screen.getByText('Bulk discount content').compareDocumentPosition(screen.getByText('Payments')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
       screen.getByText('Payments').compareDocumentPosition(screen.getByText('Bill note content')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      screen.getByText('Bill note content').compareDocumentPosition(screen.getByText('Bulk discount content')) &
+      screen.getByText('Bill note content').compareDocumentPosition(screen.getByRole('button', { name: 'Discard' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Discard' })
+        .compareDocumentPosition(screen.getByRole('button', { name: 'Process Payment' })) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });

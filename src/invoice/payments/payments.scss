@@ -1,44 +1,56 @@
 @use '@carbon/colors';
 @use '@carbon/layout';
+@use '@carbon/styles/scss/breakpoint';
 
 .wrapper {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(20rem, max-content);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'payments divider summary'
+    'payments divider actions';
   align-items: flex-start;
-  gap: layout.$spacing-07;
+  column-gap: layout.$spacing-07;
+  margin-block-start: var(--invoice-section-spacing, 42px);
   padding-inline-end: var(--invoice-content-inset, #{layout.$spacing-05});
 }
 
 .divider {
+  grid-area: divider;
   align-self: stretch;
   background: colors.$gray-20;
   width: 1px;
 }
 
 .paymentContainer {
+  grid-area: payments;
   min-width: 0;
 }
 
 .paymentTotals {
+  grid-area: summary;
   min-width: 0;
 }
 
 .paymentFooter {
-  margin-top: layout.$spacing-07;
+  margin-top: var(--invoice-section-spacing, 42px);
 }
 
 .receiptAction {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-top: layout.$spacing-05;
+  padding-inline: var(--invoice-content-inset, #{layout.$spacing-05});
 }
 
 .processPayments {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  margin-top: layout.$spacing-05;
-  padding-top: layout.$spacing-05;
+  // Keep the divider and its padding within the section spacing.
+  margin-top: calc(var(--invoice-section-spacing, 42px) - #{layout.$spacing-06} - 1px);
+  padding-top: layout.$spacing-06;
   gap: layout.$spacing-04;
   border-top: 1px solid colors.$cool-gray-40;
 }
@@ -53,9 +65,15 @@
   column-gap: layout.$spacing-03;
 }
 
-:global(.omrs-breakpoint-lt-desktop) {
+// Carbon's xlg breakpoint leaves room for the sidebar and both invoice columns.
+@include breakpoint.breakpoint-down(xlg) {
   .wrapper {
-    display: block;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      'summary'
+      'payments'
+      'actions';
   }
 
   .divider {
@@ -63,7 +81,11 @@
   }
 
   .paymentTotals {
-    margin-top: layout.$spacing-05;
-    width: 100%;
+    inline-size: 100%;
+    max-inline-size: 32rem;
+  }
+
+  .paymentContainer {
+    margin-block-start: var(--invoice-section-spacing, 42px);
   }
 }

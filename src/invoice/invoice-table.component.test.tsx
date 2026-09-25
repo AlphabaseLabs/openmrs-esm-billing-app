@@ -8,7 +8,7 @@ jest.mock('@openmrs/esm-patient-common-lib', () => ({
 }));
 
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSession } from '@openmrs/esm-framework';
 import InvoiceTable from './invoice-table.component';
@@ -122,18 +122,22 @@ describe('InvoiceTable', () => {
     } as ReturnType<typeof useBillableServices>);
   });
 
-  it('shows the standard dropdown indicator on the draft selector and leaves other columns blank', () => {
+  it('shows a numbered draft with a disabled checkbox and leaves unsaved values blank', () => {
     render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [] }} />);
     expect(screen.queryByRole('button', { name: /^add bill item$/i })).not.toBeInTheDocument();
     expect(within(getDraftRow()).getByTestId('editable-text-content')).toBeInTheDocument();
     const cells = within(getDraftRow()).getAllByRole('cell');
-    expect(cells[0].querySelector('button[aria-label="Select bill item"]')).toHaveClass('emptyItemOptionsButton');
-    expect(cells.filter((_cell, index) => index !== 0 && index !== 6).every((cell) => cell.textContent === '')).toBe(
-      true,
-    );
+    expect(within(cells[0]).getByRole('checkbox')).toBeDisabled();
+    expect(within(cells[0]).getByRole('checkbox')).not.toBeChecked();
+    expect(cells[1]).toHaveTextContent(/^1$/);
+    expect(cells[2].querySelector('button[aria-label="Select bill item"]')).toHaveClass('emptyItemOptionsButton');
+    expect(cells.slice(3).every((cell) => cell.textContent === '')).toBe(true);
+    expect(screen.getByRole('checkbox', { name: 'Select all line items' })).toBeDisabled();
     expect(within(getDraftRow()).queryByRole('button', { name: 'Remove empty row' })).not.toBeInTheDocument();
-    expect(within(getAddItemFooter()).getByRole('button', { name: 'Add item' })).toBeInTheDocument();
+    expect(within(getAddItemFooter()).getByRole('button', { name: 'Add item' })).toHaveClass('cds--btn--primary');
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Select all line items',
+      'Number',
       'Bill item',
       'Provider',
       'Price',
@@ -228,9 +232,10 @@ describe('InvoiceTable', () => {
     expect(onLineItemUpdated).not.toHaveBeenCalled();
   });
 
-  it('appends independent blank rows above the unchanged Add item button', async () => {
+  it('appends sequentially numbered drafts without selecting unsaved rows', async () => {
     const user = userEvent.setup();
-    render(<InvoiceTable bill={openPendingBill} />);
+    const onSelectItem = jest.fn();
+    render(<InvoiceTable bill={openPendingBill} onSelectItem={onSelectItem} />);
     const originalDraft = getDraftRow();
     await user.click(screen.getByRole('button', { name: 'Add item' }));
     await user.click(screen.getByRole('button', { name: 'Add item' }));
@@ -239,10 +244,15 @@ describe('InvoiceTable', () => {
     expect(drafts[0]).toBe(originalDraft);
     expect(drafts[2].nextElementSibling).toBeNull();
     expect(getInvoiceTable().parentElement?.nextElementSibling).toBe(getAddItemFooter());
-    for (const draft of drafts) {
-      expect(within(draft).queryByRole('checkbox')).not.toBeInTheDocument();
+    for (const [index, draft] of drafts.entries()) {
+      const checkbox = within(draft).getByRole('checkbox');
+      expect(checkbox).toBeDisabled();
+      expect(checkbox).not.toBeChecked();
+      await user.click(checkbox);
+      expect(draft.children[1]).toHaveTextContent(String(openPendingBill.lineItems.length + index + 1));
       expect(draft.children).toHaveLength(getInvoiceTable().querySelectorAll('col').length);
     }
+    expect(onSelectItem).not.toHaveBeenCalled();
     expect(mockLaunchBillingWorkspace).not.toHaveBeenCalled();
   });
 
@@ -536,6 +546,65 @@ describe('InvoiceTable', () => {
     expect(table.querySelectorAll('col')).toHaveLength(getHeaderCount());
   });
 
+  it.each([true, false])('keeps loading and loaded column counts aligned with selection %s', (isSelectable) => {
+    const { rerender } = render(<InvoiceTable bill={openPendingBill} isSelectable={isSelectable} isLoadingBill />);
+    const loadingColumnCount = screen.getAllByRole('columnheader').length;
+
+    rerender(<InvoiceTable bill={openPendingBill} isSelectable={isSelectable} />);
+
+    expect(within(getInvoiceTable()).getAllByRole('columnheader')).toHaveLength(loadingColumnCount);
+    expect(getDraftRow().children).toHaveLength(loadingColumnCount);
+  });
+
+  it('measures and observes the table after initial loading and subsequent reloads', () => {
+    const observers: Array<{ callback: ResizeObserverCallback; observer: ResizeObserver }> = [];
+    const resizeObserverMock = jest.spyOn(window, 'ResizeObserver').mockImplementation((callback) => {
+      const observer = { observe: jest.fn(), unobserve: jest.fn(), disconnect: jest.fn() };
+      observers.push({ callback, observer });
+      return observer;
+    });
+    const rectMock = jest
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 1800 } as DOMRect);
+    const getTableWidth = () => getColumnWidths(getInvoiceTable()).reduce((sum, width) => sum + parseFloat(width), 0);
+    const getTableObserver = () =>
+      observers.find(({ observer }) =>
+        jest.mocked(observer.observe).mock.calls.some(([element]) => element.contains(getInvoiceTable())),
+      )!;
+
+    try {
+      const { rerender, unmount } = render(<InvoiceTable bill={openPendingBill} isLoadingBill />);
+
+      rerender(<InvoiceTable bill={openPendingBill} />);
+      expect(getTableWidth()).toBe(1800);
+      const firstObserver = getTableObserver();
+
+      act(() => {
+        firstObserver.callback([{ contentRect: { width: 1600 } } as ResizeObserverEntry], firstObserver.observer);
+      });
+      expect(getTableWidth()).toBe(1600);
+
+      rerender(<InvoiceTable bill={openPendingBill} isLoadingBill />);
+      expect(firstObserver.observer.disconnect).toHaveBeenCalledTimes(1);
+
+      rectMock.mockReturnValue({ width: 2000 } as DOMRect);
+      rerender(<InvoiceTable bill={openPendingBill} />);
+      expect(getTableWidth()).toBe(2000);
+      const secondObserver = getTableObserver();
+
+      act(() => {
+        secondObserver.callback([{ contentRect: { width: 1500 } } as ResizeObserverEntry], secondObserver.observer);
+      });
+      expect(getTableWidth()).toBe(1500);
+
+      unmount();
+      expect(secondObserver.observer.disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      resizeObserverMock.mockRestore();
+      rectMock.mockRestore();
+    }
+  });
+
   it('renders a synthetic selection column width when selection is present', () => {
     render(<InvoiceTable bill={openPendingBill} />);
 
@@ -558,6 +627,20 @@ describe('InvoiceTable', () => {
     await user.click(screen.getByRole('checkbox', { name: /select all line items/i }));
 
     expect(onSelectItem).toHaveBeenCalledWith([...paidLineItems, ...pendingLineItems]);
+    expect(within(getDraftRow()).getByRole('checkbox')).not.toBeChecked();
+  });
+
+  it('keeps selection available when an open bill has only one saved item', async () => {
+    const user = userEvent.setup();
+    const onSelectItem = jest.fn();
+    const lineItem = openPendingBill.lineItems.find((item) => item.paymentStatus === PaymentStatus.PENDING)!;
+    render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [lineItem] }} onSelectItem={onSelectItem} />);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select all line items' }));
+
+    expect(onSelectItem).toHaveBeenCalledWith([lineItem]);
+    expect(within(getDraftRow()).getByRole('checkbox')).toBeDisabled();
+    expect(getDraftRow().children[1]).toHaveTextContent(/^2$/);
   });
 
   it('unselects eligible line items while preserving paid line items', async () => {
@@ -605,17 +688,19 @@ describe('InvoiceTable', () => {
   });
 
   it('omits the synthetic selection column width when selection is absent', () => {
-    render(<InvoiceTable bill={{ ...openPendingBill, lineItems: [openPendingBill.lineItems[0]] }} />);
+    render(<InvoiceTable bill={openPendingBill} isSelectable={false} />);
 
     const table = getInvoiceTable();
     const columnWidths = getColumnWidths(table);
 
-    expect(columnWidths[0]).toBe('224px');
+    expect(columnWidths[0]).toBe('112px');
     expect(columnWidths).not.toContain('48px');
+    expect(within(table).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(table.querySelectorAll('col')).toHaveLength(table.querySelectorAll('thead th').length);
+    expect(getDraftRow().children).toHaveLength(columnWidths.length);
   });
 
-  it('keeps the action column fixed when optional columns are hidden', async () => {
+  it('preserves the action column minimum width when optional columns are hidden', async () => {
     const user = userEvent.setup();
 
     render(<InvoiceTable bill={openPendingBill} />);
@@ -661,14 +746,15 @@ describe('InvoiceTable', () => {
 
     expect(bodyRows).toHaveLength(openPendingBill.lineItems.length + 1);
     expect(bodyRows[bodyRows.length - 1]).toBe(getDraftRow());
-    expect(within(getDraftRow()).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(getDraftRow()).getByRole('checkbox')).toBeDisabled();
     expect(table).not.toContainElement(addItemFooter);
     expect(within(addItemFooter).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(within(addItemFooter).queryByRole('button', { name: /costs/i })).not.toBeInTheDocument();
     expect(within(addItemFooter).queryByRole('button', { name: /cancel item/i })).not.toBeInTheDocument();
-    expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length + 1);
+    expect(within(table).getAllByRole('checkbox')).toHaveLength(openPendingBill.lineItems.length + 2);
     expect(bodyRows[0].children[1]).toHaveTextContent(/^1$/);
     expect(bodyRows[1].children[1]).toHaveTextContent(/^2$/);
+    expect(getDraftRow().children[1]).toHaveTextContent(/^3$/);
     expect(addItemFooter).not.toHaveTextContent(/^3$/);
   });
 
@@ -718,6 +804,8 @@ describe('InvoiceTable', () => {
     render(<InvoiceTable bill={openPendingBill} />);
 
     expect(screen.getByRole('columnheader', { name: /tax/i })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /number/i })).not.toBeInTheDocument();
+    expect(getDraftRow().children[1]).toHaveTextContent('Select bill item');
   });
 
   it('keeps hidden financial column values in calculations and rendered totals', async () => {

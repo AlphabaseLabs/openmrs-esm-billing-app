@@ -22,6 +22,7 @@ describe('line-item-column-visibility', () => {
 
   it('defaults all configured default columns when persisted data is absent or malformed', () => {
     expect(getDefaultVisibleLineItemColumnKeys()).toEqual([
+      'no',
       'billItem',
       'provider',
       'price',
@@ -108,7 +109,6 @@ describe('line-item-column-visibility', () => {
     expect(layoutColumns[0]).toEqual(
       expect.objectContaining({
         isFixed: true,
-        growWeight: 0,
       }),
     );
   });
@@ -144,20 +144,63 @@ describe('line-item-column-visibility', () => {
     expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(75);
   });
 
-  it('distributes surplus only to flexible columns and keeps fixed columns stable', () => {
-    const layoutColumns = getLineItemTableLayoutColumns(getLineItemColumnDefinitions(), true);
-    const layout = calculateLineItemTableColumnLayout(layoutColumns, 1600);
+  it.each([
+    ['default', getDefaultVisibleLineItemColumnKeys(), 1800],
+    ['all', getLineItemColumnDefinitions().map((column) => column.key), 2400],
+    ['required', normalizeLineItemVisibleColumnKeys([]), 1600],
+  ] as const)('equalizes the %s data columns without stretching selection or counts', (_, keys, availableWidth) => {
+    const definitions = getLineItemColumnDefinitions().filter((column) => keys.includes(column.key));
+    const layoutColumns = getLineItemTableLayoutColumns(definitions, true);
+    const layout = calculateLineItemTableColumnLayout(layoutColumns, availableWidth);
+    const widths = new Map(layout.columns.map((column) => [column.key, column.width]));
 
-    expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(1600);
-    expect(layout.columns.find((column) => column.key === '__selection__')?.width).toBe(48);
-    expect(layout.columns.find((column) => column.key === 'actionButton')?.width).toBe(75);
-    for (const key of ['price', 'discount', 'total']) {
-      expect(layout.columns.find((column) => column.key === key)?.width).toBe(100);
+    expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(availableWidth);
+    expect(widths.get('__selection__')).toBe(48);
+    for (const column of definitions) {
+      if (column.isFixed) {
+        expect(widths.get(column.key)).toBe(column.minWidth);
+      } else {
+        expect(widths.get(column.key)).toBeGreaterThanOrEqual(column.minWidth);
+      }
     }
-    expect(layout.columns.find((column) => column.key === 'status')?.width).toBe(100);
-    expect(layout.columns.find((column) => column.key === 'date')?.width).toBe(120);
-    expect(layout.columns.find((column) => column.key === 'quantity')?.width).toBe(80);
-    expect(layout.columns.find((column) => column.key === 'tax')?.width).toBe(80);
-    expect(layout.columns.find((column) => column.key === 'billItem')?.width).toBeGreaterThan(224);
+
+    const dataWidths = definitions.filter((column) => !column.isFixed).map((column) => widths.get(column.key)!);
+    expect(Math.max(...dataWidths) - Math.min(...dataWidths)).toBeLessThanOrEqual(1);
+  });
+
+  it.each([0, 900, 1200])('preserves readable minimums at a %ipx container width', (availableWidth) => {
+    const definitions = getLineItemColumnDefinitions().filter((column) => column.defaultVisible);
+    const layoutColumns = getLineItemTableLayoutColumns(definitions, false);
+    const layout = calculateLineItemTableColumnLayout(layoutColumns, availableWidth);
+
+    expect(layout.columns.reduce((sum, column) => sum + column.width, 0)).toBe(layout.layoutWidth);
+    for (const column of definitions) {
+      expect(layout.columns.find(({ key }) => key === column.key)?.width).toBeGreaterThanOrEqual(column.minWidth);
+    }
+    expect(layout.layoutWidth).toBe(Math.max(availableWidth, layout.totalMinWidth));
+    expect(layout.columns.find(({ key }) => key === 'billItem')?.width).toBe(192);
+    expect(layout.columns.find(({ key }) => key === 'provider')?.width).toBe(176);
+  });
+
+  it('does not allocate surplus width when there are no flexible data columns', () => {
+    const layoutColumns = getLineItemTableLayoutColumns(
+      getLineItemColumnDefinitions().filter((column) => column.isFixed),
+      true,
+    );
+
+    expect(calculateLineItemTableColumnLayout(layoutColumns, 1600)).toEqual({
+      columns: [
+        { key: '__selection__', width: 48 },
+        { key: 'no', width: 112 },
+        { key: 'quantity', width: 80 },
+      ],
+      totalMinWidth: 240,
+      layoutWidth: 240,
+    });
+    expect(calculateLineItemTableColumnLayout([], 1600)).toEqual({
+      columns: [],
+      totalMinWidth: 0,
+      layoutWidth: 0,
+    });
   });
 });
