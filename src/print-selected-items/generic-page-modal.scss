@@ -1,0 +1,116 @@
+@use '@carbon/colors';
+@use '@carbon/layout';
+
+.genericPageModal {
+  inline-size: min(58rem, calc(100vw - #{layout.$spacing-07}));
+  // Fixed height so the dialog doesn't resize as sections expand/collapse;
+  // content taller than this scrolls inside the page body instead.
+  block-size: min(44rem, calc(100dvh - #{layout.$spacing-07}));
+  max-block-size: calc(100dvh - #{layout.$spacing-07});
+  overflow: hidden;
+  border: 1px solid colors.$gray-20;
+  border-radius: layout.$spacing-02;
+  background-color: colors.$white;
+  transition:
+    inline-size 120ms ease,
+    block-size 120ms ease;
+
+  :global(.cds--modal-content) {
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    min-block-size: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.expandedGenericPageModal {
+  inline-size: calc(100vw - #{layout.$spacing-05});
+  block-size: calc(100dvh - #{layout.$spacing-05});
+  max-block-size: calc(100dvh - #{layout.$spacing-05});
+}
+
+:global(.omrs-breakpoint-lt-small-desktop) .genericPageModal {
+  inline-size: calc(100vw - #{layout.$spacing-05});
+  block-size: calc(100dvh - #{layout.$spacing-05});
+  max-block-size: calc(100dvh - #{layout.$spacing-05});
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  flex: 0 0 layout.$spacing-07;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-block-size: layout.$spacing-07;
+  padding: layout.$spacing-03 layout.$spacing-03 0;
+  background-color: colors.$white;
+}
+
+.toolbarIconButton {
+  inline-size: layout.$spacing-05;
+  block-size: layout.$spacing-05;
+  min-inline-size: layout.$spacing-05;
+  min-block-size: layout.$spacing-05;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: layout.$spacing-01;
+  background-color: transparent;
+  color: colors.$gray-50;
+  cursor: pointer;
+
+  svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    fill: currentColor;
+  }
+
+  &:hover {
+    background-color: colors.$gray-10;
+    color: colors.$gray-70;
+  }
+
+  &:focus {
+    outline: 1px solid var(--brand-01);
+    outline-offset: 1px;
+  }
+}
+
+.pageSurface {
+  // Keep the selection table scrollable and the action bar visible.
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  // Fallback for pages that don't manage their own scrolling.
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: layout.$spacing-05 min(5vw, 3rem) layout.$spacing-06;
+  scrollbar-width: none;
+  color: colors.$gray-70;
+
+  &::-webkit-scrollbar {
+    inline-size: 0;
+    block-size: 0;
+  }
+}
+
+:global(.omrs-breakpoint-lt-small-desktop) .toolbar {
+  padding-inline: layout.$spacing-02;
+}
+
+:global(.omrs-breakpoint-lt-small-desktop) .pageSurface {
+  padding: layout.$spacing-07 layout.$spacing-05 layout.$spacing-06;
+}

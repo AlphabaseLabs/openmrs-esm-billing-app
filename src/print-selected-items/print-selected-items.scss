@@ -1,0 +1,114 @@
+@use '@carbon/colors';
+@use '@carbon/layout';
+@use '@carbon/type';
+
+// Layout contract from the admin app's modal-form-layout.scss.
+.form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+  max-inline-size: 46rem;
+  inline-size: 100%;
+  margin-inline: auto;
+}
+
+:global([data-generic-page-modal-expanded='true']) .form {
+  max-inline-size: 76rem;
+}
+.formHeader {
+  flex: 0 0 auto;
+  margin-block-end: layout.$spacing-05;
+}
+.title {
+  @include type.type-style('productive-heading-03');
+  margin: 0 0 layout.$spacing-03;
+  color: colors.$gray-100;
+}
+.description {
+  @include type.type-style('body-compact-01');
+  color: colors.$gray-70;
+}
+.formBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+  gap: layout.$spacing-05;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block-end: layout.$spacing-06;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: layout.$spacing-05;
+}
+.sectionTitle {
+  @include type.type-style('heading-compact-01');
+  margin: 0;
+  color: colors.$gray-100;
+}
+.tableContainer {
+  overflow-x: auto;
+  border: 1px solid colors.$gray-20;
+  border-radius: layout.$spacing-02;
+}
+.selectableRow {
+  cursor: pointer;
+}
+.numeric {
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.date {
+  white-space: nowrap;
+}
+.selectionSummary {
+  @include type.type-style('body-compact-01');
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: layout.$spacing-03;
+  padding-block: layout.$spacing-05;
+  color: colors.$gray-100;
+}
+.actionBar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-self: flex-end;
+  max-inline-size: 100%;
+  gap: layout.$spacing-03;
+  padding-block-start: layout.$spacing-05;
+  margin-block-end: layout.$spacing-05;
+  border-block-start: 1px solid colors.$gray-20;
+  background-color: colors.$white;
+  :global(.cds--btn) {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+.printButton {
+  position: relative;
+}
+.printButton .printSpinner {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: layout.$spacing-04;
+  inline-size: auto;
+  min-block-size: 0;
+  transform: translateY(-50%);
+
+  :global(.cds--inline-loading__animation) {
+    margin-inline-end: 0;
+  }
+}
+.printFrame {
+  position: fixed;
+  inline-size: 0;
+  block-size: 0;
+  border: 0;
+}

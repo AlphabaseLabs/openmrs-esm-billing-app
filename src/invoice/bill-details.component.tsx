@@ -7,7 +7,7 @@ import { CardHeader } from '@openmrs/esm-patient-common-lib';
 import { type BillingConfig } from '../config-schema';
 import { MAX_BILL_NOTE_LENGTH } from '../constants';
 import { convertToCurrency, formatBillDateTime, formatInvoiceDate } from '../helpers';
-import { type LineItem, type MappedBill, PaymentStatus } from '../types';
+import { type LineItem, type MappedBill } from '../types';
 import { syncBillStatus, updateBillDate, updateBillNote } from '../billing.resource';
 import BulkDiscountControl from './bulk-discount-control.component';
 import { EditableDatePicker, getDateWithCurrentTime } from './editable-date-picker.component';
@@ -16,6 +16,7 @@ import { recomputeBillWithLineItem } from './editable-line-item-cells';
 import InvoiceTable from './invoice-table.component';
 import { readLineItemColumnVisibilityPreference, type LineItemColumnKey } from './line-item-column-visibility';
 import Payments from './payments/payments.component';
+import PrintSelectedItemsModal from '../print-selected-items/print-selected-items.modal';
 import styles from './invoice.scss';
 import startCase from 'lodash-es/startCase';
 
@@ -53,6 +54,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({
   const { sessionLocation } = useSession();
   const [editableBill, setEditableBill] = useState<MappedBill>(bill);
   const [selectedLineItems, setSelectedLineItems] = useState<Array<LineItem>>([]);
+  const [isPrintSelectionOpen, setIsPrintSelectionOpen] = useState(false);
   const [isUpdatingBillDate, setIsUpdatingBillDate] = useState(false);
   const [visibleLineItemColumnKeys, setVisibleLineItemColumnKeys] = useState<Array<LineItemColumnKey>>(() =>
     readLineItemColumnVisibilityPreference(),
@@ -316,18 +318,21 @@ const BillDetails: React.FC<BillDetailsProps> = ({
                   `${t('invoice', 'Invoice')} ${billToRender?.receiptNumber}`,
                 )
               }>
-              {(billToRender.status === PaymentStatus.PAID || billToRender.tenderedAmount > 0) && (
-                <MenuItem
-                  label={t('printReceipt', 'Print receipt')}
-                  renderIcon={Receipt}
-                  onClick={() =>
-                    openPrintPreview(
-                      `/openmrs${restBaseUrl}/cashier/receipt?billId=${billToRender.id}`,
-                      `${t('receipt', 'Receipt')} ${billToRender.receiptNumber}`,
-                    )
-                  }
-                />
-              )}
+              <MenuItem
+                label={t('printSelectedItems', 'Print selected items')}
+                renderIcon={Printer}
+                onClick={() => setIsPrintSelectionOpen(true)}
+              />
+              <MenuItem
+                label={t('printReceipt', 'Print receipt')}
+                renderIcon={Receipt}
+                onClick={() =>
+                  openPrintPreview(
+                    `/openmrs${restBaseUrl}/cashier/receipt?billId=${billToRender.id}`,
+                    `${t('receipt', 'Receipt')} ${billToRender.receiptNumber}`,
+                  )
+                }
+              />
               <MenuItem
                 label={t('printStatement', 'Print Statement')}
                 renderIcon={Document}
@@ -367,6 +372,13 @@ const BillDetails: React.FC<BillDetailsProps> = ({
           }
         />
         <InvoiceActions bill={billToRender} />
+        {isPrintSelectionOpen && (
+          <PrintSelectedItemsModal
+            key={billToRender.uuid}
+            bill={billToRender}
+            onClose={() => setIsPrintSelectionOpen(false)}
+          />
+        )}
       </div>
     </div>
   );
