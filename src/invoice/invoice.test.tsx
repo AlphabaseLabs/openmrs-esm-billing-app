@@ -261,7 +261,7 @@ xdescribe('Invoice', () => {
     const paymentHistorySection = screen.getByRole('heading', { name: /Payments/i });
     expect(paymentHistorySection).toBeInTheDocument();
 
-    const expectedColumnHeaders = [/Date of payment/, /Bill amount/, /Amount tendered/, /Payment method/];
+    const expectedColumnHeaders = [/Date/, /Bill amount/, /Amount/, /Method/];
     expectedColumnHeaders.forEach((header) => {
       expect(screen.getByRole('columnheader', { name: new RegExp(header, 'i') })).toBeInTheDocument();
     });

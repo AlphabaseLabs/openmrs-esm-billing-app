@@ -44,6 +44,8 @@ type PaymentHistoryApiRow = {
   paymentAmount?: number | string;
   paymentMethod?: string;
   referenceId?: string;
+  reviewStatus?: string;
+  source?: string;
 };
 
 type PaymentMethodTotalApiRow = {
@@ -103,6 +105,8 @@ export interface PaymentHistoryEntry {
   paymentAmount: number;
   paymentMethod: string;
   referenceId: string;
+  reviewStatus?: string;
+  source?: string;
 }
 
 export interface PaymentMethodTotal {
@@ -144,7 +148,7 @@ const baseBillHistoryRepresentation = encodeURIComponent(
 );
 
 const basePaymentHistoryRepresentation = encodeURIComponent(
-  'custom:(uuid,billUuid,patientUuid,patientName,identifier,invoiceId,paymentDate,paymentAmount,paymentMethod,referenceId)',
+  'custom:(uuid,billUuid,patientUuid,patientName,identifier,invoiceId,paymentDate,paymentAmount,paymentMethod,referenceId,reviewStatus,source)',
 );
 
 const normalizeNumber = (value: number | string | null | undefined) => {
@@ -215,6 +219,8 @@ const mapPaymentHistoryEntry = (row: PaymentHistoryApiRow): PaymentHistoryEntry 
     paymentAmount: normalizeNumber(row.paymentAmount),
     paymentMethod: normalizeString(row.paymentMethod),
     referenceId: normalizeString(row.referenceId),
+    reviewStatus: normalizeString(row.reviewStatus, ''),
+    source: normalizeString(row.source, 'PAYMENT'),
   };
 };
 
@@ -244,6 +250,10 @@ const buildHistoryParams = ({
 
   if (filters.cashiers?.length) {
     params.set('cashierUuids', filters.cashiers.join(','));
+  }
+
+  if (filters.reviewStatuses?.length) {
+    params.set('reviewStatuses', filters.reviewStatuses.join(','));
   }
 
   if (timesheetUuid?.trim()) {

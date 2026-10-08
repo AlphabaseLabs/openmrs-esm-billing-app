@@ -49,6 +49,7 @@ export const PaymentEntryHistoryViewerContent = ({
       { header: `${t('amount', 'Amount')} (${currency})`, key: 'paymentAmount' },
       { header: t('mode', 'Mode'), key: 'paymentMethod' },
       { header: t('referenceCodes', 'Reference codes'), key: 'referenceId' },
+      { header: t('status', 'Status'), key: 'reviewStatus' },
     ],
     [currency, t],
   );

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { type LineItem, type MappedBill, PaymentStatus } from '../../../types';
 import styles from './payment.scss';
@@ -7,19 +7,21 @@ import {
   ResponsiveWrapper,
   Workspace2,
   type Workspace2DefinitionProps,
-  showNotification,
   showSnackbar,
+  useConfig,
   useLayoutType,
 } from '@openmrs/esm-framework';
 import classNames from 'classnames';
 import { Controller } from 'react-hook-form';
-import { addPaymentToBill, usePaymentModes } from '../../../billing.resource';
+import { addPaymentToBill, createPendingPayment, usePaymentModes } from '../../../billing.resource';
+import { type BillingConfig } from '../../../config-schema';
 import { usePaymentForm } from './use-payment-form';
 import { type z } from 'zod';
 import { mutate } from 'swr';
 import { convertToCurrency } from '../../../helpers';
 import { createLineItemAllocationBuilder } from '../ai-payments.integration';
 import { getActiveBillingRecords } from '../../../billing-voided-utils';
+import { extractErrorMessagesFromResponse } from '../../../utils';
 
 type PaymentWorkspaceProps = {
   bill: MappedBill;
@@ -31,6 +33,7 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
   closeWorkspace,
 }) => {
   const { t } = useTranslation();
+  const { insurancePaymentMethod } = useConfig<BillingConfig>();
   const { bill, selectedLineItems = [] } = workspaceProps ?? ({} as PaymentWorkspaceProps);
   const isTablet = useLayoutType() === 'tablet';
   const translationWrapper = (key: string, defaultValue?: string) => t(key, defaultValue);
@@ -47,10 +50,13 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
   } = formMethods;
 
   const onSubmit = async (data: PaymentFormData) => {
+    const isInsurance = Boolean(insurancePaymentMethod && data.instanceType?.uuid === insurancePaymentMethod);
     const selectedUnpaidLineItems = getActiveBillingRecords(selectedLineItems).filter(
       (item) => item.paymentStatus !== PaymentStatus.PAID,
     );
-    const allocations = createLineItemAllocationBuilder(selectedUnpaidLineItems)(data.amountTendered);
+    const allocations = isInsurance
+      ? []
+      : createLineItemAllocationBuilder(selectedUnpaidLineItems)(data.amountTendered);
     const payment = {
       instanceType: data.instanceType?.uuid,
       amount: data.amountTendered,
@@ -67,7 +73,17 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
     };
 
     try {
-      const response = await addPaymentToBill(bill.uuid, payment);
+      const referenceCode = data.instanceType?.attributeTypes
+        ?.map(({ uuid }) => data.attributes?.[uuid]?.trim())
+        .find(Boolean);
+      const response = isInsurance
+        ? await createPendingPayment(bill.uuid, {
+            paymentMode: data.instanceType.uuid,
+            amount: data.amountTendered,
+            amountTendered: data.amountTendered,
+            referenceCode,
+          })
+        : await addPaymentToBill(bill.uuid, payment);
       if (response.ok) {
         showSnackbar({
           title: t('paymentSaved', 'Payment saved'),
@@ -78,11 +94,15 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
       const url = `/ws/rest/v1/cashier/bill/${bill.uuid}`;
       mutate((key) => typeof key === 'string' && key.startsWith(url), undefined, { revalidate: true });
       closeWorkspace({ discardUnsavedChanges: true });
-    } catch (error) {
+    } catch (error: any) {
       showSnackbar({
         title: t('errorSavingPayment', 'Error saving payment'),
         kind: 'error',
-        subtitle: error.message,
+        subtitle: error?.responseBody
+          ? extractErrorMessagesFromResponse(error.responseBody)
+          : error instanceof Error
+            ? error.message
+            : t('errorSavingPaymentFallback', 'Unable to save payment'),
       });
     }
   };
@@ -147,6 +167,7 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
                   <TextInput
                     {...field}
                     id="amountTendered"
+                    value={field.value ?? ''}
                     labelText={t('amountTendered', 'Amount Tendered')}
                     placeholder={t('enterAmountTendered', 'Enter amount tendered, max is {{max}}', {
                       max: bill.balance,
@@ -171,6 +192,7 @@ const PaymentWorkspace: React.FC<Workspace2DefinitionProps<PaymentWorkspaceProps
                     <TextInput
                       {...field}
                       id={attributeType.uuid}
+                      value={field.value ?? ''}
                       labelText={`${attributeType.name || 'Attribute'}${
                         attributeType.required ? t('required', ' (Required)') : ''
                       }`}

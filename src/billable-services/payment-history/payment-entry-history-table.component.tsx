@@ -11,6 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tag,
 } from '@carbon/react';
 import { Download } from '@carbon/react/icons';
 import { navigate, useDebounce, useLayoutType } from '@openmrs/esm-framework';
@@ -59,6 +60,11 @@ export const PaymentEntryHistoryTable = ({
   onExport,
 }: PaymentEntryHistoryTableProps) => {
   const { t } = useTranslation();
+  const reviewStatusLabels = {
+    PENDING: t('pending', 'Pending'),
+    PAID: t('paid', 'Paid'),
+    REJECTED: t('rejected', 'Rejected'),
+  };
   const responsiveSize = getHistoryResponsiveSize(useLayoutType());
   const [searchString, setSearchString] = useState('');
   const debouncedSearchString = useDebounce(searchString, 300);
@@ -89,6 +95,7 @@ export const PaymentEntryHistoryTable = ({
       'Payment amount': Number(row.paymentAmount.toFixed(2)),
       'Payment method': row.paymentMethod,
       'Reference codes': row.referenceId,
+      Status: row.reviewStatus,
     }));
 
     exportToExcel(data, {
@@ -168,9 +175,15 @@ export const PaymentEntryHistoryTable = ({
                               : undefined
                           }
                           style={getHistoryColumnStyle(paymentHistoryColumnStyles, cell.info.header)}>
-                          {amountKeys.includes(cell.info.header)
-                            ? formatCurrency(cell.value, { style: 'decimal', maximumFractionDigits: 2 })
-                            : cell.value}
+                          {cell.info.header === 'reviewStatus' && cell.value ? (
+                            <Tag type={cell.value === 'PAID' ? 'green' : cell.value === 'REJECTED' ? 'red' : 'gray'}>
+                              {reviewStatusLabels[cell.value] ?? cell.value}
+                            </Tag>
+                          ) : amountKeys.includes(cell.info.header) ? (
+                            formatCurrency(cell.value, { style: 'decimal', maximumFractionDigits: 2 })
+                          ) : (
+                            cell.value
+                          )}
                         </TableCell>
                       ))}
                     </TableRow>

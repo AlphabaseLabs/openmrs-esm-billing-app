@@ -1,32 +1,125 @@
 .table {
+  inline-size: 100%;
+  max-inline-size: 92rem;
+  table-layout: auto;
+
+  th,
+  td {
+    box-sizing: border-box;
+    padding-inline: 1rem;
+    vertical-align: middle;
+  }
+
   .amountContent {
-    display: block;
-    inline-size: 10rem;
-    max-inline-size: 100%;
-    text-align: right;
     font-variant-numeric: tabular-nums;
   }
 }
 
+.dateColumn {
+  min-inline-size: 12rem;
+  max-inline-size: 18rem;
+  white-space: nowrap;
+}
+
+.amountColumn {
+  min-inline-size: 7rem;
+  max-inline-size: 12rem;
+  white-space: nowrap;
+}
+
+.paymentMethodColumn {
+  min-inline-size: 8rem;
+  max-inline-size: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.referenceColumn {
+  min-inline-size: 8rem;
+  max-inline-size: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actionsColumn {
+  min-inline-size: 6rem;
+  max-inline-size: 10rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .actionButtons {
   display: inline-flex;
-  gap: 0.5rem;
+  gap: 0;
   align-items: center;
+}
+
+.paymentMethodContent {
+  display: inline-flex;
+  flex-direction: column;
+  justify-self: start;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  gap: 0.125rem;
+  align-items: flex-end;
+}
+
+.paymentMethodDetails {
+  display: grid;
+  min-inline-size: 0;
+  gap: 0.125rem;
+}
+
+.paymentMethodName {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewStatusTag {
+  flex: none;
+  margin: 0;
+}
+
+.reviewNote {
+  max-inline-size: 22rem;
+  overflow: hidden;
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rejectionModalDescription {
+  margin-block-end: 1rem;
+  color: var(--cds-text-secondary);
 }
 
 .referenceCodes {
   display: grid;
   gap: 0.125rem;
+  max-inline-size: 100%;
 }
 
 .voidedPaymentRow {
+  --payment-strike-color: var(--cds-text-primary);
   position: relative;
+}
+
+.rejectedPaymentRow {
+  --payment-strike-color: var(--cds-support-error);
+}
+
+.voidedPaymentRow,
+.rejectedPaymentRow {
   color: var(--cds-text-secondary);
 
   td {
     position: relative;
     background-color: var(--cds-layer);
-    background-image: linear-gradient(to right, var(--cds-text-primary), var(--cds-text-primary));
+    background-image: linear-gradient(to right, var(--payment-strike-color), var(--payment-strike-color));
     background-repeat: no-repeat;
     background-position: 0 50%;
     background-size: 100% 1px;
@@ -34,6 +127,12 @@
     text-decoration: line-through;
     text-decoration-thickness: 1px;
   }
+}
+
+.voidedPaymentRow:hover td,
+.rejectedPaymentRow:hover td {
+  background-color: var(--cds-layer) !important;
+  background-image: linear-gradient(to right, var(--payment-strike-color), var(--payment-strike-color)) !important;
 }
 
 .voidedPaymentTooltipAnchor {
@@ -49,10 +148,4 @@
 .voidedPaymentTooltip :global(.cds--tooltip-content) {
   max-inline-size: 28rem;
   inline-size: max-content;
-}
-
-.voidedPaymentRow:hover,
-.voidedPaymentRow:hover td {
-  background-color: var(--cds-layer) !important;
-  background-image: linear-gradient(to right, var(--cds-text-primary), var(--cds-text-primary)) !important;
 }

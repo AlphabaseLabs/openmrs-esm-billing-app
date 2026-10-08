@@ -2,9 +2,12 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { openmrsFetch } from '@openmrs/esm-framework';
 import useSWR from 'swr';
 import {
+  createPendingPayment,
   mapBillProperties,
   updateBillNote,
   updatePaymentAttributes,
+  updatePendingPaymentReference,
+  updatePendingPaymentStatus,
   useBill,
   useBills,
   useBillsPaginated,
@@ -284,6 +287,80 @@ describe('updatePaymentAttributes', () => {
       headers: { 'Content-Type': 'application/json' },
       body: { attributes },
     });
+  });
+});
+
+describe('reviewed payments', () => {
+  it('creates an insurance request outside the bill payment collection', async () => {
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await createPendingPayment('bill-uuid', {
+      paymentMode: 'insurance-uuid',
+      amount: 250,
+      amountTendered: 250,
+      referenceCode: 'POLICY-42',
+    });
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/pending-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        bill: 'bill-uuid',
+        paymentMode: 'insurance-uuid',
+        amount: 250,
+        amountTendered: 250,
+        referenceCode: 'POLICY-42',
+      },
+    });
+  });
+
+  it('updates only the pending request status', async () => {
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await updatePendingPaymentStatus('request-uuid', 'SUCCESS');
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/pending-payment/request-uuid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { status: 'SUCCESS' },
+    });
+  });
+
+  it('includes the review note when rejecting a pending request', async () => {
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await updatePendingPaymentStatus('request-uuid', 'REJECTED', 'Coverage was declined');
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/pending-payment/request-uuid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { status: 'REJECTED', reviewNote: 'Coverage was declined' },
+    });
+  });
+
+  it('updates only the pending request reference code', async () => {
+    mockOpenmrsFetch.mockResolvedValueOnce({ ok: true } as Awaited<ReturnType<typeof openmrsFetch>>);
+
+    await updatePendingPaymentReference('request-uuid', 'POLICY-NEW');
+
+    expect(mockOpenmrsFetch).toHaveBeenCalledWith('/ws/rest/v1/cashier/pending-payment/request-uuid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: { referenceCode: 'POLICY-NEW' },
+    });
+  });
+
+  it('retains pending requests separately when mapping a bill', () => {
+    const pendingPayments = [{ uuid: 'request-uuid', status: 'PENDING' }];
+    const mappedBill = mapBillProperties({
+      ...baseInvoice,
+      lineItems: [],
+      payments: [],
+      pendingPayments,
+    } as any);
+
+    expect(mappedBill.pendingPayments).toBe(pendingPayments);
+    expect(mappedBill.totalPayments).toBe(0);
   });
 });
 

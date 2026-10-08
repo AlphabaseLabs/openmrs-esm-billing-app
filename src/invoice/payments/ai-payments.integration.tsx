@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton } from '@carbon/react';
 import { TrashCan } from '@carbon/react/icons';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@openmrs/esm-framework';
 import { useFieldArray, type FieldArrayWithId, type UseFormReturn } from 'react-hook-form';
 import { mutate } from 'swr';
-import { addPaymentToBill } from '../../billing.resource';
+import { addPaymentToBill, createPendingPayment } from '../../billing.resource';
 import { getActiveBillingRecords } from '../../billing-voided-utils';
 import { type BillingConfig } from '../../config-schema';
 import { extractErrorMessagesFromResponse } from '../../utils';
@@ -388,7 +388,10 @@ function applyAiPaymentRows(
 }
 
 function refreshBillPayments(billUuid: string) {
-  return mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill/${billUuid}`));
+  // A refresh failure must not turn a saved payment into a retryable submission.
+  return Promise.resolve()
+    .then(() => mutate((key) => typeof key === 'string' && key.startsWith(`/ws/rest/v1/cashier/bill/${billUuid}`)))
+    .catch(() => undefined);
 }
 
 export function useAiPaymentsIntegration({
@@ -403,7 +406,7 @@ export function useAiPaymentsIntegration({
   processPayments: (t: Translate) => Promise<void>;
   removePaymentRow: (index: number) => void;
 } {
-  const { aiAgentApiBaseUrl, defaultPaymentMethodName } = useConfig<BillingConfig>();
+  const { aiAgentApiBaseUrl, defaultPaymentMethodName, insurancePaymentMethod } = useConfig<BillingConfig>();
   const currentUserUuid = getCurrentUserUuid(useSession());
   const { control, getValues, reset, setValue, trigger } = formMethods;
   const { fields, append, remove, replace } = useFieldArray({
@@ -411,6 +414,7 @@ export function useAiPaymentsIntegration({
     name: 'payment',
   });
   const [isSubmittingPayments, setIsSubmittingPayments] = useState(false);
+  const paymentSubmissionInFlight = useRef(false);
 
   const currentInvoiceContext = useMemo(() => getCurrentInvoiceContext(bill), [bill]);
 
@@ -470,7 +474,7 @@ export function useAiPaymentsIntegration({
 
   const processPayments = useCallback(
     async (t: Translate) => {
-      if (isSubmittingPayments) {
+      if (paymentSubmissionInFlight.current) {
         return;
       }
 
@@ -485,6 +489,7 @@ export function useAiPaymentsIntegration({
         return;
       }
 
+      paymentSubmissionInFlight.current = true;
       setIsSubmittingPayments(true);
 
       const processedClientPaymentIds = new Set<string>();
@@ -494,9 +499,19 @@ export function useAiPaymentsIntegration({
 
       try {
         for (const row of rowsToProcess) {
-          const allocations = buildAllocations(getPaymentAmount(row));
+          const isInsurance = row.method?.uuid === insurancePaymentMethod;
+          const allocations = isInsurance ? [] : buildAllocations(getPaymentAmount(row));
           const paymentPayload = buildBillingPaymentPayload(row, allocations);
-          await addPaymentToBill(bill.uuid, paymentPayload);
+          if (isInsurance) {
+            await createPendingPayment(bill.uuid, {
+              paymentMode: row.method.uuid,
+              amount: getPaymentAmount(row),
+              amountTendered: getPaymentAmount(row),
+              referenceCode: toTrimmedString(row.referenceCode),
+            });
+          } else {
+            await addPaymentToBill(bill.uuid, paymentPayload);
+          }
           processedPaymentsCount += 1;
 
           if (row.clientPaymentId) {
@@ -538,6 +553,12 @@ export function useAiPaymentsIntegration({
       } catch (error: any) {
         await refreshBillPayments(bill.uuid);
 
+        const errorMessage = error?.responseBody
+          ? extractErrorMessagesFromResponse(error.responseBody)
+          : error instanceof Error
+            ? error.message
+            : t('billPaymentFailureFallback', 'Unable to process bill payment');
+
         if (processedClientPaymentIds.size > 0) {
           reset({
             payment: removeProcessedRows(getValues('payment'), processedClientPaymentIds, defaultPaymentMethodName),
@@ -553,21 +574,16 @@ export function useAiPaymentsIntegration({
                   '{{count}} payment(s) were saved before a failure occurred. Remaining rows are still in the form. Error: {{errorMessage}}',
                   {
                     count: processedPaymentsCount,
-                    errorMessage: extractErrorMessagesFromResponse(error?.responseBody),
+                    errorMessage,
                   },
                 )
-              : t(
-                  'billPaymentFailureMessage',
-                  'An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: {{errorMessage}}',
-                  {
-                    errorMessage: extractErrorMessagesFromResponse(error?.responseBody),
-                  },
-                ),
+              : errorMessage,
           kind: 'error',
           timeoutInMs: 5000,
           isLowContrast: true,
         });
       } finally {
+        paymentSubmissionInFlight.current = false;
         setIsSubmittingPayments(false);
       }
     },
@@ -577,7 +593,7 @@ export function useAiPaymentsIntegration({
       currentUserUuid,
       defaultPaymentMethodName,
       getValues,
-      isSubmittingPayments,
+      insurancePaymentMethod,
       reset,
       selectedLineItems,
       trigger,

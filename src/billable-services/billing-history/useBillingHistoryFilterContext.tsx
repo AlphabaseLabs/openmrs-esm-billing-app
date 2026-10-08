@@ -31,6 +31,7 @@ const defaultFilters: Filter = {
   serviceTypes: [],
   billStatus: '',
   patientUuid: '',
+  reviewStatuses: [],
 };
 
 export const BillingHistoryFilterContext = createContext<BillingHistoryFilterContextType>({

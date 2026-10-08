@@ -37,6 +37,13 @@ $compact-control-height: 2rem;
   flex: 1 1 $single-control-basis;
 }
 
+.paymentModeFilter {
+  :global(.cds--list-box__menu) {
+    inline-size: 15rem;
+    max-inline-size: calc(100vw - 2rem);
+  }
+}
+
 .patientSearchWrapper {
   position: relative;
   flex: 2 1 $search-control-basis;

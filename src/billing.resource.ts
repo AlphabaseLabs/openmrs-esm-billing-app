@@ -25,6 +25,7 @@ import {
   type MappedBill,
   type PatientInvoice,
   type PaymentMethod,
+  type PendingPaymentStatus,
   type PaymentStatus,
 } from './types';
 
@@ -62,6 +63,7 @@ export const mapBillProperties = (bill: PatientInvoice): MappedBill => {
     lineItems,
     billingService: extractString(lineItems.map((bill) => bill?.item || bill?.billableService || '--').join('  ')),
     payments,
+    pendingPayments: bill?.pendingPayments ?? [],
     display: bill?.display,
     totalAmount:
       lineItems.reduce((sum, item) => {
@@ -383,6 +385,34 @@ export const addPaymentToBill = (billUuid: string, payload: Record<string, any>)
   const url = `${restBaseUrl}/cashier/bill/${billUuid}/payment`;
   return openmrsFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
 };
+
+export const createPendingPayment = (
+  billUuid: string,
+  payload: { paymentMode: string; amount: number; amountTendered: number; referenceCode?: string },
+) =>
+  openmrsFetch(`${restBaseUrl}/cashier/pending-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { bill: billUuid, ...payload },
+  });
+
+export const updatePendingPaymentStatus = (
+  pendingPaymentUuid: string,
+  status: PendingPaymentStatus,
+  reviewNote?: string,
+) =>
+  openmrsFetch(`${restBaseUrl}/cashier/pending-payment/${pendingPaymentUuid}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { status, ...(reviewNote !== undefined && { reviewNote }) },
+  });
+
+export const updatePendingPaymentReference = (pendingPaymentUuid: string, referenceCode: string) =>
+  openmrsFetch(`${restBaseUrl}/cashier/pending-payment/${pendingPaymentUuid}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: { referenceCode },
+  });
 
 const updateDateCreated = (url: string, dateCreated: number) =>
   openmrsFetch(url, {

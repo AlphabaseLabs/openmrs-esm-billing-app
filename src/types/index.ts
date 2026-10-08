@@ -19,6 +19,7 @@ export interface MappedBill {
   lineItems: Array<LineItem>;
   billingService: string;
   payments: Array<Payment>;
+  pendingPayments?: Array<PendingPayment>;
   totalAmount?: number;
   tenderedAmount?: number;
   display?: string;
@@ -171,6 +172,7 @@ interface Attribute {
 interface PaymentInstanceType {
   uuid: string;
   name: string;
+  display?: string;
   description: string;
   retired: boolean;
 }
@@ -320,6 +322,7 @@ export interface PatientInvoice {
   lineItems: LineItem[];
   patient: Patient;
   payments: Payment[];
+  pendingPayments?: PendingPayment[];
   receiptNumber: string;
   status: PaymentStatus;
   adjustmentReason: any;
@@ -355,6 +358,7 @@ export interface Filter {
   status?: string;
   billStatus?: string;
   patientUuid?: string;
+  reviewStatuses?: Array<string>;
 }
 
 export interface DataTableRow {
@@ -394,6 +398,25 @@ export interface Payment {
   dateCreated: number;
   voided: boolean;
   resourceVersion: string;
+}
+
+export type PendingPaymentStatus = 'PENDING' | 'SUCCESS' | 'REJECTED';
+
+export interface PendingPayment {
+  uuid: string;
+  bill: { uuid: string; display?: string };
+  paymentMode: PaymentInstanceType;
+  amount: number;
+  amountTendered: number;
+  referenceCode: string;
+  status: PendingPaymentStatus;
+  reviewNote?: string | null;
+  payment?: Payment | null;
+  creator?: Creator;
+  dateCreated: string | number;
+  changedBy?: Creator | null;
+  dateChanged?: string | number | null;
+  voided?: boolean;
 }
 
 export type FormPayment = {

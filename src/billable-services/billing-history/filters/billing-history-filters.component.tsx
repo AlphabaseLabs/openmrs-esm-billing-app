@@ -127,7 +127,7 @@ const getDisplayDateValue = (date: Date | null | undefined, shouldShow = true) =
 
 const selectAllOptionId = 'select-all';
 
-export const BillingHistoryFilters = () => {
+export const BillingHistoryFilters = ({ showReviewStatus = false }: { showReviewStatus?: boolean }) => {
   const { t } = useTranslation();
   const { dateRange, setDateRange, filters, setFilters, appliedTimesheet, setAppliedTimesheet, setAppliedFilters } =
     useBillingHistoryFilterContext();
@@ -295,6 +295,17 @@ export const BillingHistoryFilters = () => {
   const selectedDateItem = dateOptions.find((option) => option.id === selectedDatePreset) ?? dateOptions[0];
   const selectedPaymentTypeItems = paymentTypeOptions.filter((option) => paymentMethods.includes(option.text));
   const selectedCashierItems = cashierOptions.filter((option) => cashiers.includes(option.id));
+  const reviewStatusOptions = React.useMemo<Array<FilterOption>>(
+    () => [
+      { id: 'PENDING', text: t('pending', 'Pending') },
+      { id: 'PAID', text: t('paid', 'Paid') },
+      { id: 'REJECTED', text: t('rejected', 'Rejected') },
+    ],
+    [t],
+  );
+  const selectedReviewStatusItems = reviewStatusOptions.filter((option) =>
+    (filters.reviewStatuses ?? []).includes(option.id),
+  );
 
   const handlePaymentTypeChange = ({ selectedItems = [] }: { selectedItems?: Array<FilterOption> }) => {
     const nextPaymentTypes = selectedItems.some((item) => item.id === selectAllOptionId)
@@ -315,6 +326,10 @@ export const BillingHistoryFilters = () => {
     updateFilters({
       cashiers: nextCashiers,
     });
+  };
+
+  const handleReviewStatusChange = ({ selectedItems = [] }: { selectedItems?: Array<FilterOption> }) => {
+    updateFilters({ reviewStatuses: selectedItems.map((item) => item.id) });
   };
 
   const handleTimesheetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -373,6 +388,22 @@ export const BillingHistoryFilters = () => {
           />
         </div>
 
+        {showReviewStatus ? (
+          <div className={styles.filterControl}>
+            <MultiSelect
+              id="review-status-filter"
+              label={t('reviewStatus', 'Review status')}
+              titleText={t('reviewStatus', 'Review status')}
+              items={reviewStatusOptions}
+              selectedItems={selectedReviewStatusItems}
+              itemToString={itemToString}
+              selectionFeedback="top-after-reopen"
+              onChange={handleReviewStatusChange}
+              size={compactControlSize}
+            />
+          </div>
+        ) : null}
+
         <div className={styles.filterControl}>
           <DatePicker
             datePickerType="single"
@@ -416,7 +447,7 @@ export const BillingHistoryFilters = () => {
           </Select>
         </div>
 
-        <div className={styles.filterControl}>
+        <div className={`${styles.filterControl} ${styles.paymentModeFilter}`}>
           {isLoadingPaymentModes ? (
             <SkeletonIcon className={styles.filterSkeleton} />
           ) : (

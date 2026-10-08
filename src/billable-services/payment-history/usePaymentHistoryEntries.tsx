@@ -73,6 +73,7 @@ export const matchesPaymentHistoryEntrySearch = (entry: PaymentHistoryEntry, sea
     entry.invoiceId,
     entry.paymentMethod,
     entry.referenceId,
+    entry.reviewStatus,
     `${entry.paymentAmount ?? ''}`,
   );
 };

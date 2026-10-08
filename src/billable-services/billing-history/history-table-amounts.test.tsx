@@ -152,7 +152,7 @@ test.each([
       <PaymentEntryHistoryViewerContent {...viewProps} isLoading={isLoading} entries={isLoading ? [] : [payment]} />
     ),
     amountHeadings: ['Amount (PKR)'],
-    columnCount: 7,
+    columnCount: 8,
     amountWidth: '9rem',
   },
 ])(

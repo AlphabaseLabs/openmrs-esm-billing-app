@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { openmrsFetch, showModal, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
 import { mockBillData } from '../../__mocks__/bill.mock';
@@ -213,52 +213,9 @@ const createBill = (lineItems: Array<LineItem>, overrides: Partial<MappedBill> =
 };
 
 describe('BillDetails', () => {
-  it('prints selected items independently through the new endpoint while preserving existing print actions', async () => {
-    const user = userEvent.setup();
-    const bill = createBill(
-      [
-        createLineItem({ uuid: 'consultation', item: 'Consultation', price: 3000, paymentStatus: PaymentStatus.PAID }),
-        createLineItem({ uuid: 'pending', item: 'Other service', paymentStatus: PaymentStatus.PENDING }),
-        createLineItem({ uuid: 'exempted', item: 'Exempted service', paymentStatus: PaymentStatus.EXEMPTED }),
-        createLineItem({ uuid: 'voided', item: 'Voided service', voided: true }),
-      ],
-      { status: PaymentStatus.POSTED, tenderedAmount: 0 },
-    );
-    render(<BillDetails bill={bill} />);
-    await user.click(screen.getByRole('button', { name: 'Print bill' }));
-    expect(showModal).toHaveBeenCalledWith(
-      'print-preview-modal',
-      expect.objectContaining({
-        documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=invoice&billId=${bill.id}`,
-      }),
-    );
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    jest.mocked(showModal).mockClear();
-    await user.click(screen.getByRole('button', { name: /additional actions/i }));
-    expect(showModal).not.toHaveBeenCalled();
-    // JSDOM has no layout, so Carbon's collision detection hides floating menus.
-    const menu = await screen.findByRole('menu', { hidden: true });
-    expect(
-      within(menu)
-        .getAllByRole('menuitem', { hidden: true })
-        .map((item) => item.textContent),
-    ).toEqual(['Print selected items', 'Print receipt', 'Print Statement']);
-    fireEvent.click(within(menu).getByText('Print receipt'));
-    expect(showModal).toHaveBeenCalledWith(
-      'print-preview-modal',
-      expect.objectContaining({
-        documentUrl: `/openmrs/ws/rest/v1/cashier/receipt?billId=${bill.id}`,
-      }),
-    );
-    await user.click(screen.getByRole('button', { name: /additional actions/i }));
-    const statementMenu = await screen.findByRole('menu', { hidden: true });
-    fireEvent.click(within(statementMenu).getByText('Print Statement'));
-    expect(showModal).toHaveBeenCalledWith(
-      'print-preview-modal',
-      expect.objectContaining({
-        documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=billstatement&billId=${bill.id}`,
-      }),
-    );
+  describe('printing', () => {
+    let user: ReturnType<typeof userEvent.setup>;
+    let bill: MappedBill;
     const originalFetch = global.fetch;
     const originalCreateUrl = URL.createObjectURL;
     const originalRevokeUrl = URL.revokeObjectURL;
@@ -267,23 +224,87 @@ describe('BillDetails', () => {
       headers: new Headers({ 'Content-Type': 'Application/PDF; charset=binary' }),
       blob: async () => new Blob(['pdf'], { type: 'application/pdf' }),
     };
-    const fetchPdf = jest
-      .fn()
-      .mockResolvedValueOnce({ ok: false, headers: new Headers() })
-      .mockResolvedValueOnce({ ok: true, headers: new Headers({ 'Content-Type': 'text/html' }) })
-      .mockResolvedValueOnce({
-        ...pdfResponse,
-        blob: async () => new Blob([]),
-      })
-      .mockResolvedValue(pdfResponse);
-    global.fetch = fetchPdf;
-    URL.createObjectURL = jest.fn().mockReturnValueOnce('blob:selected-items').mockReturnValue('blob:retry');
-    URL.revokeObjectURL = jest.fn();
-    try {
+    const fetchPdf = jest.fn();
+
+    beforeEach(() => {
+      user = userEvent.setup();
+      bill = createBill(
+        [
+          createLineItem({
+            uuid: 'consultation',
+            item: 'Consultation',
+            price: 3000,
+            paymentStatus: PaymentStatus.PAID,
+          }),
+          createLineItem({ uuid: 'pending', item: 'Other service', paymentStatus: PaymentStatus.PENDING }),
+          createLineItem({ uuid: 'exempted', item: 'Exempted service', paymentStatus: PaymentStatus.EXEMPTED }),
+          createLineItem({ uuid: 'voided', item: 'Voided service', voided: true }),
+        ],
+        { status: PaymentStatus.POSTED, tenderedAmount: 0 },
+      );
+      fetchPdf.mockResolvedValue(pdfResponse);
+      global.fetch = fetchPdf;
+      URL.createObjectURL = jest.fn().mockReturnValueOnce('blob:selected-items').mockReturnValue('blob:retry');
+      URL.revokeObjectURL = jest.fn();
+      render(<BillDetails bill={bill} />);
+    });
+
+    afterEach(() => {
+      // Unmount while URL mocks are available for the PDF's cleanup effect.
+      cleanup();
+      global.fetch = originalFetch;
+      URL.createObjectURL = originalCreateUrl;
+      URL.revokeObjectURL = originalRevokeUrl;
+      jest.restoreAllMocks();
+    });
+
+    async function openPrintDialog() {
       await user.click(screen.getByRole('button', { name: /additional actions/i }));
-      const printMenu = await screen.findByRole('menu', { hidden: true });
-      fireEvent.click(within(printMenu).getByText('Print selected items'));
-      const dialog = within(await screen.findByRole('dialog', { name: 'Print selected items' }));
+      // JSDOM has no layout, so Carbon's collision detection hides floating menus.
+      const menu = await screen.findByRole('menu', { hidden: true });
+      fireEvent.click(within(menu).getByText('Print selected items'));
+      return within(await screen.findByRole('dialog', { name: 'Print selected items' }));
+    }
+
+    it('preserves the invoice, receipt, and statement print actions', async () => {
+      await user.click(screen.getByRole('button', { name: 'Print bill' }));
+      expect(showModal).toHaveBeenCalledWith(
+        'print-preview-modal',
+        expect.objectContaining({
+          documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=invoice&billId=${bill.id}`,
+        }),
+      );
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      jest.mocked(showModal).mockClear();
+      await user.click(screen.getByRole('button', { name: /additional actions/i }));
+      expect(showModal).not.toHaveBeenCalled();
+      // JSDOM has no layout, so Carbon's collision detection hides floating menus.
+      const menu = await screen.findByRole('menu', { hidden: true });
+      expect(
+        within(menu)
+          .getAllByRole('menuitem', { hidden: true })
+          .map((item) => item.textContent),
+      ).toEqual(['Print selected items', 'Print receipt', 'Print Statement']);
+      fireEvent.click(within(menu).getByText('Print receipt'));
+      expect(showModal).toHaveBeenCalledWith(
+        'print-preview-modal',
+        expect.objectContaining({
+          documentUrl: `/openmrs/ws/rest/v1/cashier/receipt?billId=${bill.id}`,
+        }),
+      );
+      await user.click(screen.getByRole('button', { name: /additional actions/i }));
+      const statementMenu = await screen.findByRole('menu', { hidden: true });
+      fireEvent.click(within(statementMenu).getByText('Print Statement'));
+      expect(showModal).toHaveBeenCalledWith(
+        'print-preview-modal',
+        expect.objectContaining({
+          documentUrl: `/openmrs/ws/rest/v1/cashier/print?documentType=billstatement&billId=${bill.id}`,
+        }),
+      );
+    });
+
+    it('supports selection and expansion without changing the payment selection', async () => {
+      const dialog = await openPrintDialog();
       expect(dialog.queryByText('Voided service')).not.toBeInTheDocument();
       expect(dialog.getByRole('button', { name: 'Print' })).toBeDisabled();
       expect(dialog.getByRole('button', { name: 'Print' })).toHaveClass('cds--btn--md');
@@ -309,14 +330,31 @@ describe('BillDetails', () => {
       await user.keyboard('[Space]');
       expect(consultationCheckbox).toBeChecked();
       expect(screen.getByTestId('payment-selection')).toHaveTextContent(/^consultation$/);
-      // HTTP failures, non-PDF responses, and empty PDFs must all retain selection for retry.
-      for (let attempt = 0; attempt < 3; attempt++) {
-        await user.click(dialog.getByRole('button', { name: 'Print' }));
-        expect(await dialog.findByText('Unable to print selected items')).toBeInTheDocument();
-        expect(consultationCheckbox).toBeChecked();
-        expect(dialog.getByRole('button', { name: 'Print' })).toBeEnabled();
-      }
+    });
+
+    it.each([
+      ['HTTP failure', { ok: false, headers: new Headers() }],
+      ['non-PDF response', { ok: true, headers: new Headers({ 'Content-Type': 'text/html' }) }],
+      ['empty PDF', { ...pdfResponse, blob: async () => new Blob([]) }],
+    ])('retains selection and allows retry after %s', async (_failure, response) => {
+      fetchPdf.mockResolvedValueOnce(response);
+      const dialog = await openPrintDialog();
+      const consultationCheckbox = dialog.getByRole('checkbox', { name: 'Select Consultation to print' });
+      await user.click(consultationCheckbox);
+      await user.click(dialog.getByRole('button', { name: 'Print' }));
+      expect(await dialog.findByText('Unable to print selected items')).toBeInTheDocument();
+      expect(consultationCheckbox).toBeChecked();
+      expect(dialog.getByRole('button', { name: 'Print' })).toBeEnabled();
       expect(URL.createObjectURL).not.toHaveBeenCalled();
+      await user.click(dialog.getByRole('button', { name: 'Print' }));
+      expect(await dialog.findByTitle('Selected items print document')).toHaveAttribute('src', 'blob:selected-items');
+    });
+
+    it('prints selected items once per frame and releases the previous PDF on reprint', async () => {
+      const dialog = await openPrintDialog();
+      const consultationCheckbox = dialog.getByRole('checkbox', { name: 'Select Consultation to print' });
+      const consultationRow = dialog.getByRole('row', { name: /Consultation/ });
+      await user.click(consultationCheckbox);
       await user.click(dialog.getByRole('button', { name: 'Print' }));
       const printFrame = (await dialog.findByTitle('Selected items print document')) as HTMLIFrameElement;
       expect(printFrame).toHaveAttribute('src', 'blob:selected-items');
@@ -352,29 +390,41 @@ describe('BillDetails', () => {
       await user.click(printButton);
       const retryFrame = (await dialog.findByTitle('Selected items print document')) as HTMLIFrameElement;
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:selected-items');
+      expect(retryFrame).toHaveAttribute('src', 'blob:retry');
+      const reprint = jest.spyOn(retryFrame.contentWindow, 'print').mockImplementation(() => {});
+      fireEvent.load(retryFrame);
+      expect(reprint).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains selection and releases the PDF when browser printing fails', async () => {
+      const dialog = await openPrintDialog();
+      const consultationCheckbox = dialog.getByRole('checkbox', { name: 'Select Consultation to print' });
+      await user.click(consultationCheckbox);
+      await user.click(dialog.getByRole('button', { name: 'Print' }));
+      const retryFrame = (await dialog.findByTitle('Selected items print document')) as HTMLIFrameElement;
       jest.spyOn(retryFrame.contentWindow, 'print').mockImplementation(() => {
         throw new Error('Printing unavailable');
       });
       fireEvent.load(retryFrame);
       expect(await dialog.findByText('Unable to print selected items')).toBeInTheDocument();
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:retry');
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:selected-items');
       expect(consultationCheckbox).toBeChecked();
+      expect(dialog.getByRole('button', { name: 'Print' })).toBeEnabled();
+    });
 
-      // Closing during a request aborts it, and a late response cannot create another PDF URL.
+    it('aborts a request on close and ignores a late response', async () => {
+      const dialog = await openPrintDialog();
+      await user.click(dialog.getByRole('checkbox', { name: 'Select Consultation to print' }));
       let resolveRequest: (response: typeof pdfResponse) => void;
       fetchPdf.mockImplementationOnce(() => new Promise((resolve) => (resolveRequest = resolve)));
-      await user.click(printButton);
+      await user.click(dialog.getByRole('button', { name: 'Print' }));
       const signal = fetchPdf.mock.calls[fetchPdf.mock.calls.length - 1][1].signal as AbortSignal;
       await user.click(dialog.getByRole('button', { name: 'Cancel' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(signal.aborted).toBe(true);
       await act(async () => resolveRequest(pdfResponse));
-      expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
-    } finally {
-      global.fetch = originalFetch;
-      URL.createObjectURL = originalCreateUrl;
-      URL.revokeObjectURL = originalRevokeUrl;
-    }
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
   });
 
   it('disables invoice sending and printing until the first item is saved', async () => {

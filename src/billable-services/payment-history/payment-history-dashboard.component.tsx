@@ -36,7 +36,7 @@ const PaymentHistoryDashboardContent = () => {
 
   return (
     <HistoryDashboardShell
-      filters={<BillingHistoryFilters />}
+      filters={<BillingHistoryFilters showReviewStatus />}
       metrics={<PaymentHistoryMetrics metrics={metrics} isLoading={isLoading} error={error} />}
       tabs={tabs}
       tabsAriaLabel={t('listOfTabs', 'List of tabs on payment history')}

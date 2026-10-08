@@ -1,5 +1,6 @@
 import { type LineItem, type MappedBill, type Payment, type PaymentMethod, PaymentStatus } from './types';
 import { getActiveBillingRecords } from './billing-voided-utils';
+import { unescape } from 'lodash-es';
 
 // Helper functions
 const formatAmount = (amount: number): number => {
@@ -111,10 +112,20 @@ export const createBillWaiverPayload = (
 
 const processBillItem = (item) => (item?.item || item?.billableService)?.split(':')[0];
 
-function extractMessage(input: string): string | null {
-  const parts = input?.split('=>');
+function extractMessage(input: unknown): string | null {
+  if (typeof input !== 'string') {
+    return null;
+  }
+  const decoded = unescape(input);
+  const duplicate = decoded.match(
+    /Duplicate payment attribute value '([\s\S]*?)' found for attribute type '([^']+)' across multiple payments in the same bill/,
+  );
+  if (duplicate) {
+    return `Duplicate payment attribute: ${duplicate[2]} '${duplicate[1]}' is already used on this invoice.`;
+  }
+  const parts = decoded?.split('=>');
   if (parts?.length > 0) {
-    return parts[parts.length - 1].trim();
+    return parts[parts.length - 1].trim() || null;
   }
   return null;
 }
@@ -128,18 +139,20 @@ function extractMessage(input: string): string | null {
  * @param {ErrorObject} errorObject - The error response object.
  */
 export function extractErrorMessagesFromResponse(errorObject): string {
-  const {
-    error: { fieldErrors, globalErrors, message },
-  } = errorObject ?? {};
+  const { fieldErrors, globalErrors, message } = errorObject?.error ?? {};
 
-  if (Object.keys(fieldErrors ?? {})?.length > 0) {
-    return Object.values(fieldErrors)
-      .flatMap((errors: Array<any>) => errors.map((error) => error.message))
-      .join('\n');
+  const fieldMessages = Object.values(fieldErrors ?? {})
+    .flatMap((errors) => (Array.isArray(errors) ? errors.map((error) => extractMessage(error?.message)) : []))
+    .filter(Boolean);
+  if (fieldMessages.length) {
+    return fieldMessages.join('\n');
   }
 
-  if (globalErrors?.length) {
-    return globalErrors.map((error) => error.message).join('\n');
+  const globalMessages = Array.isArray(globalErrors)
+    ? globalErrors.map((error) => extractMessage(error?.message)).filter(Boolean)
+    : [];
+  if (globalMessages.length) {
+    return globalMessages.join('\n');
   }
 
   return extractMessage(message) ?? 'An error occurred';

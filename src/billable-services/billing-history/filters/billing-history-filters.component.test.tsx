@@ -6,6 +6,7 @@ import { useBillingHistoryFilterContext } from '../useBillingHistoryFilterContex
 import { usePaymentModes } from '../../../billing.resource';
 import { useProviderOptions, useTimeSheets } from '../../../payment-points/payment-points.resource';
 import useSWR from 'swr';
+import styles from './billing-history-filters.component.scss';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -384,7 +385,29 @@ describe('BillingHistoryFilters', () => {
     render(<BillingHistoryFilters />);
 
     expect(screen.getByLabelText('Bill status')).toHaveValue('');
-    expect(screen.getByLabelText('Payment mode')).toBeInTheDocument();
+    expect(screen.getByLabelText('Payment mode').closest(`.${styles.paymentModeFilter}`)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All Payment Modes' })).toBeInTheDocument();
     expect(screen.queryByText('Payment Type')).not.toBeInTheDocument();
+  });
+
+  it('shows and applies the review-status filter only for payment history', () => {
+    const { rerender } = render(<BillingHistoryFilters />);
+    expect(screen.queryByLabelText('Review status')).not.toBeInTheDocument();
+
+    rerender(<BillingHistoryFilters showReviewStatus />);
+    fireEvent.change(screen.getByLabelText('Review status'), {
+      target: { value: 'PENDING' },
+    });
+
+    expect(mockSetFilters).toHaveBeenCalledWith(expect.any(Function));
+    expect(
+      mockSetFilters.mock.calls.at(-1)[0]({
+        paymentMethods: [],
+        cashiers: [],
+        serviceTypes: [],
+        billStatus: '',
+        patientUuid: '',
+      }),
+    ).toMatchObject({ reviewStatuses: ['PENDING'] });
   });
 });

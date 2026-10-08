@@ -46,6 +46,7 @@ export const paymentHistoryColumnStyles = {
   paymentDate: { inlineSize: '12rem', whiteSpace: 'nowrap' },
   invoiceId: { inlineSize: '9rem', whiteSpace: 'nowrap' },
   paymentAmount: { inlineSize: '9rem', whiteSpace: 'nowrap' },
+  reviewStatus: { inlineSize: '7.5rem', minInlineSize: '7.5rem', whiteSpace: 'nowrap' },
 } as const;
 
 export const getHistoryResponsiveSize = (layout: string) => (layout !== 'tablet' ? 'sm' : 'md');

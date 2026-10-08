@@ -36,4 +36,5 @@ module.exports = {
     url: 'http://localhost/',
   },
   testTimeout: 20000,
+  maxWorkers: 2,
 };

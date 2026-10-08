@@ -1,14 +1,18 @@
 import { launchWorkspace2, navigate, openmrsFetch, showSnackbar, useConfig, useSession } from '@openmrs/esm-framework';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { useForm } from 'react-hook-form';
+import { useAiPaymentsIntegration } from './ai-payments.integration';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { mockBill, mockLineItems, mockPaymentModes } from '../../../__mocks__/bills.mock';
-import { addPaymentToBill, usePaymentModes } from '../../billing.resource';
+import { addPaymentToBill, createPendingPayment, usePaymentModes } from '../../billing.resource';
 import { formatCurrency, getCurrencyForLocale } from '../../helpers/currency';
 import Payments from './payments.component';
-import { type LineItem, type PaymentMethod, PaymentStatus } from '../../types';
+import PaymentWorkspace from './payment-form/payment.workspace';
+import { type LineItem, type PaymentFormValue, type PaymentMethod, PaymentStatus } from '../../types';
 
 const mockAddPaymentToBill = addPaymentToBill as jest.MockedFunction<typeof addPaymentToBill>;
+const mockCreatePendingPayment = createPendingPayment as jest.MockedFunction<typeof createPendingPayment>;
 const mockUsePaymentModes = usePaymentModes as jest.MockedFunction<typeof usePaymentModes>;
 const mockLaunchWorkspace2 = launchWorkspace2 as jest.MockedFunction<typeof launchWorkspace2>;
 const mockNavigate = navigate as jest.MockedFunction<typeof navigate>;
@@ -25,10 +29,12 @@ jest.mock('@openmrs/esm-framework', () => ({
   showSnackbar: jest.fn(),
   useConfig: jest.fn(),
   useSession: jest.fn(),
+  Workspace2: ({ children }) => <>{children}</>,
 }));
 
 jest.mock('../../billing.resource', () => ({
   addPaymentToBill: jest.fn(),
+  createPendingPayment: jest.fn(),
   usePaymentModes: jest.fn(),
 }));
 
@@ -50,8 +56,8 @@ const updatedMockPaymentModes: PaymentMethod[] = mockPaymentModes.map((mode) => 
     resourceVersion: '1.8',
   };
 
-  // Add attribute types for Mobile Money payment method
-  if (mode.name === 'Mobile Money') {
+  // Add the reference attribute used by reviewed and electronic payment modes.
+  if (mode.name === 'Mobile Money' || mode.name === 'Insurance') {
     return {
       ...baseMode,
       attributeTypes: [
@@ -115,18 +121,25 @@ describe('Payment', () => {
       aiAgentApiBaseUrl: '/ws/rest/v1/n8n/',
       paymentMethodTaxes: { enabled: false, paymentTypeTaxPercents: [] },
       defaultPaymentMethodName: 'Cash',
+      insurancePaymentMethod: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
     } as any);
     mockUseSession.mockReturnValue({
       user: { uuid: 'user-1' },
     } as any);
   });
 
-  test('should display error when posting payment fails', async () => {
+  test.each([
+    ['Invalid Submission', 'Invalid Submission'],
+    [
+      '[Duplicate payment attribute value &#39;abc 2&#39; found for attribute type &#39;Reference Number&#39; across multiple payments in the same bill]',
+      "Duplicate payment attribute: Reference Number 'abc 2' is already used on this invoice.",
+    ],
+  ])('should display a readable error when posting payment fails: %s', async (message, expectedMessage) => {
     const user = userEvent.setup();
     const mockFieldErrorResponse = {
       responseBody: {
         error: {
-          message: 'Invalid Submission',
+          message,
           code: 'webservices.rest.error.invalid.submission',
           globalErrors: [],
           fieldErrors: {},
@@ -173,8 +186,7 @@ describe('Payment', () => {
 
     expect(mockShowSnackbar).toHaveBeenCalledWith({
       title: 'Bill payment failed',
-      subtitle:
-        'An unexpected error occurred while processing your bill payment. Please contact the system administrator and provide them with the following error details: Invalid Submission',
+      subtitle: expectedMessage,
       kind: 'error',
       timeoutInMs: 5000,
       isLowContrast: true,
@@ -211,6 +223,155 @@ describe('Payment', () => {
       attributes: [],
       instanceType: '63eff7a4-6f82-43c4-a333-dbcc58fe9f74',
     });
+  });
+
+  test('should submit configured insurance as a pending request instead of an actual payment', async () => {
+    const user = userEvent.setup();
+    mockCreatePendingPayment.mockResolvedValueOnce({ ok: true } as any);
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
+    await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
+    await user.click(screen.getByRole('option', { name: 'Insurance' }));
+    await user.type(screen.getByRole('spinbutton', { name: /Amount/i }), '100');
+    await user.type(screen.getByRole('textbox', { name: /Reference Number/i }), 'POLICY-123');
+
+    const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+    await user.click(submitButton);
+
+    expect(mockCreatePendingPayment).toHaveBeenCalledWith('6eb8d678-514d-46ad-9554-51e48d96d567', {
+      paymentMode: 'beac329b-f1dc-4a33-9e7c-d95821a137a6',
+      amount: 100,
+      amountTendered: 100,
+      referenceCode: 'POLICY-123',
+    });
+    expect(mockAddPaymentToBill).not.toHaveBeenCalled();
+  });
+
+  test('does not consume line allocations for insurance before a cash payment', async () => {
+    mockCreatePendingPayment.mockResolvedValueOnce({ ok: true } as any);
+    mockAddPaymentToBill.mockResolvedValueOnce({ ok: true } as any);
+    const { result } = renderHook(() => {
+      const formMethods = useForm<PaymentFormValue>({
+        defaultValues: {
+          payment: [
+            {
+              method: updatedMockPaymentModes.find((mode) => mode.name === 'Insurance'),
+              amount: 100,
+              referenceCode: 'POLICY-MIXED',
+              clientPaymentId: 'insurance-row',
+            },
+            {
+              method: updatedMockPaymentModes.find((mode) => mode.name === 'Cash'),
+              amount: 100,
+              clientPaymentId: 'cash-row',
+            },
+          ],
+        },
+      });
+      return useAiPaymentsIntegration({
+        bill: paymentBill as any,
+        formMethods,
+        paymentModes: updatedMockPaymentModes,
+        selectedLineItems: [{ ...updatedMockLineItems[1], total: 100, totalAllocated: 0 }],
+      });
+    });
+
+    await act(async () => {
+      await Promise.all([
+        result.current.processPayments((_key, fallback) => fallback),
+        result.current.processPayments((_key, fallback) => fallback),
+      ]);
+    });
+
+    expect(mockCreatePendingPayment).toHaveBeenCalledTimes(1);
+    expect(mockAddPaymentToBill).toHaveBeenCalledTimes(1);
+    expect(mockAddPaymentToBill).toHaveBeenCalledWith(
+      paymentBill.uuid,
+      expect.objectContaining({
+        allocations: [{ billLineItem: updatedMockLineItems[1].uuid, allocatedAmount: 100 }],
+      }),
+    );
+  });
+
+  test('uses only the selected insurance mode reference after changing workspace payment modes', async () => {
+    const user = userEvent.setup();
+    const modes = updatedMockPaymentModes.map((mode) => ({
+      ...mode,
+      attributeTypes: mode.attributeTypes.map((attribute) => ({ ...attribute, uuid: `${mode.uuid}-reference` })),
+    }));
+    mockUsePaymentModes.mockReturnValue({ paymentModes: modes, isLoading: false, error: null, mutate: jest.fn() });
+    mockCreatePendingPayment.mockResolvedValueOnce({ ok: true } as any);
+    const closeWorkspace = jest.fn();
+    render(
+      <PaymentWorkspace
+        {...({ workspaceProps: { bill: paymentBill, selectedLineItems: [] }, closeWorkspace } as any)}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: /Instance Type/i }));
+    await user.click(screen.getByRole('option', { name: 'Mobile Money' }));
+    await user.type(screen.getByRole('textbox', { name: /Reference Number/i }), 'OLD-MOBILE-REFERENCE');
+    await user.click(screen.getByRole('combobox', { name: /Instance Type/i }));
+    await user.click(screen.getByRole('option', { name: 'Insurance' }));
+    await user.type(screen.getByRole('textbox', { name: /Reference Number/i }), 'POLICY-NEW');
+    await user.type(screen.getByRole('spinbutton', { name: /Amount Tendered/i }), '100');
+    await user.click(screen.getByRole('button', { name: /Save & close/i }));
+    await waitFor(() =>
+      expect(mockCreatePendingPayment).toHaveBeenCalledWith(
+        paymentBill.uuid,
+        expect.objectContaining({ referenceCode: 'POLICY-NEW' }),
+      ),
+    );
+    expect(mockAddPaymentToBill).not.toHaveBeenCalled();
+    expect(closeWorkspace).toHaveBeenCalled();
+  });
+
+  test('should show the duplicate insurance reference error during submission', async () => {
+    const user = userEvent.setup();
+    const duplicateReferenceMessage =
+      "Reference code 'POLICY-123' is already used by another payment or pending request on this invoice.";
+    mockCreatePendingPayment.mockRejectedValueOnce({
+      responseBody: {
+        error: {
+          message: duplicateReferenceMessage,
+          globalErrors: [],
+          fieldErrors: {},
+        },
+      },
+    });
+    mockUsePaymentModes.mockReturnValue({
+      paymentModes: updatedMockPaymentModes,
+      isLoading: false,
+      error: null,
+      mutate: jest.fn(),
+    });
+
+    render(<Payments bill={paymentBill as any} selectedLineItems={[]} />);
+    await user.click(screen.getByRole('combobox', { name: /Payment method/i }));
+    await user.click(screen.getByRole('option', { name: 'Insurance' }));
+    await user.type(screen.getByRole('spinbutton', { name: /Amount/i }), '100');
+    await user.type(screen.getByRole('textbox', { name: /Reference Number/i }), 'POLICY-123');
+
+    const submitButton = screen.getByRole('button', { name: /Process Payment/i });
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+    await user.click(submitButton);
+
+    await waitFor(() =>
+      expect(mockShowSnackbar).toHaveBeenCalledWith({
+        title: 'Bill payment failed',
+        subtitle: duplicateReferenceMessage,
+        kind: 'error',
+        timeoutInMs: 5000,
+        isLowContrast: true,
+      }),
+    );
+    expect(mockAddPaymentToBill).not.toHaveBeenCalled();
   });
 
   test('should include allocations when selected line items are paid', async () => {
