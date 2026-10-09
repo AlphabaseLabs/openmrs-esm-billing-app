@@ -82,14 +82,10 @@
   margin: 0;
 }
 
-.reviewNote {
+.rejectionReasonTooltip :global(.cds--tooltip-content) {
   max-inline-size: 22rem;
-  overflow: hidden;
-  color: var(--cds-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .rejectionModalDescription {

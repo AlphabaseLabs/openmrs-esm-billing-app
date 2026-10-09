@@ -140,6 +140,7 @@ describe('InvoiceTable', () => {
       'Number',
       'Bill item',
       'Provider',
+      'Quantity',
       'Price',
       'Discount',
       'Total',
@@ -793,6 +794,7 @@ describe('InvoiceTable', () => {
 
     render(<InvoiceTable bill={openPendingBill} />);
 
+    expect(screen.getByRole('columnheader', { name: /quantity/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /status/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /discount/i })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: /tax/i })).not.toBeInTheDocument();

@@ -76,7 +76,7 @@ export const lineItemColumnDefinitions: Array<LineItemColumnDefinition> = [
     translationKey: 'quantity',
     defaultLabel: 'Quantity',
     required: false,
-    defaultVisible: false,
+    defaultVisible: true,
     minWidth: 80,
     isFixed: true,
   },

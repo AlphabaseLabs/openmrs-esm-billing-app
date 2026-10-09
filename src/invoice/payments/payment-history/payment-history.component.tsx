@@ -452,13 +452,19 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
     <span className={styles.paymentMethodDetails}>
       <span className={styles.paymentMethodContent}>
         <span className={styles.paymentMethodName}>{method}</span>
-        {status}
+        {status && reviewNote?.trim() ? (
+          <Tooltip
+            autoAlign
+            align="top"
+            className={styles.rejectionReasonTooltip}
+            description={`${t('rejectionReason', 'Rejection reason')}: ${reviewNote}`}
+            enterDelayMs={0}>
+            <span tabIndex={0}>{status}</span>
+          </Tooltip>
+        ) : (
+          status
+        )}
       </span>
-      {reviewNote ? (
-        <span className={styles.reviewNote} title={reviewNote}>
-          {`${t('reason', 'Reason')}: ${reviewNote}`}
-        </span>
-      ) : null}
     </span>
   );
 
@@ -583,7 +589,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
       pendingPayment.paymentMode?.name ?? pendingPayment.paymentMode?.display ?? '--',
       pendingPayment.status === 'REJECTED' ? (
         <Tag className={styles.reviewStatusTag} type="red" size="sm">
-          {t('rejected', 'Rejected')}
+          <span>{t('rejected', 'Rejected')}</span>
         </Tag>
       ) : undefined,
       pendingPayment.status === 'REJECTED' ? pendingPayment.reviewNote : undefined,

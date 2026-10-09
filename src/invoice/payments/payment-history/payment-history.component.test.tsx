@@ -395,7 +395,8 @@ describe('PaymentHistory', () => {
     expect(onRefreshBill).toHaveBeenCalled();
   });
 
-  it('shows rejected requests struck through at the bottom with their reason', () => {
+  it('shows rejected requests at the bottom with their reason only in a hover or focus tooltip', async () => {
+    const user = userEvent.setup();
     render(
       <PaymentHistory
         bill={{
@@ -428,17 +429,51 @@ describe('PaymentHistory', () => {
     );
 
     const pendingRow = screen.getByText('POLICY-PENDING').closest('tr');
-    const rejectedRow = screen.getByText('Reason: Policy had expired').closest('tr');
+    const rejectedRow = screen.getByText('POLICY-REJECTED').closest('tr');
 
     expect(rejectedRow).toHaveClass(styles.rejectedPaymentRow);
     expect(pendingRow.compareDocumentPosition(rejectedRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(rejectedRow).toHaveTextContent('Rejected');
-    const rejectedTag = within(rejectedRow).getByText('Rejected').closest('.cds--tag');
+    const rejectedTag = within(rejectedRow).getByText('Rejected').closest<HTMLElement>('.cds--tag');
     expect(rejectedTag).toHaveClass('cds--tag--sm', styles.reviewStatusTag);
-    expect(rejectedTag.parentElement).toHaveClass(styles.paymentMethodContent);
-    expect(rejectedTag.previousElementSibling).toHaveTextContent('Insurance');
-    expect(rejectedRow).toHaveTextContent('Reason: Policy had expired');
+    expect(rejectedTag.closest(`.${styles.paymentMethodContent}`)).toHaveTextContent('Insurance');
+    expect(within(rejectedRow).queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(
+      within(rejectedRow).getByText('Rejection reason: Policy had expired').closest('[role="tooltip"]'),
+    ).toHaveAttribute('aria-hidden', 'true');
+    expect(within(rejectedTag).getByText('Rejected').closest('[title]')).not.toHaveAttribute('title', 'Rejected');
+
+    await user.hover(rejectedTag);
+    expect(await within(rejectedRow).findByRole('tooltip')).toHaveTextContent('Rejection reason: Policy had expired');
+    await user.unhover(rejectedTag);
+    await waitFor(() => expect(within(rejectedRow).queryByRole('tooltip')).not.toBeInTheDocument());
+
+    const trigger = rejectedTag.closest('[tabindex="0"]');
+    act(() => (trigger as HTMLElement).focus());
+    expect(trigger).toHaveFocus();
+    expect(await within(rejectedRow).findByRole('tooltip')).toHaveTextContent('Rejection reason: Policy had expired');
+    expect(trigger).toHaveAttribute('aria-describedby', within(rejectedRow).getByRole('tooltip').id);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(within(rejectedRow).queryByRole('tooltip')).not.toBeInTheDocument());
   });
+
+  it.each([null, '   '])(
+    'keeps rejected requests without a reason visible without an empty tooltip (%s)',
+    (reviewNote) => {
+      render(
+        <PaymentHistory
+          bill={{
+            ...bill,
+            pendingPayments: [{ ...pendingPayment, status: 'REJECTED', reviewNote }],
+          }}
+        />,
+      );
+
+      const rejectedRow = screen.getByText('POLICY-123').closest('tr');
+      expect(within(rejectedRow).getByText('Rejected')).toBeInTheDocument();
+      expect(within(rejectedRow).queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
+    },
+  );
 
   it('updates a pending insurance reference and refreshes the bill', async () => {
     const user = userEvent.setup();

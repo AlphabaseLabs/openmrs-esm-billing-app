@@ -25,6 +25,7 @@ describe('line-item-column-visibility', () => {
       'no',
       'billItem',
       'provider',
+      'quantity',
       'price',
       'discount',
       'total',
