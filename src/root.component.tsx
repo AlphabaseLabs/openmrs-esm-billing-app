@@ -5,7 +5,6 @@ import BillingDashboard from './billing-dashboard/billing-dashboard.component';
 // import ClaimsManagementPreAuthRequest from './claims/claims-management/main/claims-pre-auth-main.component';
 // import ClaimScreen from './claims/dashboard/claims-dashboard.component';
 import PaymentModeHome from './payment-modes/payment-mode-home.component';
-import { ClockInBoundary } from './payment-points/clock-in-boundary.component';
 import { PaymentPoint } from './payment-points/payment-point/payment-point.component';
 import { PaymentPoints } from './payment-points/payment-points.component';
 import BillDepositDashboard from './bill-deposit/components/dashboard/bill-deposit-dashboard.component';
@@ -25,14 +24,7 @@ const RootComponent: React.FC = () => {
         <Route path="/charge-items" element={<BillingDashboard />} />
         {/* <Route path="/claims-overview" element={<ClaimsManagementOverview />} /> */}
         {/* <Route path="/preauth-requests" element={<ClaimsManagementPreAuthRequest />} /> */}
-        <Route
-          path="/patient/:patientUuid/:billUuid"
-          element={
-            <ClockInBoundary>
-              <BillingDashboard />
-            </ClockInBoundary>
-          }
-        />
+        <Route path="/patient/:patientUuid/:billUuid" element={<BillingDashboard />} />
         {/* <Route
           path="/patient/:patientUuid/:billUuid/claims"
           element={
