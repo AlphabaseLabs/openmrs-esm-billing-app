@@ -3,6 +3,7 @@ import {
   Button,
   ComposedModal,
   DataTable,
+  DefinitionTooltip,
   Table,
   TableHead,
   TableRow,
@@ -34,6 +35,7 @@ import {
 import { EditableDatePicker, getDateWithCurrentTime } from '../../editable-date-picker.component';
 import { EditableTextCell, editableCellStyles } from '../../../editable-carbon-table-cell-kit';
 import { extractErrorMessagesFromResponse } from '../../../utils';
+import { getActiveBillingRecords } from '../../../billing-voided-utils';
 
 type PaymentHistoryProps = {
   bill: MappedBill;
@@ -81,6 +83,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectionReasonTouched, setRejectionReasonTouched] = useState(false);
   const billIsOpen = !bill.closed;
+  const lineItemsByUuid = new Map((bill.lineItems ?? []).map((item) => [item.uuid, item]));
   const refreshBill = () =>
     // Reuse the invoice's best-effort refresh pattern: a saved change must not be reported as failed.
     Promise.resolve()
@@ -176,6 +179,55 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
         onChange={(selectedDates) => handlePaymentDateChange(payment, selectedDates)}
         value={payment.dateCreated}
       />
+    );
+  };
+
+  const renderPaymentAmount = (payment: Payment) => {
+    const amount = formatCurrency(payment.amountTendered, { style: 'decimal', maximumFractionDigits: 2 });
+    if (payment.voided) {
+      return amount;
+    }
+
+    const allocations = getActiveBillingRecords(payment.allocations ?? []).filter(
+      (allocation) => Number.isFinite(Number(allocation.allocatedAmount)) && Number(allocation.allocatedAmount) > 0,
+    );
+
+    return (
+      <DefinitionTooltip
+        autoAlign
+        align="top"
+        openOnHover
+        definition={
+          <div>
+            <div>{t('paymentAllocations', 'Payment allocations')}</div>
+            {allocations.length ? (
+              <>
+                {allocations.map((allocation, index) => {
+                  const reference = allocation.billLineItem;
+                  const lineItemUuid = typeof reference === 'string' ? reference : reference?.uuid;
+                  const name =
+                    (typeof reference === 'object' ? reference?.display : undefined) ||
+                    lineItemsByUuid.get(lineItemUuid)?.display ||
+                    t('unknownLineItem', 'Unknown line item');
+
+                  return (
+                    <div key={allocation.uuid ?? `${lineItemUuid}-${index}`}>
+                      {name} —{' '}
+                      {formatCurrency(Number(allocation.allocatedAmount), {
+                        style: 'decimal',
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              t('noActivePaymentAllocations', 'No allocations.')
+            )}
+          </div>
+        }>
+        {amount}
+      </DefinitionTooltip>
     );
   };
 
@@ -545,7 +597,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ bill, onRefreshBill }) 
   const paymentRows = (bill?.payments ?? []).map((payment) => ({
     id: `${payment.uuid}`,
     dateCreated: renderPaymentDate(payment),
-    amountTendered: formatCurrency(payment.amountTendered, { style: 'decimal', maximumFractionDigits: 2 }),
+    amountTendered: renderPaymentAmount(payment),
     paymentMethod: renderPaymentMethod(payment.instanceType.name),
     ...(hasReferenceCodes && {
       referenceCodes: renderPaymentReferences(payment),

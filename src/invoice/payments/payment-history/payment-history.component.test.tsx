@@ -100,6 +100,148 @@ describe('PaymentHistory', () => {
     jest.clearAllMocks();
   });
 
+  it('shows each allocated line item and amount on hover and keyboard focus', async () => {
+    const user = userEvent.setup();
+    render(
+      <PaymentHistory
+        bill={{
+          ...bill,
+          payments: [
+            {
+              ...bill.payments[0],
+              allocations: [
+                { uuid: 'allocation-1', billLineItem: { uuid: 'line-1', display: 'Root canal' }, allocatedAmount: 70 },
+                {
+                  uuid: 'allocation-2',
+                  billLineItem: { uuid: 'line-2', display: 'Consultation' },
+                  allocatedAmount: 30,
+                },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: '100.00' });
+    expect(trigger).toHaveAttribute('type', 'button');
+    expect(trigger).not.toHaveAttribute('aria-expanded', 'true');
+    await user.hover(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-describedby');
+    // JSDOM has no bounds for Carbon's auto-aligned popover; verify its content and open state.
+    const row = within(trigger.closest('tr'));
+    expect(row.getByText('Payment allocations')).toBeInTheDocument();
+    expect(row.getByText('Root canal — 70.00')).toBeInTheDocument();
+    expect(row.getByText('Consultation — 30.00')).toBeInTheDocument();
+
+    await user.unhover(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    act(() => trigger.focus());
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('resolves UUID references and excludes voided, zero and invalid allocations on a closed bill', async () => {
+    const user = userEvent.setup();
+    render(
+      <PaymentHistory
+        bill={{
+          ...bill,
+          closed: true,
+          lineItems: [{ uuid: 'line-1', display: 'Metal crown' }] as MappedBill['lineItems'],
+          payments: [
+            {
+              ...bill.payments[0],
+              allocations: [
+                { billLineItem: 'line-1', allocatedAmount: 40 },
+                { billLineItem: { uuid: 'missing', display: 'Archived service' }, allocatedAmount: 20 },
+                { billLineItem: { uuid: 'line-2', display: 'Voided allocation' }, allocatedAmount: 50, voided: true },
+                { billLineItem: { uuid: 'line-3', display: 'Zero allocation' }, allocatedAmount: 0 },
+                { billLineItem: { uuid: 'line-4', display: 'Invalid allocation' }, allocatedAmount: NaN },
+                { billLineItem: { uuid: 'line-5', display: 'Negative allocation' }, allocatedAmount: -1 },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: '100.00' });
+    await user.hover(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    const row = within(trigger.closest('tr'));
+    expect(row.getByText('Metal crown — 40.00')).toBeInTheDocument();
+    expect(row.getByText('Archived service — 20.00')).toBeInTheDocument();
+    expect(
+      row.queryByText(/Voided allocation|Zero allocation|Invalid allocation|Negative allocation/),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { allocations: undefined },
+    { allocations: [] },
+    { allocations: [{ billLineItem: 'line-1', allocatedAmount: 100, voided: true }] },
+  ])('shows an explicit empty state when no active allocations are recorded (%j)', async ({ allocations }) => {
+    const user = userEvent.setup();
+    render(<PaymentHistory bill={{ ...bill, payments: [{ ...bill.payments[0], allocations }] }} />);
+    const trigger = screen.getByRole('button', { name: '100.00' });
+    await user.hover(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(within(trigger.closest('tr')).getByText('No allocations.')).toBeInTheDocument();
+  });
+
+  it('keeps allocation details scoped to each payment and handles missing line-item names', async () => {
+    const user = userEvent.setup();
+    render(
+      <PaymentHistory
+        bill={{
+          ...bill,
+          payments: [
+            { ...bill.payments[0], allocations: [{ billLineItem: 'unknown', allocatedAmount: 75 }] },
+            {
+              ...bill.payments[0],
+              uuid: 'payment-2',
+              amountTendered: 200,
+              allocations: [{ billLineItem: { uuid: 'line-2', display: 'Scaling' }, allocatedAmount: 150 }],
+            },
+          ],
+        }}
+      />,
+    );
+    const first = screen.getByRole('button', { name: '100.00' });
+    const second = screen.getByRole('button', { name: '200.00' });
+    await user.hover(first);
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    const firstRow = within(first.closest('tr'));
+    expect(firstRow.getByText('Unknown line item — 75.00')).toBeInTheDocument();
+    expect(firstRow.queryByText(/Scaling/)).not.toBeInTheDocument();
+    await user.unhover(first);
+    expect(first).toHaveAttribute('aria-expanded', 'false');
+    await user.hover(second);
+    expect(second).toHaveAttribute('aria-expanded', 'true');
+    const secondRow = within(second.closest('tr'));
+    expect(secondRow.getByText('Scaling — 150.00')).toBeInTheDocument();
+    expect(secondRow.queryByText(/Unknown line item/)).not.toBeInTheDocument();
+  });
+
+  it('does not present allocations as active for a deleted payment', () => {
+    render(
+      <PaymentHistory
+        bill={{
+          ...bill,
+          payments: [
+            { ...bill.payments[0], voided: true, allocations: [{ billLineItem: 'line-1', allocatedAmount: 50 }] },
+          ],
+        }}
+      />,
+    );
+    expect(screen.queryByText('Payment allocations')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '100.00' })).not.toBeInTheDocument();
+  });
+
   it('does not display voided requests or an empty reference column for successful requests', () => {
     render(
       <PaymentHistory
